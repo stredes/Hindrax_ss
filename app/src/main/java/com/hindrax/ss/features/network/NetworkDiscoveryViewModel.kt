@@ -6,7 +6,10 @@ import com.hindrax.ss.core.util.BleScannerManager
 import com.hindrax.ss.core.util.BleIdentityManager
 import com.hindrax.ss.core.util.DeviceIdManager
 import com.hindrax.ss.core.util.NetworkUtils
+import com.hindrax.ss.core.util.UpdateManager
+import com.hindrax.ss.core.util.UpdateResult
 import com.hindrax.ss.data.repository.ChatRepository
+import com.hindrax.ss.data.repository.TaskRepository
 import com.hindrax.ss.domain.cyd.ConnectionType
 import com.hindrax.ss.domain.cyd.CydDevice
 import com.hindrax.ss.domain.cyd.CydRepository
@@ -33,7 +36,9 @@ data class DiscoveryUiState(
     val discoveredDevices: List<DiscoveredDevice> = emptyList(),
     val logs: String = "",
     val localIp: String = "Unknown",
-    val myDeviceId: String = ""
+    val myDeviceId: String = "",
+    val updateAvailable: Boolean = false,
+    val latestVersion: String? = null
 )
 
 data class DiscoveredDevice(
@@ -53,9 +58,11 @@ data class DiscoveredDevice(
 class NetworkDiscoveryViewModel @Inject constructor(
     private val cydRepository: CydRepository,
     private val chatRepository: ChatRepository,
+    private val taskRepository: TaskRepository,
     private val deviceIdManager: DeviceIdManager,
     private val bleScannerManager: BleScannerManager,
     private val bleIdentityManager: BleIdentityManager,
+    private val updateManager: UpdateManager,
     private val httpClient: OkHttpClient
 ) : ViewModel() {
 
@@ -72,6 +79,19 @@ class NetworkDiscoveryViewModel @Inject constructor(
                 localIp = NetworkUtils.getLocalIpAddress() ?: "0.0.0.0",
                 myDeviceId = deviceIdManager.getDeviceId()
             )
+        }
+        checkAppUpdates()
+    }
+
+    private fun checkAppUpdates() {
+        viewModelScope.launch {
+            val currentVersion = "1.0.0" // Idealmente usar BuildConfig.VERSION_NAME
+            when (val result = updateManager.checkForUpdates(currentVersion)) {
+                is UpdateResult.Available -> {
+                    _uiState.update { it.copy(updateAvailable = true, latestVersion = result.version) }
+                }
+                else -> {}
+            }
         }
     }
 
@@ -134,7 +154,6 @@ class NetworkDiscoveryViewModel @Inject constructor(
 
     private fun addOrUpdateDevice(device: DiscoveredDevice) {
         viewModelScope.launch {
-            // Check if already paired in DB
             val isPaired = device.deviceHash?.let { chatRepository.getPeerById(it) != null } ?: false
             
             _uiState.update { currentState ->
@@ -170,6 +189,22 @@ class NetworkDiscoveryViewModel @Inject constructor(
                     discoveredDevices = currentList.toList().sortedByDescending { it.isHindraxNode || it.isCyd },
                     logs = updatedLogs
                 )
+            }
+        }
+    }
+
+    fun syncTasksWithPeer(device: DiscoveredDevice) {
+        val peerId = device.deviceHash ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(logs = it.logs + "[*] Sincronizando misiones con $peerId...\n") }
+            try {
+                val tasks = taskRepository.getAllTasksSync()
+                tasks.forEach { task ->
+                    chatRepository.shareTask(peerId, task)
+                }
+                _uiState.update { it.copy(logs = it.logs + "[+] Sincronización completa: ${tasks.size} misiones enviadas.\n") }
+            } catch (e: Exception) {
+                _uiState.update { it.copy(logs = it.logs + "[!] Error en sincronización: ${e.message}\n") }
             }
         }
     }

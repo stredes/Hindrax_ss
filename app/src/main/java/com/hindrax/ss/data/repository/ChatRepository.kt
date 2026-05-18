@@ -10,11 +10,13 @@ import com.hindrax.ss.data.db.TaskDao
 import com.hindrax.ss.data.entity.ChatMessageEntity
 import com.hindrax.ss.data.entity.PeerEntity
 import com.hindrax.ss.data.entity.TaskEntity
+import com.hindrax.ss.domain.tasks.model.ChecklistItem
 import com.hindrax.ss.domain.tasks.model.TaskStatus
 import com.hindrax.ss.domain.tasks.model.TaskType
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -22,6 +24,7 @@ import java.io.PrintWriter
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -109,11 +112,32 @@ class ChatRepository @Inject constructor(
     private suspend fun receiveSharedTask(jsonStr: String, fromPeerId: String) {
         try {
             val json = JSONObject(jsonStr)
+            
+            // Re-mapear Checklist
+            val checklistJson = json.optJSONArray("checklist")
+            val checklist = mutableListOf<ChecklistItem>()
+            if (checklistJson != null) {
+                for (i in 0 until checklistJson.length()) {
+                    val item = checklistJson.getJSONObject(i)
+                    checklist.add(ChecklistItem(
+                        id = UUID.randomUUID().toString(),
+                        text = item.getString("text"),
+                        isChecked = false, // Las tareas compartidas llegan limpias
+                        quantity = if (item.has("q")) item.getDouble("q") else null,
+                        unit = item.optString("u", null)
+                    ))
+                }
+            }
+
             val task = TaskEntity(
                 title = "[SHARED] ${json.getString("title")}",
-                description = "From: $fromPeerId\n\n${json.getString("description")}",
-                status = TaskStatus.valueOf(json.optString("status", TaskStatus.PENDIENTE.name)),
+                description = "Node Source: $fromPeerId\n\n${json.getString("description")}",
+                status = TaskStatus.PENDIENTE,
                 type = TaskType.valueOf(json.optString("type", TaskType.GENERAL.name)),
+                locationName = json.optString("location", null),
+                latitude = if (json.has("lat")) json.getDouble("lat") else null,
+                longitude = if (json.has("lng")) json.getDouble("lng") else null,
+                checklist = checklist,
                 createdAt = System.currentTimeMillis(),
                 updatedAt = System.currentTimeMillis()
             )
@@ -121,7 +145,7 @@ class ChatRepository @Inject constructor(
             
             chatDao.insertMessage(ChatMessageEntity(
                 peerId = fromPeerId,
-                message = "📦 Has recibido una nueva misión: ${task.title}",
+                message = "📦 MISSION_RECEIVED: ${task.title}",
                 timestamp = System.currentTimeMillis(),
                 isFromMe = false
             ))
@@ -130,17 +154,30 @@ class ChatRepository @Inject constructor(
 
     suspend fun shareTask(peerId: String, task: TaskEntity) {
         val peer = chatDao.getPeerById(peerId) ?: return
+        
         val taskJson = JSONObject().apply {
             put("title", task.title)
             put("description", task.description)
-            put("status", task.status.name)
             put("type", task.type.name)
+            put("location", task.locationName)
+            if (task.latitude != null) put("lat", task.latitude)
+            if (task.longitude != null) put("lng", task.longitude)
+            
+            val checklistArray = JSONArray()
+            task.checklist.forEach { item ->
+                val itemObj = JSONObject()
+                itemObj.put("text", item.text)
+                if (item.quantity != null) itemObj.put("q", item.quantity)
+                if (item.unit != null) itemObj.put("u", item.unit)
+                checklistArray.put(itemObj)
+            }
+            put("checklist", checklistArray)
         }
 
         scope.launch(Dispatchers.IO) {
             try {
                 Socket().use { socket ->
-                    socket.connect(InetSocketAddress(peer.lastKnownIp, HINDRAX_PORT), 3000)
+                    socket.connect(InetSocketAddress(peer.lastKnownIp, HINDRAX_PORT), 4000)
                     val writer = PrintWriter(socket.getOutputStream(), true)
                     writer.println("TASK")
                     writer.println(myDeviceId)
@@ -148,7 +185,7 @@ class ChatRepository @Inject constructor(
                 }
                 chatDao.insertMessage(ChatMessageEntity(
                     peerId = peerId,
-                    message = "📤 Has compartido la misión: ${task.title}",
+                    message = "📤 MISSION_SYNCED: ${task.title}",
                     timestamp = System.currentTimeMillis(),
                     isFromMe = true
                 ))

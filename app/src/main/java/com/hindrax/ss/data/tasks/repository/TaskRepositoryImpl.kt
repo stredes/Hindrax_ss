@@ -32,6 +32,10 @@ class TaskRepositoryImpl @Inject constructor(
             entities.map { it.toDomain() }
         }
 
+    override suspend fun getAllTasksSync(): List<Task> {
+        return taskDao.getAllTasksSync().map { it.toDomain() }
+    }
+
     override suspend fun createTask(
         title: String,
         description: String,
@@ -68,14 +72,10 @@ class TaskRepositoryImpl @Inject constructor(
     }
 
     override suspend fun updateTask(task: Task) {
-        val existing = taskDao.observeTaskById(task.id).first() ?: return
         val now = System.currentTimeMillis()
-        
         taskDao.update(task.toEntity().copy(updatedAt = now))
-
         saveHistory(task.id, "EDICION", "Parámetros de misión actualizados.")
         
-        // Sync if completed
         if (task.status == TaskStatus.COMPLETADA) {
             syncTaskWithInventory(task)
         }
@@ -86,7 +86,6 @@ class TaskRepositoryImpl @Inject constructor(
         taskDao.updateStatus(id, status, now)
         saveHistory(id, "CAMBIO_ESTADO", "Estado actualizado a: $status")
 
-        // Sync if completed
         if (status == TaskStatus.COMPLETADA) {
             val task = taskDao.observeTaskById(id).first()?.toDomain()
             if (task != null) {
@@ -96,7 +95,6 @@ class TaskRepositoryImpl @Inject constructor(
     }
 
     private suspend fun syncTaskWithInventory(task: Task) {
-        // 1. Sync the main task quantity (legacy or single item link)
         if (task.inventoryItemId != null && task.quantity != null) {
             val item = inventoryDao.getById(task.inventoryItemId)
             if (item != null) {
@@ -104,14 +102,12 @@ class TaskRepositoryImpl @Inject constructor(
             }
         }
 
-        // 2. Sync all checked items in the checklist
         if (task.type == TaskType.SHOPPING || task.type == TaskType.FERIA) {
             task.checklist.filter { it.isChecked && it.quantity != null }.forEach { checkItem ->
                 val itemName = checkItem.text.trim()
                 var inventoryItem = inventoryDao.getByName(itemName)
                 
                 if (inventoryItem == null) {
-                    // Create product if it doesn't exist
                     val newId = inventoryDao.insert(
                         InventoryEntity(
                             name = itemName,
@@ -135,7 +131,7 @@ class TaskRepositoryImpl @Inject constructor(
     private suspend fun updateItemQuantity(item: InventoryEntity, amount: Double, type: TaskType, taskId: Long) {
         val newQuantity = when (type) {
             TaskType.SHOPPING, TaskType.FERIA -> item.currentQuantity + amount
-            TaskType.INVENTORY -> amount // Set direct
+            TaskType.INVENTORY -> amount
             else -> item.currentQuantity
         }
         

@@ -14,7 +14,10 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE id = :id AND isDeleted = 0")
     fun observeTaskById(id: Long): Flow<TaskEntity?>
 
-    @Insert
+    @Query("SELECT * FROM tasks WHERE isDeleted = 0")
+    suspend fun getAllTasksSync(): List<TaskEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(task: TaskEntity): Long
 
     @Update
