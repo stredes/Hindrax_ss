@@ -23,8 +23,8 @@ class UpdateManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val httpClient: OkHttpClient
 ) {
-    // Replace with your real GitHub repo path: "username/repo"
-    private val GITHUB_REPO = "gian/Hindrax_ss" 
+    // ACTUALIZADO: Ruta correcta de tu repositorio
+    private val GITHUB_REPO = "stredes/Hindrax_ss" 
     private val API_URL = "https://api.github.com/repos/$GITHUB_REPO/releases/latest"
 
     suspend fun checkForUpdates(currentVersion: String): UpdateResult {
@@ -80,8 +80,8 @@ class UpdateManager @Inject constructor(
         if (destination.exists()) destination.delete()
 
         val request = DownloadManager.Request(Uri.parse(url))
-            .setTitle("Hindrax Update")
-            .setDescription("Downloading v$url")
+            .setTitle("Hindrax Security Update")
+            .setDescription("Actualizando a la última versión...")
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
             .setDestinationUri(Uri.fromFile(destination))
 
@@ -96,7 +96,7 @@ class UpdateManager @Inject constructor(
                     context.unregisterReceiver(this)
                 }
             }
-        }, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE))
+        }, IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE), Context.RECEIVER_EXPORTED)
     }
 
     private fun installApk(file: File) {

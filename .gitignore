@@ -13,3 +13,5 @@
 .externalNativeBuild
 .cxx
 local.properties
+# Hindrax Secrets
+github.token
