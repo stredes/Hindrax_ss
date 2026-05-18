@@ -85,7 +85,7 @@ class NetworkDiscoveryViewModel @Inject constructor(
 
     private fun checkAppUpdates() {
         viewModelScope.launch {
-            val currentVersion = "1.0.0" // Idealmente usar BuildConfig.VERSION_NAME
+            val currentVersion = "1.0.0"
             when (val result = updateManager.checkForUpdates(currentVersion)) {
                 is UpdateResult.Available -> {
                     _uiState.update { it.copy(updateAvailable = true, latestVersion = result.version) }
@@ -108,11 +108,10 @@ class NetworkDiscoveryViewModel @Inject constructor(
             it.copy(
                 isScanning = true, 
                 discoveredDevices = emptyList(),
-                logs = "[*] Iniciando escaneo híbrido de identidades...\n[*] Tu ID: ${it.myDeviceId}\n"
+                logs = "[*] Iniciando escaneo híbrido...\n[*] Tu ID: ${it.myDeviceId}\n"
             )
         }
 
-        // 1. BLE SCAN
         bleScanJob = bleScannerManager.scanForHindraxNodes()
             .onEach { bleNode ->
                 addOrUpdateDevice(DiscoveredDevice(
@@ -126,7 +125,6 @@ class NetworkDiscoveryViewModel @Inject constructor(
             }
             .launchIn(viewModelScope)
 
-        // 2. NETWORK SCAN
         scanJob = viewModelScope.launch(Dispatchers.IO) {
             val semaphore = Semaphore(20)
             val jobs = (1..254).map { i ->
@@ -147,7 +145,7 @@ class NetworkDiscoveryViewModel @Inject constructor(
             
             jobs.awaitAll()
             withContext(Dispatchers.Main) {
-                _uiState.update { it.copy(isScanning = false, progress = 1f, logs = it.logs + "[+] Escaneo de red finalizado.\n") }
+                _uiState.update { it.copy(isScanning = false, progress = 1f, logs = it.logs + "[+] Escaneo finalizado.\n") }
             }
         }
     }
@@ -166,7 +164,7 @@ class NetworkDiscoveryViewModel @Inject constructor(
                 var updatedLogs = currentState.logs
                 if (index == -1) {
                     val tag = if (device.isHindraxNode) " [ID: ${device.deviceHash}]" else ""
-                    updatedLogs += "[+] Nodo Detectado (${device.discoveryMethod}): ${device.ip ?: device.macAddress}$tag\n"
+                    updatedLogs += "[+] Detectado (${device.discoveryMethod}): ${device.ip ?: device.macAddress}$tag\n"
                 }
 
                 val finalDevice = device.copy(isAlreadyPaired = isPaired)
@@ -193,8 +191,7 @@ class NetworkDiscoveryViewModel @Inject constructor(
         }
     }
 
-    fun syncTasksWithPeer(device: DiscoveredDevice) {
-        val peerId = device.deviceHash ?: return
+    fun syncTasksWithPeer(peerId: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(logs = it.logs + "[*] Sincronizando misiones con $peerId...\n") }
             try {
@@ -202,9 +199,9 @@ class NetworkDiscoveryViewModel @Inject constructor(
                 tasks.forEach { task ->
                     chatRepository.shareTask(peerId, task)
                 }
-                _uiState.update { it.copy(logs = it.logs + "[+] Sincronización completa: ${tasks.size} misiones enviadas.\n") }
+                _uiState.update { it.copy(logs = it.logs + "[+] Sincronización completa.\n") }
             } catch (e: Exception) {
-                _uiState.update { it.copy(logs = it.logs + "[!] Error en sincronización: ${e.message}\n") }
+                _uiState.update { it.copy(logs = it.logs + "[!] Error: ${e.message}\n") }
             }
         }
     }
@@ -222,12 +219,10 @@ class NetworkDiscoveryViewModel @Inject constructor(
                     discoveryMethod = "NETWORK"
                 )
             }
-
             val cydInfo = checkCydFirmware(ip)
             if (cydInfo != null) {
                 return DiscoveredDevice(ip = ip, hostname = "CYD Node", isReachable = true, isCyd = true, cydName = cydInfo)
             }
-
             val inet = InetAddress.getByName(ip)
             if (inet.isReachable(800)) {
                 DiscoveredDevice(ip = ip, hostname = inet.hostName, isReachable = true)
@@ -266,17 +261,12 @@ class NetworkDiscoveryViewModel @Inject constructor(
         viewModelScope.launch {
             var hash = device.deviceHash
             val ip = device.ip
-            
             if (hash == null && ip != null) {
-                _uiState.update { it.copy(logs = it.logs + "[*] Verificando identidad en $ip...\n") }
                 hash = withContext(Dispatchers.IO) { getHindraxHash(ip, 2500) }
             }
-            
             if (hash != null) {
                 chatRepository.addManualPeer(hash!!, ip ?: device.macAddress ?: "0.0.0.0")
                 withContext(Dispatchers.Main) { onConnected() }
-            } else {
-                _uiState.update { it.copy(logs = it.logs + "[!] Error: No se pudo enlazar con el nodo en ${ip ?: "BLE"}\n") }
             }
         }
     }

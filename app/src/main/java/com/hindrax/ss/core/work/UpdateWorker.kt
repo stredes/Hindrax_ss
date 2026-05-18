@@ -20,14 +20,17 @@ class UpdateWorker @AssistedInject constructor(
         val packageInfo = applicationContext.packageManager.getPackageInfo(applicationContext.packageName, 0)
         val currentVersion = packageInfo.versionName ?: "1.0.0"
 
-        return when (updateManager.checkForUpdates(currentVersion)) {
-            is UpdateResult.Available -> {
-                // Aquí se podría disparar una notificación persistente
-                // o iniciar la descarga si la configuración lo permite
-                Result.success()
+        return try {
+            when (updateManager.checkForUpdates(currentVersion)) {
+                is UpdateResult.Available -> {
+                    // La actualización está lista. El Dashboard mostrará el aviso.
+                    Result.success()
+                }
+                is UpdateResult.NoUpdate -> Result.success()
+                is UpdateResult.Error -> Result.retry()
             }
-            is UpdateResult.NoUpdate -> Result.success()
-            is UpdateResult.Error -> Result.retry()
+        } catch (e: Exception) {
+            Result.failure()
         }
     }
 }

@@ -2,7 +2,7 @@ package com.hindrax.ss
 
 import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
-import androidx.work.*
+import androidx.work.Configuration
 import com.hindrax.ss.core.model.Severity
 import com.hindrax.ss.core.work.UpdateWorker
 import com.hindrax.ss.data.db.HindraxDatabase
@@ -14,6 +14,11 @@ import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import androidx.work.WorkManager
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.Constraints
+import androidx.work.NetworkType
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
