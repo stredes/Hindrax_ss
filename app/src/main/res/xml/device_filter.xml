@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Common ESP32 USB VID/PIDs -->
+    <!-- CP210x -->
+    <usb-device vendor-id="4292" product-id="60000" />
+    <!-- CH340 -->
+    <usb-device vendor-id="6790" product-id="29987" />
+    <!-- ESP32-S3/S2 Native USB -->
+    <usb-device vendor-id="12346" product-id="2" />
+</resources>

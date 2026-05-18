@@ -1,0 +1,62 @@
+package com.hindrax.ss.presentation.tasks
+
+object AsciiBanners {
+    const val HINDRAX_MAIN = """
+  █ █ ▀ █▄ █ █▀▄ █▀▄ █▀█
+  █▀█ █ █ ▀█ █▄▀ █▀▄ █▀█
+  ▀ ▀ ▀ ▀  ▀ ▀   ▀ ▀ ▀ ▀
+ ───────────────────────"""
+
+    const val TASKS_MODULE = """
+ ┌── MISSION_CORE ──┐
+ │ █▀▄▀█ ▀█▀ █▀▀ █▀▀│
+ │ █ ▀ █ ▄█▄ ▄▀▀ ▄▀▀│
+ └──────────────────┘"""
+
+    const val INVENTORY_HEADER = """
+ ╔══ LOGISTICS ═════╗
+ ║ ╦╔╗╔╦ ╦╔═╗╔╗╔╔╦╗ ║
+ ║ ║║║║║╚╝║╣ ║║║ ║  ║
+ ║ ╩╝╚╝ ╚╝ ╚═╝╝╚╝ ╩  ║
+ ╚══════════════════╝"""
+
+    const val HISTORY_HEADER = """
+ ░█▀▀█ ░█▀▀█ ░█▀▀█
+ ░█─── ░█──█ ░█▄▄█
+ ░█▄▄█ ░█▄▄█ ░█───
+ ──────────────────"""
+    
+    const val FORM_HEADER = """
+ ┌─ PATCH_CORE ─┐
+ │ █▀▀ █▀█ █▄░█ │
+ │ █▀▀ █▄█ █░▀█ │
+ └──────────────┘"""
+    
+    const val MISSION_COMPLETE = """
+   [ MISSION_SUCCESS ]
+      .----------.
+     /  COMPLE- / \
+    /     TADO /   \
+    '----------'    '"""
+
+    const val SHOPPING_ART = """
+   [ PROCUREMENT ]
+      _________
+     | [S] [P] |
+     |  L I S T |
+     |_________|"""
+
+    const val FERIA_ART = """
+   [ MARKET_POP ]
+       _______
+      / / \ \ \
+     |--|---|--|
+     |  |   |  |"""
+
+    const val MAP_POINTER = """
+   [ LOCATE ]
+      ◢■◣
+      █ █
+      ◥█◤
+       ▼"""
+}
