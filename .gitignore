@@ -15,3 +15,7 @@
 local.properties
 # Hindrax Secrets
 github.token
+
+# Local secrets
+github.token
+app/src/main/new.toml
