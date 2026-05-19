@@ -120,11 +120,8 @@ class ChatRepository @Inject constructor(
             val json = JSONObject(jsonStr)
             val title = json.getString("title")
             
-            // Deduplicación básica por título
-            val existingTasks = taskDao.getAllTasksSync()
-            if (existingTasks.any { it.title == title || it.title == "[SHARED] $title" }) {
-                return 
-            }
+            // If task exists with same title, update its status/checklist; otherwise insert as new
+            val existing = taskDao.getByTitle(title) ?: taskDao.getByTitle("[SHARED] $title")
 
             val checklistJson = json.optJSONArray("checklist")
             val checklist = mutableListOf<ChecklistItem>()
@@ -134,30 +131,44 @@ class ChatRepository @Inject constructor(
                     checklist.add(ChecklistItem(
                         id = UUID.randomUUID().toString(),
                         text = item.getString("text"),
-                        isChecked = false, 
+                        isChecked = item.optBoolean("checked", false),
                         quantity = if (item.has("q")) item.getDouble("q") else null,
                         unit = item.optString("u", null)
                     ))
                 }
             }
+            val incomingStatus = TaskStatus.valueOf(json.optString("status", TaskStatus.PENDIENTE.name))
 
-            val task = TaskEntity(
-                title = "[SHARED] $title",
-                description = "Node Source: $fromPeerId\n\n${json.getString("description")}",
-                status = TaskStatus.PENDIENTE,
-                type = TaskType.valueOf(json.optString("type", TaskType.GENERAL.name)),
-                locationName = json.optString("location", null),
-                latitude = if (json.has("lat")) json.getDouble("lat") else null,
-                longitude = if (json.has("lng")) json.getDouble("lng") else null,
-                checklist = checklist,
-                createdAt = System.currentTimeMillis(),
-                updatedAt = System.currentTimeMillis()
-            )
-            taskDao.insert(task)
+            val receivedTitle: String
+            if (existing != null) {
+                // Update existing task's status and checklist
+                val updated = existing.copy(
+                    status = incomingStatus,
+                    checklist = checklist.ifEmpty { existing.checklist },
+                    updatedAt = System.currentTimeMillis()
+                )
+                taskDao.update(updated)
+                receivedTitle = existing.title
+            } else {
+                val task = TaskEntity(
+                    title = title,
+                    description = "Node Source: $fromPeerId\n\n${json.optString("description", "")}",
+                    status = incomingStatus,
+                    type = TaskType.valueOf(json.optString("type", TaskType.GENERAL.name)),
+                    locationName = json.optString("location", null),
+                    latitude = if (json.has("lat")) json.getDouble("lat") else null,
+                    longitude = if (json.has("lng")) json.getDouble("lng") else null,
+                    checklist = checklist,
+                    createdAt = System.currentTimeMillis(),
+                    updatedAt = System.currentTimeMillis()
+                )
+                taskDao.insert(task)
+                receivedTitle = task.title
+            }
             
             chatDao.insertMessage(ChatMessageEntity(
                 peerId = fromPeerId,
-                message = "📦 MISSION_RECEIVED: ${task.title}",
+                message = "📦 MISSION_RECEIVED: $receivedTitle",
                 timestamp = System.currentTimeMillis(),
                 isFromMe = false
             ))
@@ -206,21 +217,35 @@ class ChatRepository @Inject constructor(
         ))
     }
 
+    // Broadcast a task to all known peers
+    suspend fun broadcastTask(task: TaskEntity) {
+        val peers = chatDao.getAllPeersSync()
+        peers.forEach { p -> shareTask(p.id, task) }
+    }
+
+    // Broadcast an inventory update to all known peers
+    suspend fun broadcastInventory(item: InventoryEntity) {
+        val peers = chatDao.getAllPeersSync()
+        peers.forEach { p -> shareInventoryItem(p.id, item) }
+    }
+
     suspend fun shareTask(peerId: String, task: TaskEntity) {
         val peer = chatDao.getPeerById(peerId) ?: return
         
         val taskJson = JSONObject().apply {
             put("title", task.title)
             put("description", task.description)
+            put("status", task.status.name)
             put("type", task.type.name)
             put("location", task.locationName)
             if (task.latitude != null) put("lat", task.latitude)
             if (task.longitude != null) put("lng", task.longitude)
-            
+
             val checklistArray = JSONArray()
             task.checklist.forEach { item ->
                 val itemObj = JSONObject()
                 itemObj.put("text", item.text)
+                itemObj.put("checked", item.isChecked)
                 if (item.quantity != null) itemObj.put("q", item.quantity)
                 if (item.unit != null) itemObj.put("u", item.unit)
                 checklistArray.put(itemObj)

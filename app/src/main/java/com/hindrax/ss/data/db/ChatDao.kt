@@ -10,6 +10,8 @@ interface ChatDao {
     @Query("SELECT * FROM peers ORDER BY lastSeen DESC")
     fun observePeers(): Flow<List<PeerEntity>>
 
+    @Query("SELECT * FROM peers ORDER BY lastSeen DESC")
+    suspend fun getAllPeersSync(): List<PeerEntity>
     @Query("SELECT * FROM peers WHERE id = :id LIMIT 1")
     suspend fun getPeerById(id: String): PeerEntity?
 

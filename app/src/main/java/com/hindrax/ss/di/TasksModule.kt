@@ -18,8 +18,9 @@ object TasksModule {
     @Singleton
     fun provideTaskRepository(
         taskDao: TaskDao,
-        inventoryDao: InventoryDao
+        inventoryDao: InventoryDao,
+        chatRepository: com.hindrax.ss.data.repository.ChatRepository
     ): TaskRepository {
-        return TaskRepositoryImpl(taskDao, inventoryDao)
+        return TaskRepositoryImpl(taskDao, inventoryDao, chatRepository)
     }
 }

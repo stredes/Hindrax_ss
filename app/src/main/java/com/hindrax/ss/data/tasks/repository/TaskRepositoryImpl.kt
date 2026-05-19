@@ -11,6 +11,7 @@ import com.hindrax.ss.domain.tasks.model.TaskHistory
 import com.hindrax.ss.domain.tasks.model.TaskStatus
 import com.hindrax.ss.domain.tasks.model.TaskType
 import com.hindrax.ss.domain.tasks.repository.TaskRepository
+import com.hindrax.ss.data.repository.ChatRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -18,7 +19,8 @@ import javax.inject.Inject
 
 class TaskRepositoryImpl @Inject constructor(
     private val taskDao: TaskDao,
-    private val inventoryDao: InventoryDao
+    private val inventoryDao: InventoryDao,
+    private val chatRepository: ChatRepository
 ) : TaskRepository {
 
     override fun observeTasks(): Flow<List<Task>> = taskDao.observeTasks().map { entities ->
@@ -69,6 +71,12 @@ class TaskRepositoryImpl @Inject constructor(
         )
         val id = taskDao.insert(taskEntity)
         saveHistory(id, "CREACION", "Misión [${type.name}] inicializada: $title")
+
+        // Broadcast new task to known peers (best-effort)
+        try {
+            val inserted = taskEntity.copy(id = id)
+            chatRepository.broadcastTask(inserted)
+        } catch (e: Exception) { }
     }
 
     override suspend fun updateTask(task: Task) {
@@ -79,6 +87,10 @@ class TaskRepositoryImpl @Inject constructor(
         if (task.status == TaskStatus.COMPLETADA) {
             syncTaskWithInventory(task)
         }
+        // Broadcast updated task (best-effort)
+        try {
+            chatRepository.broadcastTask(task.toEntity().copy(updatedAt = now))
+        } catch (e: Exception) { }
     }
 
     override suspend fun updateStatus(id: Long, status: TaskStatus) {
@@ -92,6 +104,11 @@ class TaskRepositoryImpl @Inject constructor(
                 syncTaskWithInventory(task)
             }
         }
+        // Broadcast status change (best-effort)
+        try {
+            val entity = taskDao.observeTaskById(id).first()
+            if (entity != null) chatRepository.broadcastTask(entity)
+        } catch (e: Exception) { }
     }
 
     private suspend fun syncTaskWithInventory(task: Task) {
@@ -137,6 +154,11 @@ class TaskRepositoryImpl @Inject constructor(
         
         inventoryDao.updateQuantity(item.id, newQuantity, System.currentTimeMillis())
         saveHistory(taskId, "INVENTARIO_SYNC", "Sincronizado: ${item.name} +$amount -> Total: $newQuantity")
+        // Broadcast inventory update to peers (best-effort)
+        try {
+            val updated = inventoryDao.getById(item.id)
+            if (updated != null) chatRepository.broadcastInventory(updated)
+        } catch (e: Exception) { }
     }
 
     override suspend fun deleteTask(id: Long) {
