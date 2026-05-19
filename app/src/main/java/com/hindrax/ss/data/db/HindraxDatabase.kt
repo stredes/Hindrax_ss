@@ -52,6 +52,9 @@ abstract class HindraxDatabase : RoomDatabase() {
                     "hindrax_database"
                 )
                 .addMigrations(MIGRATION_5_6)
+                // If there are missing migrations during development, allow destructive migration
+                // to avoid crashes. In production prefer providing proper Migration objects.
+                .fallbackToDestructiveMigration()
                 .fallbackToDestructiveMigrationOnDowngrade()
                 .build()
                 INSTANCE = instance

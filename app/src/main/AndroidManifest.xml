@@ -34,7 +34,12 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Hindrax_ss">
-        
+        <!-- Disable WorkManager's automatic ContentProvider initialization so we can initialize
+             it manually with Hilt's HiltWorkerFactory in the Application (avoids timing issues). -->
+        <meta-data
+            android:name="androidx.work.WorkManagerInitializer"
+            android:value="disabled" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"

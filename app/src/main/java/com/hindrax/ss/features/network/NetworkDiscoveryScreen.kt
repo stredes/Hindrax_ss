@@ -16,7 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -32,7 +32,6 @@ fun NetworkDiscoveryScreen(
 ) {
     val viewModel: NetworkDiscoveryViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsState()
-    var manualIp by remember { mutableStateOf("") }
     
     // Permission Handling
     val permissionsToRequest = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
@@ -56,7 +55,10 @@ fun NetworkDiscoveryScreen(
         }
     }
 
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             TopAppBar(
                 title = { Text("NODES_DISCOVERY", fontFamily = FontFamily.Monospace) },
@@ -65,10 +67,16 @@ fun NetworkDiscoveryScreen(
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.Green)
                     }
                 },
+                actions = {
+                    IconButton(onClick = { viewModel.checkAppUpdates() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Check Updates", tint = Color.Green)
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFF050505),
                     titleContentColor = Color.Green
-                )
+                ),
+                scrollBehavior = scrollBehavior
             )
         }
     ) { innerPadding ->
@@ -155,6 +163,9 @@ fun NetworkDiscoveryScreen(
                             viewModel.connectHindraxNode(device) {
                                 onNavigateToChat()
                             }
+                        },
+                        onSync = {
+                            viewModel.syncFamilyData(device.deviceHash ?: "")
                         }
                     )
                 }
@@ -175,7 +186,8 @@ fun NetworkDiscoveryScreen(
 fun DeviceItemComponent(
     device: DiscoveredDevice, 
     onConnectCyd: () -> Unit,
-    onConnectHindrax: () -> Unit
+    onConnectHindrax: () -> Unit,
+    onSync: () -> Unit
 ) {
     val nodeColor = if (device.isHindraxNode) Color.Yellow else if (device.isCyd) Color.Cyan else Color.Green
     
@@ -212,14 +224,44 @@ fun DeviceItemComponent(
                 )
             }
             if (device.isHindraxNode) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (device.isAlreadyPaired) {
+                        IconButton(
+                            onClick = onSync,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(Icons.Default.Sync, contentDescription = "Sync Data", tint = Color.Cyan)
+                        }
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
+                    
+                    Button(
+                        onClick = onConnectHindrax,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (device.isAlreadyPaired) Color.DarkGray else Color.Yellow, 
+                            contentColor = Color.Black
+                        ),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                        modifier = Modifier.height(32.dp),
+                        shape = MaterialTheme.shapes.extraSmall
+                    ) {
+                        Text(
+                            text = if (device.isAlreadyPaired) "OPEN" else "PAIR", 
+                            fontSize = 10.sp, 
+                            fontFamily = FontFamily.Monospace, 
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            } else if (device.isCyd) {
                 Button(
-                    onClick = onConnectHindrax,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Yellow, contentColor = Color.Black),
+                    onClick = onConnectCyd,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Cyan, contentColor = Color.Black),
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                     modifier = Modifier.height(32.dp),
                     shape = MaterialTheme.shapes.extraSmall
                 ) {
-                    Text("PAIR", fontSize = 10.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                    Text("CONNECT", fontSize = 10.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                 }
             }
         }

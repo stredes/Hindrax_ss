@@ -8,6 +8,7 @@ import com.hindrax.ss.core.util.DeviceIdManager
 import com.hindrax.ss.core.util.NetworkUtils
 import com.hindrax.ss.core.util.UpdateManager
 import com.hindrax.ss.core.util.UpdateResult
+import com.hindrax.ss.data.db.InventoryDao
 import com.hindrax.ss.data.repository.ChatRepository
 import com.hindrax.ss.data.tasks.repository.toEntity
 import com.hindrax.ss.domain.tasks.repository.TaskRepository
@@ -60,6 +61,7 @@ class NetworkDiscoveryViewModel @Inject constructor(
     private val cydRepository: CydRepository,
     private val chatRepository: ChatRepository,
     private val taskRepository: TaskRepository,
+    private val inventoryDao: InventoryDao,
     private val deviceIdManager: DeviceIdManager,
     private val bleScannerManager: BleScannerManager,
     private val bleIdentityManager: BleIdentityManager,
@@ -84,17 +86,13 @@ class NetworkDiscoveryViewModel @Inject constructor(
         checkAppUpdates()
     }
 
-    fun checkAppUpdates() {
+    private fun checkAppUpdates() {
         viewModelScope.launch {
-            // In a real app, current version would come from BuildConfig or PackageManager
-            val currentVersion = "1.0.0"
-            when (val result = updateManager.checkForUpdates(currentVersion)) {
+            when (val result = updateManager.checkForUpdates("1.0.0")) {
                 is UpdateResult.Available -> {
                     _uiState.update { it.copy(updateAvailable = true, latestVersion = result.version) }
                 }
-                else -> {
-                    _uiState.update { it.copy(updateAvailable = false) }
-                }
+                else -> {}
             }
         }
     }
@@ -195,14 +193,23 @@ class NetworkDiscoveryViewModel @Inject constructor(
         }
     }
 
-    fun syncFamilyData(peerId: String) {
+    fun syncAllWithPeer(peerId: String) {
         viewModelScope.launch {
-            _uiState.update { it.copy(logs = it.logs + "[*] Iniciando sincronización familiar con $peerId...\n") }
+            _uiState.update { it.copy(logs = it.logs + "[*] Iniciando sincronización completa con $peerId...\n") }
             try {
-                chatRepository.syncAllWithPeer(peerId)
-                _uiState.update { it.copy(logs = it.logs + "[SUCCESS] Sincronización completa.\n") }
+                // Sincronizar Tareas
+                val tasks = taskRepository.getAllTasksSync()
+                tasks.forEach { chatRepository.shareTask(peerId, it.toEntity()) }
+                _uiState.update { it.copy(logs = it.logs + "[+] Tareas sincronizadas.\n") }
+
+                // Sincronizar Inventario
+                val inventory = inventoryDao.getAllInventorySync()
+                inventory.forEach { chatRepository.shareInventoryItem(peerId, it) }
+                _uiState.update { it.copy(logs = it.logs + "[+] Inventario sincronizado.\n") }
+
+                _uiState.update { it.copy(logs = it.logs + "[SUCCESS] Sincronización familiar completa.\n") }
             } catch (e: Exception) {
-                _uiState.update { it.copy(logs = it.logs + "[!] Error: ${e.message}\n") }
+                _uiState.update { it.copy(logs = it.logs + "[ERROR] Sync falló: ${e.message}\n") }
             }
         }
     }

@@ -59,4 +59,11 @@ class ChatViewModel @Inject constructor(
             _uiState.update { it.copy(currentMessage = "") }
         }
     }
+
+    fun syncFamilyData() {
+        val peerId = _uiState.value.selectedPeer?.id ?: return
+        viewModelScope.launch {
+            repository.syncAllWithPeer(peerId)
+        }
+    }
 }

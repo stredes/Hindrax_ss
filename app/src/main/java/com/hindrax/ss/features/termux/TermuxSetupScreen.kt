@@ -5,74 +5,88 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.hindrax.ss.ui.theme.SurfaceGray
+import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TermuxSetupScreen(onBack: () -> Unit) {
     val clipboardManager = LocalClipboardManager.current
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             TopAppBar(
-                title = { Text("Termux Setup") },
+                title = { Text("TERMUX_BRIDGE_SETUP", fontFamily = FontFamily.Monospace) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.Green)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color(0xFF050505),
+                    titleContentColor = Color.Green
+                ),
+                scrollBehavior = scrollBehavior
             )
         }
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .padding(innerPadding)
-                .padding(16.dp)
                 .fillMaxSize()
+                .background(Color(0xFF050505))
                 .verticalScroll(rememberScrollState())
+                .padding(16.dp)
         ) {
             Text(
-                text = "Para habilitar las funciones avanzadas en Termux, sigue estos pasos:",
-                style = MaterialTheme.typography.bodyLarge
+                text = "FOLLOW_STEPS_TO_ENABLE_ADVANCED_NODE_OPERATIONS:",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray,
+                fontFamily = FontFamily.Monospace
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             StepItem(
-                number = "1",
-                text = "Instala Termux desde F-Droid (versión recomendada)."
+                number = "01",
+                text = "Install Termux from F-Droid (Recommended Build)."
             )
 
             StepItem(
-                number = "2",
-                text = "Crea el directorio de scripts de Hindrax SS:",
+                number = "02",
+                text = "Initialize Hindrax Scripts Directory:",
                 command = "mkdir -p ~/.hindrax_ss/scripts"
             )
 
             StepItem(
-                number = "3",
-                text = "Crea un script de prueba (ej. network_ping.sh):",
-                command = "echo '#!/bin/bash\nping -c 4 \"$1\"' > ~/.hindrax_ss/scripts/network_ping.sh && chmod +x ~/.hindrax_ss/scripts/network_ping.sh"
+                number = "03",
+                text = "Deploy Discovery Probe Script:",
+                command = "echo '#!/bin/bash\\nping -c 4 \"$1\"' > ~/.hindrax_ss/scripts/network_ping.sh && chmod +x ~/.hindrax_ss/scripts/network_ping.sh"
             )
 
             StepItem(
-                number = "4",
-                text = "Asegúrate de conceder el permiso 'com.termux.permission.RUN_COMMAND' a Hindrax SS en los ajustes de tu Android."
+                number = "04",
+                text = "Grant 'com.termux.permission.RUN_COMMAND' permission in Android Settings."
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
             
             AlertCard()
+            
+            Spacer(modifier = Modifier.height(40.dp))
         }
     }
 }
@@ -81,33 +95,45 @@ fun TermuxSetupScreen(onBack: () -> Unit) {
 fun StepItem(number: String, text: String, command: String? = null) {
     val clipboardManager = LocalClipboardManager.current
     
-    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+    Column(modifier = Modifier.padding(vertical = 12.dp)) {
         Row {
-            Text(text = "$number.", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(text = text)
+            Text(
+                text = "$number.", 
+                fontWeight = FontWeight.Bold, 
+                color = Color.Green, 
+                fontFamily = FontFamily.Monospace,
+                fontSize = 14.sp
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = text, 
+                color = Color.White, 
+                fontFamily = FontFamily.Monospace,
+                fontSize = 13.sp
+            )
         }
         if (command != null) {
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.Black)
-                    .padding(8.dp),
+                    .background(Color(0xFF0A0A0A))
+                    .padding(12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
                     text = command,
-                    color = Color.Green,
+                    color = Color.Cyan,
                     fontFamily = FontFamily.Monospace,
                     style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    fontSize = 11.sp
                 )
                 IconButton(
                     onClick = { clipboardManager.setText(AnnotatedString(command)) },
                     modifier = Modifier.size(24.dp)
                 ) {
-                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = Color.LightGray, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = Color.Green, modifier = Modifier.size(16.dp))
                 }
             }
         }
@@ -117,19 +143,26 @@ fun StepItem(number: String, text: String, command: String? = null) {
 @Composable
 fun AlertCard() {
     Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-        modifier = Modifier.fillMaxWidth()
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF220000)),
+        modifier = Modifier.fillMaxWidth(),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.Red),
+        shape = MaterialTheme.shapes.extraSmall
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Importante",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onErrorContainer
+                text = "SYSTEM_SECURITY_NOTICE",
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.Red,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold
             )
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Hindrax SS nunca ejecutará comandos sin tu supervisión o fuera de la carpeta configurada (~/.hindrax_ss/scripts/).",
+                text = "Hindrax SS will never execute arbitrary commands outside the authorized (~/.hindrax_ss/scripts/) path.",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onErrorContainer
+                color = Color.Gray,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp
             )
         }
     }

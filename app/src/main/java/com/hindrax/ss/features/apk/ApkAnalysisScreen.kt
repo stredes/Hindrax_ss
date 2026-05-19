@@ -3,11 +3,12 @@ package com.hindrax.ss.features.apk
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -16,10 +17,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hindrax.ss.HindraxApplication
 
@@ -35,6 +38,8 @@ fun ApkAnalysisScreen(
     )
     val uiState by viewModel.uiState.collectAsState()
 
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
@@ -42,14 +47,20 @@ fun ApkAnalysisScreen(
     }
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             TopAppBar(
-                title = { Text("APK Deep Analysis") },
+                title = { Text("APK_DEEP_ANALYSIS", fontFamily = FontFamily.Monospace) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.Green)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color(0xFF050505),
+                    titleContentColor = Color.Green
+                ),
+                scrollBehavior = scrollBehavior
             )
         }
     ) { innerPadding ->
@@ -62,9 +73,11 @@ fun ApkAnalysisScreen(
             Button(
                 onClick = { launcher.launch("application/vnd.android.package-archive") },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !uiState.isRunning
+                enabled = !uiState.isRunning,
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Green, contentColor = Color.Black),
+                shape = MaterialTheme.shapes.extraSmall
             ) {
-                Text("Select APK for Analysis")
+                Text("SELECT_APK_FOR_ANALYSIS", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -72,54 +85,57 @@ fun ApkAnalysisScreen(
             uiState.apkInfo?.let { info ->
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF151515)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.DarkGray),
+                    shape = MaterialTheme.shapes.extraSmall
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Package:", fontWeight = FontWeight.Bold)
-                        Text(info.packageName)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text("Hash (SHA-256):", fontWeight = FontWeight.Bold)
-                        Text(info.sha256, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
+                        Text("PACKAGE:", fontWeight = FontWeight.Bold, color = Color.Gray, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                        Text(info.packageName, color = Color.White, fontFamily = FontFamily.Monospace)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("HASH_SHA256:", fontWeight = FontWeight.Bold, color = Color.Gray, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                        Text(info.sha256, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, color = Color.Cyan)
                     }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
                 
-                Text("Requested Permissions (${info.permissions.size})", style = MaterialTheme.typography.titleMedium)
+                Text("--- REQUESTED_PERMISSIONS (${info.permissions.size}) ---", style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, color = Color.Cyan)
                 
                 LazyColumn(
                     modifier = Modifier.weight(1f).fillMaxWidth()
                 ) {
                     items(info.permissions) { permission ->
-                        val isSensitive = permission.contains("SMS") || permission.contains("LOCATION") || permission.contains("CAMERA")
+                        val isSensitive = permission.contains("SMS") || permission.contains("LOCATION") || permission.contains("CAMERA") || permission.contains("RECORD_AUDIO")
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(vertical = 4.dp)
                         ) {
                             if (isSensitive) {
-                                Icon(Icons.Default.Warning, contentDescription = "Sensitive", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.Warning, contentDescription = "Sensitive", tint = Color.Red, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
                             }
                             Text(
                                 text = permission.split(".").last(),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = if (isSensitive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                                fontFamily = FontFamily.Monospace,
+                                color = if (isSensitive) Color.Red else Color.Green
                             )
                         }
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        HorizontalDivider(color = Color.DarkGray, thickness = 0.5.dp)
                     }
                 }
             }
 
             if (uiState.isRunning) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(color = Color.Green)
                 }
             }
 
             if (uiState.apkInfo == null && !uiState.isRunning) {
-                Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.05f)), contentAlignment = Alignment.Center) {
-                    Text("Select a file to begin", color = Color.Gray)
+                Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0A0A0A)).border(androidx.compose.foundation.BorderStroke(1.dp, Color.DarkGray)), contentAlignment = Alignment.Center) {
+                    Text("WAITING_FOR_PAYLOAD...", color = Color.Gray, fontFamily = FontFamily.Monospace)
                 }
             }
         }

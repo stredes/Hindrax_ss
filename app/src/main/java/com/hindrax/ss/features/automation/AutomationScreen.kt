@@ -1,11 +1,12 @@
 package com.hindrax.ss.features.automation
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -14,10 +15,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hindrax.ss.HindraxApplication
 
@@ -33,28 +36,39 @@ fun AutomationScreen(
     )
     val uiState by viewModel.uiState.collectAsState()
 
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             TopAppBar(
-                title = { Text("Quick Audit Automation") },
+                title = { Text("CORE_AUTOMATION_ENGINE", fontFamily = FontFamily.Monospace) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.Green)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color(0xFF050505),
+                    titleContentColor = Color.Green
+                ),
+                scrollBehavior = scrollBehavior
             )
         }
     ) { innerPadding ->
         Column(
             modifier = Modifier
                 .padding(innerPadding)
-                .padding(16.dp)
                 .fillMaxSize()
+                .background(Color(0xFF050505))
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp)
         ) {
             Text(
-                text = "Ejecuta múltiples tareas de reconocimiento automáticamente sobre un objetivo.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = "EXECUTE_MULTIPLE_RECON_TASKS_SEQUENTIALLY_ON_TARGET.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray,
+                fontFamily = FontFamily.Monospace
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -62,11 +76,18 @@ fun AutomationScreen(
             OutlinedTextField(
                 value = uiState.target,
                 onValueChange = { viewModel.onTargetChange(it) },
-                label = { Text("Target (Domain or IP)") },
+                label = { Text("TARGET_ID (DOMAIN/IP)", fontFamily = FontFamily.Monospace) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 enabled = !uiState.isRunning,
-                placeholder = { Text("example.com") }
+                placeholder = { Text("example.com", color = Color.DarkGray) },
+                textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = Color.Green),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = Color.DarkGray,
+                    focusedBorderColor = Color.Green,
+                    cursorColor = Color.Green
+                ),
+                shape = MaterialTheme.shapes.extraSmall
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -75,34 +96,45 @@ fun AutomationScreen(
                 onClick = { viewModel.startQuickAudit() },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !uiState.isRunning && uiState.target.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Green, contentColor = Color.Black),
+                shape = MaterialTheme.shapes.extraSmall
             ) {
                 if (uiState.isRunning) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.Black)
                 } else {
                     Icon(Icons.Default.PlayArrow, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Start Automation")
+                    Text("START_AUTOMATED_AUDIT", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                 }
             }
 
             if (uiState.isRunning || uiState.progress > 0) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(text = "Task: ${uiState.currentTask}", style = MaterialTheme.typography.labelLarge)
+                Spacer(modifier = Modifier.height(24.dp))
+                Text(
+                    text = "ACTIVE_TASK: ${uiState.currentTask}", 
+                    style = MaterialTheme.typography.labelSmall,
+                    fontFamily = FontFamily.Monospace,
+                    color = Color.Cyan
+                )
+                Spacer(modifier = Modifier.height(8.dp))
                 LinearProgressIndicator(
                     progress = { uiState.progress },
-                    modifier = Modifier.fillMaxWidth().height(8.dp),
+                    modifier = Modifier.fillMaxWidth().height(4.dp),
+                    color = Color.Green,
+                    trackColor = Color.DarkGray
                 )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            Text("Automation Logs", style = MaterialTheme.typography.titleSmall)
+            Text("--- SYSTEM_LOG_OUTPUT ---", style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, color = Color.Cyan)
+            Spacer(modifier = Modifier.height(8.dp))
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
-                    .background(Color.Black)
+                    .heightIn(min = 200.dp, max = 400.dp)
+                    .background(Color(0xFF0A0A0A))
+                    .border(1.dp, Color.DarkGray)
                     .padding(8.dp)
                     .verticalScroll(rememberScrollState())
             ) {
@@ -110,9 +142,13 @@ fun AutomationScreen(
                     text = uiState.logs,
                     color = Color.Green,
                     fontFamily = FontFamily.Monospace,
-                    style = MaterialTheme.typography.bodySmall
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp
                 )
             }
+            
+            // Extra spacer for full scrolling experience
+            Spacer(modifier = Modifier.height(40.dp))
         }
     }
 }

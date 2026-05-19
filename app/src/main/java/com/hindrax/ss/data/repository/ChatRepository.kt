@@ -1,13 +1,13 @@
 package com.hindrax.ss.data.repository
 
 import android.content.Context
-import android.net.nsd.NsdManager
-import android.net.nsd.NsdServiceInfo
 import android.net.wifi.WifiManager
 import com.hindrax.ss.core.util.DeviceIdManager
 import com.hindrax.ss.data.db.ChatDao
+import com.hindrax.ss.data.db.InventoryDao
 import com.hindrax.ss.data.db.TaskDao
 import com.hindrax.ss.data.entity.ChatMessageEntity
+import com.hindrax.ss.data.entity.InventoryEntity
 import com.hindrax.ss.data.entity.PeerEntity
 import com.hindrax.ss.data.entity.TaskEntity
 import com.hindrax.ss.domain.tasks.model.ChecklistItem
@@ -33,6 +33,7 @@ class ChatRepository @Inject constructor(
     @ApplicationContext private val context: Context,
     private val chatDao: ChatDao,
     private val taskDao: TaskDao,
+    private val inventoryDao: InventoryDao,
     private val deviceIdManager: DeviceIdManager
 ) {
     private val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
@@ -79,7 +80,7 @@ class ChatRepository @Inject constructor(
                 val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
                 val writer = PrintWriter(socket.getOutputStream(), true)
 
-                val header = reader.readLine() // IDENTITY, MESSAGE, or TASK
+                val header = reader.readLine() // IDENTITY, MESSAGE, TASK, or INVENTORY
                 val remoteId = reader.readLine()
                 val remoteIp = socket.inetAddress.hostAddress ?: ""
 
@@ -103,6 +104,11 @@ class ChatRepository @Inject constructor(
                         receiveSharedTask(taskJson, remoteId)
                         addManualPeer(remoteId, remoteIp)
                     }
+                    "INVENTORY" -> {
+                        val inventoryJson = reader.readLine()
+                        receiveSharedInventory(inventoryJson, remoteId)
+                        addManualPeer(remoteId, remoteIp)
+                    }
                 }
                 socket.close()
             } catch (e: Exception) { e.printStackTrace() }
@@ -112,8 +118,14 @@ class ChatRepository @Inject constructor(
     private suspend fun receiveSharedTask(jsonStr: String, fromPeerId: String) {
         try {
             val json = JSONObject(jsonStr)
+            val title = json.getString("title")
             
-            // Re-mapear Checklist
+            // Deduplicación básica por título
+            val existingTasks = taskDao.getAllTasksSync()
+            if (existingTasks.any { it.title == title || it.title == "[SHARED] $title" }) {
+                return 
+            }
+
             val checklistJson = json.optJSONArray("checklist")
             val checklist = mutableListOf<ChecklistItem>()
             if (checklistJson != null) {
@@ -122,7 +134,7 @@ class ChatRepository @Inject constructor(
                     checklist.add(ChecklistItem(
                         id = UUID.randomUUID().toString(),
                         text = item.getString("text"),
-                        isChecked = false, // Las tareas compartidas llegan limpias
+                        isChecked = false, 
                         quantity = if (item.has("q")) item.getDouble("q") else null,
                         unit = item.optString("u", null)
                     ))
@@ -130,7 +142,7 @@ class ChatRepository @Inject constructor(
             }
 
             val task = TaskEntity(
-                title = "[SHARED] ${json.getString("title")}",
+                title = "[SHARED] $title",
                 description = "Node Source: $fromPeerId\n\n${json.getString("description")}",
                 status = TaskStatus.PENDIENTE,
                 type = TaskType.valueOf(json.optString("type", TaskType.GENERAL.name)),
@@ -150,6 +162,48 @@ class ChatRepository @Inject constructor(
                 isFromMe = false
             ))
         } catch (e: Exception) { e.printStackTrace() }
+    }
+
+    private suspend fun receiveSharedInventory(jsonStr: String, fromPeerId: String) {
+        try {
+            val json = JSONObject(jsonStr)
+            val name = json.getString("name")
+            
+            val existing = inventoryDao.getByName(name)
+            val item = InventoryEntity(
+                id = existing?.id ?: 0,
+                name = name,
+                category = json.getString("category"),
+                currentQuantity = json.getDouble("currentQuantity"),
+                minQuantity = json.getDouble("minQuantity"),
+                unit = json.getString("unit"),
+                updatedAt = System.currentTimeMillis()
+            )
+            
+            inventoryDao.insert(item)
+            
+            chatDao.insertMessage(ChatMessageEntity(
+                peerId = fromPeerId,
+                message = "🛠️ INVENTORY_SYNCED: ${item.name}",
+                timestamp = System.currentTimeMillis(),
+                isFromMe = false
+            ))
+        } catch (e: Exception) { e.printStackTrace() }
+    }
+
+    suspend fun syncAllWithPeer(peerId: String) {
+        val tasks = taskDao.getAllTasksSync()
+        tasks.forEach { shareTask(peerId, it) }
+        
+        val inventory = inventoryDao.getAllInventorySync()
+        inventory.forEach { shareInventoryItem(peerId, it) }
+        
+        chatDao.insertMessage(ChatMessageEntity(
+            peerId = peerId,
+            message = "🔄 FULL_FAMILY_SYNC_COMPLETED",
+            timestamp = System.currentTimeMillis(),
+            isFromMe = true
+        ))
     }
 
     suspend fun shareTask(peerId: String, task: TaskEntity) {
@@ -174,21 +228,47 @@ class ChatRepository @Inject constructor(
             put("checklist", checklistArray)
         }
 
+        sendToPeer(peer, "TASK", taskJson.toString())
+        
+        chatDao.insertMessage(ChatMessageEntity(
+            peerId = peerId,
+            message = "📤 MISSION_SYNCED: ${task.title}",
+            timestamp = System.currentTimeMillis(),
+            isFromMe = true
+        ))
+    }
+
+    suspend fun shareInventoryItem(peerId: String, item: InventoryEntity) {
+        val peer = chatDao.getPeerById(peerId) ?: return
+        
+        val json = JSONObject().apply {
+            put("name", item.name)
+            put("category", item.category)
+            put("currentQuantity", item.currentQuantity)
+            put("minQuantity", item.minQuantity)
+            put("unit", item.unit)
+        }
+
+        sendToPeer(peer, "INVENTORY", json.toString())
+
+        chatDao.insertMessage(ChatMessageEntity(
+            peerId = peerId,
+            message = "📤 INVENTORY_SHARED: ${item.name}",
+            timestamp = System.currentTimeMillis(),
+            isFromMe = true
+        ))
+    }
+
+    private fun sendToPeer(peer: PeerEntity, header: String, content: String) {
         scope.launch(Dispatchers.IO) {
             try {
                 Socket().use { socket ->
                     socket.connect(InetSocketAddress(peer.lastKnownIp, HINDRAX_PORT), 4000)
                     val writer = PrintWriter(socket.getOutputStream(), true)
-                    writer.println("TASK")
+                    writer.println(header)
                     writer.println(myDeviceId)
-                    writer.println(taskJson.toString())
+                    writer.println(content)
                 }
-                chatDao.insertMessage(ChatMessageEntity(
-                    peerId = peerId,
-                    message = "📤 MISSION_SYNCED: ${task.title}",
-                    timestamp = System.currentTimeMillis(),
-                    isFromMe = true
-                ))
             } catch (e: Exception) { e.printStackTrace() }
         }
     }
@@ -208,16 +288,6 @@ class ChatRepository @Inject constructor(
     suspend fun sendMessage(peerId: String, text: String) {
         chatDao.insertMessage(ChatMessageEntity(peerId = peerId, message = text, timestamp = System.currentTimeMillis(), isFromMe = true))
         val peer = chatDao.getPeerById(peerId) ?: return
-        scope.launch(Dispatchers.IO) {
-            try {
-                Socket().use { socket ->
-                    socket.connect(InetSocketAddress(peer.lastKnownIp, HINDRAX_PORT), 2000)
-                    val writer = PrintWriter(socket.getOutputStream(), true)
-                    writer.println("MESSAGE")
-                    writer.println(myDeviceId)
-                    writer.println(text)
-                }
-            } catch (e: Exception) { }
-        }
+        sendToPeer(peer, "MESSAGE", text)
     }
 }

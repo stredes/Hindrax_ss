@@ -2,10 +2,12 @@ package com.hindrax.ss.presentation.cyd
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -13,8 +15,13 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -25,6 +32,7 @@ fun CydFileTransferScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -39,23 +47,34 @@ fun CydFileTransferScreen(
     }
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             TopAppBar(
-                title = { Text("CYD File Manager") },
+                title = { Text("CYD_REMOTE_FS_MANAGER", fontFamily = FontFamily.Monospace) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.Green)
                     }
                 },
                 actions = {
                     IconButton(onClick = { viewModel.refreshFileList() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = Color.Green)
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color(0xFF050505),
+                    titleContentColor = Color.Green
+                ),
+                scrollBehavior = scrollBehavior
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { filePickerLauncher.launch("*/*") }) {
+            FloatingActionButton(
+                onClick = { filePickerLauncher.launch("*/*") },
+                containerColor = Color.Green,
+                contentColor = Color.Black,
+                shape = MaterialTheme.shapes.extraSmall
+            ) {
                 Icon(Icons.Default.UploadFile, contentDescription = "Upload")
             }
         }
@@ -64,22 +83,37 @@ fun CydFileTransferScreen(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
+                .background(Color(0xFF050505))
         ) {
             if (uiState.isUploading || uiState.isDownloading) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Color.Green,
+                    trackColor = Color.DarkGray
+                )
             }
 
             uiState.errorMessage?.let {
                 Text(
-                    text = it,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(16.dp)
+                    text = "[!] FS_ERROR: $it",
+                    color = Color.Red,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.padding(16.dp),
+                    fontSize = 12.sp
                 )
             }
 
+            Text(
+                text = "--- █ REMOTE_FILE_LIST █ ---",
+                color = Color.Cyan,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(16.dp)
+            )
+
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(uiState.files) { fileName ->
@@ -87,6 +121,10 @@ fun CydFileTransferScreen(
                         fileName = fileName,
                         onDownload = { viewModel.downloadFile(fileName) }
                     )
+                }
+                
+                item {
+                    Spacer(modifier = Modifier.height(80.dp))
                 }
             }
         }
@@ -96,22 +134,31 @@ fun CydFileTransferScreen(
 @Composable
 fun FileListItem(fileName: String, onDownload: () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF111111)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.DarkGray),
+        shape = MaterialTheme.shapes.extraSmall
     ) {
         Row(
             modifier = Modifier
-                .padding(16.dp)
+                .padding(12.dp)
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.InsertDriveFile, contentDescription = null)
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                Icon(Icons.Default.InsertDriveFile, contentDescription = null, tint = Color.Cyan, modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(12.dp))
-                Text(text = fileName)
+                Text(
+                    text = fileName, 
+                    color = Color.White, 
+                    fontFamily = FontFamily.Monospace, 
+                    fontSize = 13.sp,
+                    maxLines = 1
+                )
             }
-            IconButton(onClick = onDownload) {
-                Icon(Icons.Default.Download, contentDescription = "Download")
+            IconButton(onClick = onDownload, modifier = Modifier.size(32.dp)) {
+                Icon(Icons.Default.Download, contentDescription = "Download", tint = Color.Green, modifier = Modifier.size(20.dp))
             }
         }
     }

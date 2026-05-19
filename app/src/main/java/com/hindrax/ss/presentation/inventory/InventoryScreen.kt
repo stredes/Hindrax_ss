@@ -11,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -27,8 +28,10 @@ fun InventoryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showAddItemDialog by remember { mutableStateOf(false) }
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             TopAppBar(
                 title = { Text("STRATEGIC_RESOURCES_INVENTORY", fontFamily = FontFamily.Monospace) },
@@ -45,7 +48,8 @@ fun InventoryScreen(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFF0A0A0A),
                     titleContentColor = Color.Green
-                )
+                ),
+                scrollBehavior = scrollBehavior
             )
         },
         floatingActionButton = {

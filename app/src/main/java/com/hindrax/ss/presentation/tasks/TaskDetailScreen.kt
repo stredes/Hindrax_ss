@@ -9,12 +9,14 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -96,7 +98,7 @@ fun ChecklistItemRow(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskDetailScreen(
     taskId: Long,
@@ -109,18 +111,20 @@ fun TaskDetailScreen(
     val context = LocalContext.current
     var showDeleteConfirm by remember { mutableStateOf(false) }
     var showShareDialog by remember { mutableStateOf(false) }
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     LaunchedEffect(taskId) {
         viewModel.loadTask(taskId)
     }
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             TopAppBar(
                 title = { Text("MISSION_INTEL", fontFamily = FontFamily.Monospace) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.Green)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.Green)
                     }
                 },
                 actions = {
@@ -140,8 +144,45 @@ fun TaskDetailScreen(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFF050505),
                     titleContentColor = Color.Green
-                )
+                ),
+                scrollBehavior = scrollBehavior
             )
+        },
+        bottomBar = {
+            // Bottom action bar with complete button when a task is loaded
+            val taskForBar = uiState.task
+            if (taskForBar != null && taskForBar.status != TaskStatus.COMPLETADA) {
+                // Determine if task can be completed: for shopping/feria require all checklist items checked
+                val allChecked = taskForBar.checklist.isEmpty().not() && taskForBar.checklist.all { it.isChecked }
+                val completable = when (taskForBar.type) {
+                    TaskType.SHOPPING, TaskType.FERIA -> allChecked
+                    else -> true
+                }
+
+                Surface(
+                    color = Color(0xFF050505),
+                    tonalElevation = 0.dp
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Button(
+                            onClick = { viewModel.updateStatus(TaskStatus.COMPLETADA) },
+                            enabled = completable,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Green, contentColor = Color.Black),
+                            shape = MaterialTheme.shapes.extraSmall
+                        ) {
+                            Text(text = "COMPLETE_MISSION", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
         }
     ) { padding ->
         Box(
@@ -307,7 +348,7 @@ fun TaskDetailScreen(
                     Text(text = "TIMESTAMP_R: ${dateFormat.format(Date(task.createdAt))}", color = Color.DarkGray, fontFamily = FontFamily.Monospace, fontSize = 9.sp)
                     Text(text = "TIMESTAMP_U: ${dateFormat.format(Date(task.updatedAt))}", color = Color.DarkGray, fontFamily = FontFamily.Monospace, fontSize = 9.sp)
                     
-                    Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(40.dp))
                 }
             } else if (uiState.error != null) {
                 Text(

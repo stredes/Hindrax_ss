@@ -21,6 +21,12 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalConfiguration
+import android.content.res.Configuration
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.hindrax.ss.domain.tasks.model.Task
 import com.hindrax.ss.domain.tasks.model.TaskStatus
@@ -36,7 +42,14 @@ fun TaskListScreen(
     val uiState by viewModel.uiState.collectAsState()
     var showFilterDialog by remember { mutableStateOf(false) }
 
+    val configuration = LocalConfiguration.current
+    val isTablet = configuration.smallestScreenWidthDp >= 600
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val useGrid = isTablet && isLandscape
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             TopAppBar(
                 title = { Text("COMMAND_QUEUE_INTERFACE", fontFamily = FontFamily.Monospace) },
@@ -48,7 +61,8 @@ fun TaskListScreen(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFF050505),
                     titleContentColor = Color.Green
-                )
+                ),
+                scrollBehavior = scrollBehavior
             )
         },
         floatingActionButton = {
@@ -62,51 +76,16 @@ fun TaskListScreen(
             }
         }
     ) { padding ->
-        Column(
+        Box(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
                 .background(Color(0xFF050505))
         ) {
-            // ASCII Banner
-            Text(
-                text = AsciiBanners.TASKS_MODULE,
-                color = Color.Green,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 8.sp,
-                lineHeight = 9.sp,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()
-            )
-
-            // Summary Section (Encrypted Style)
-            TaskSummarySection(uiState.tasks)
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Search Bar (Terminal Input Style)
-            Box(modifier = Modifier.padding(horizontal = 16.dp)) {
-                OutlinedTextField(
-                    value = uiState.searchQuery,
-                    onValueChange = viewModel::onSearchQueryChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("CMD> query_database...", color = Color.DarkGray, fontFamily = FontFamily.Monospace, fontSize = 12.sp) },
-                    leadingIcon = { Text(" $ ", color = Color.Green, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold) },
-                    trailingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.Green) },
-                    singleLine = true,
-                    textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = Color.Green, fontSize = 14.sp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedBorderColor = Color.DarkGray,
-                        focusedBorderColor = Color.Green,
-                        cursorColor = Color.Green
-                    ),
-                    shape = MaterialTheme.shapes.extraSmall
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
             if (uiState.isLoading) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp), color = Color.Green, trackColor = Color(0xFF1A1A1A))
+                Column(modifier = Modifier.fillMaxSize()) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth(), color = Color.Green, trackColor = Color(0xFF1A1A1A))
+                }
             } else if (uiState.tasks.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -115,13 +94,111 @@ fun TaskListScreen(
                     }
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(bottom = 80.dp)
-                ) {
-                    items(uiState.tasks) { task ->
-                        TaskTerminalItem(task = task, onClick = { onNavigateToDetail(task.id) })
+                if (useGrid) {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = 16.dp,
+                            end = 16.dp,
+                            top = 16.dp,
+                            bottom = 80.dp
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+                            Text(
+                                text = AsciiBanners.TASKS_MODULE,
+                                color = Color.Green,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 8.sp,
+                                lineHeight = 9.sp,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                        item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+                            TaskSummarySection(uiState.tasks)
+                        }
+                        item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+                        item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+                            OutlinedTextField(
+                                value = uiState.searchQuery,
+                                onValueChange = viewModel::onSearchQueryChange,
+                                modifier = Modifier.fillMaxWidth(),
+                                placeholder = { Text("CMD> query_database...", color = Color.DarkGray, fontFamily = FontFamily.Monospace, fontSize = 12.sp) },
+                                leadingIcon = { Text(" $ ", color = Color.Green, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold) },
+                                trailingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.Green) },
+                                singleLine = true,
+                                textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = Color.Green, fontSize = 14.sp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    unfocusedBorderColor = Color.DarkGray,
+                                    focusedBorderColor = Color.Green,
+                                    cursorColor = Color.Green
+                                ),
+                                shape = MaterialTheme.shapes.extraSmall
+                            )
+                        }
+                        item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(maxLineSpan) }) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+                        items(uiState.tasks) { task ->
+                            TaskTerminalItem(task = task, onClick = { onNavigateToDetail(task.id) })
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(
+                            start = 16.dp,
+                            end = 16.dp,
+                            top = 16.dp,
+                            bottom = 80.dp
+                        )
+                    ) {
+                        item {
+                            Text(
+                                text = AsciiBanners.TASKS_MODULE,
+                                color = Color.Green,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 8.sp,
+                                lineHeight = 9.sp,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                        item {
+                            TaskSummarySection(uiState.tasks)
+                        }
+                        item {
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+                        item {
+                            OutlinedTextField(
+                                value = uiState.searchQuery,
+                                onValueChange = viewModel::onSearchQueryChange,
+                                modifier = Modifier.fillMaxWidth(),
+                                placeholder = { Text("CMD> query_database...", color = Color.DarkGray, fontFamily = FontFamily.Monospace, fontSize = 12.sp) },
+                                leadingIcon = { Text(" $ ", color = Color.Green, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold) },
+                                trailingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.Green) },
+                                singleLine = true,
+                                textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = Color.Green, fontSize = 14.sp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    unfocusedBorderColor = Color.DarkGray,
+                                    focusedBorderColor = Color.Green,
+                                    cursorColor = Color.Green
+                                ),
+                                shape = MaterialTheme.shapes.extraSmall
+                            )
+                        }
+                        item {
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+                        items(uiState.tasks) { task ->
+                            TaskTerminalItem(task = task, onClick = { onNavigateToDetail(task.id) })
+                        }
                     }
                 }
             }

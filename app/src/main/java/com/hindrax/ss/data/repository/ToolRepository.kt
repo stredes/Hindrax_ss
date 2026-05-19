@@ -4,12 +4,8 @@ import com.hindrax.ss.data.db.ToolTaskDao
 import com.hindrax.ss.data.entity.ToolTaskEntity
 import kotlinx.coroutines.flow.Flow
 
-/**
- * Repository for managing tasks/tools from the database.
- * Note: Renamed from ToolRepository to avoid confusion with mission systems if necessary,
- * but ensuring consistent naming here.
- */
-class TaskRepository(private val toolTaskDao: ToolTaskDao) {
+// Renombrado para evitar conflicto con el sistema de misiones
+class ToolRepository(private val toolTaskDao: ToolTaskDao) {
     val enabledTasks: Flow<List<ToolTaskEntity>> = toolTaskDao.getEnabledTasks()
 
     fun getTasksByCategory(category: String): Flow<List<ToolTaskEntity>> =

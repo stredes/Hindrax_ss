@@ -9,7 +9,7 @@ import com.hindrax.ss.data.db.HindraxDatabase
 import com.hindrax.ss.data.entity.ToolTaskEntity
 import com.hindrax.ss.data.repository.AuditRepository
 import com.hindrax.ss.data.repository.TargetRepository
-import com.hindrax.ss.data.repository.TaskRepository
+import com.hindrax.ss.data.repository.ToolRepository
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -36,10 +36,22 @@ class HindraxApplication : Application(), Configuration.Provider {
     val database by lazy { HindraxDatabase.getDatabase(this) }
     val auditRepository by lazy { AuditRepository(database.auditSessionDao(), database.auditResultDao()) }
     val targetRepository by lazy { TargetRepository(database.allowedTargetDao()) }
-    val taskRepository by lazy { TaskRepository(database.toolTaskDao()) }
+    val taskRepository by lazy { ToolRepository(database.toolTaskDao()) }
 
     override fun onCreate() {
         super.onCreate()
+        // Initialize WorkManager manually after Hilt injection so the HiltWorkerFactory is used.
+        // Guard against double-initialization: if WorkManager was already initialized by the
+        // platform (older installs, manifest merge issues), catching IllegalStateException
+        // prevents a fatal crash. The preferred flow is disabling WorkManagerInitializer
+        // via manifest meta-data so initialization happens only here.
+        try {
+            androidx.work.WorkManager.initialize(this, workManagerConfiguration)
+        } catch (ise: IllegalStateException) {
+            // WorkManager already initialized; keep going.
+            android.util.Log.i("HindraxApplication", "WorkManager already initialized: ${ise.message}")
+        }
+
         prepopulateTasks()
         scheduleUpdateChecks()
     }
@@ -70,7 +82,9 @@ class HindraxApplication : Application(), Configuration.Provider {
                 ToolTaskEntity("web_headers", "Web Analysis", "WEB", "NATIVE", null, Severity.LOW.name, true, false),
                 ToolTaskEntity("osint_discovery", "OSINT Discovery", "OSINT", "NATIVE", null, Severity.LOW.name, true, false)
             )
-            tasks.forEach { taskRepository.insertTask(it) }
+            for (task in tasks) {
+                taskRepository.insertTask(task)
+            }
         }
     }
 }

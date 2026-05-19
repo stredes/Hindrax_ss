@@ -1,3 +1,4 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
 package com.hindrax.ss.presentation.chat
 
 import androidx.compose.foundation.background
@@ -6,10 +7,12 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -18,18 +21,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.hindrax.ss.data.entity.PeerEntity
+import com.hindrax.ss.data.entity.ChatMessageEntity
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     onBack: () -> Unit,
     viewModel: ChatViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
+        modifier = Modifier
+            .fillMaxSize()
+            .nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             TopAppBar(
                 title = { 
@@ -38,16 +45,38 @@ fun ChatScreen(
                         fontFamily = FontFamily.Monospace,
                         fontSize = 16.sp
                     ) 
-                },
+                 },
                 navigationIcon = {
-                    IconButton(onClick = if (uiState.selectedPeer != null) { { viewModel.selectPeer(null as PeerEntity?) } } else onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color.Green)
+                    IconButton(onClick = {
+                        if (uiState.selectedPeer != null) {
+                            viewModel.selectPeer(null)
+                        } else {
+                            onBack()
+                        }
+                    }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.Green
+                        )
+                    }
+                },
+                actions = {
+                    if (uiState.selectedPeer != null) {
+                        IconButton(onClick = { viewModel.syncFamilyData() }) {
+                            Icon(
+                                imageVector = Icons.Default.Sync,
+                                contentDescription = "Sync Family Data",
+                                tint = Color.Cyan
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFF050505),
                     titleContentColor = Color.Green
-                )
+                ),
+                scrollBehavior = scrollBehavior
             )
         }
     ) { padding ->
@@ -58,13 +87,14 @@ fun ChatScreen(
                 .background(Color(0xFF050505))
         ) {
             if (uiState.selectedPeer == null) {
-                PeerList(uiState.peers) { viewModel.selectPeer(it) }
+                PeerList(uiState.peers, scrollBehavior) { viewModel.selectPeer(it) }
             } else {
                 ChatWindow(
                     messages = uiState.messages,
                     currentMessage = uiState.currentMessage,
                     onMessageChange = viewModel::onMessageChange,
-                    onSend = viewModel::sendMessage
+                    onSend = viewModel::sendMessage,
+                    scrollBehavior = scrollBehavior
                 )
             }
         }
@@ -72,7 +102,11 @@ fun ChatScreen(
 }
 
 @Composable
-fun PeerList(peers: List<PeerEntity>, onPeerClick: (PeerEntity) -> Unit) {
+fun PeerList(
+    peers: List<PeerEntity>,
+    scrollBehavior: TopAppBarScrollBehavior,
+    onPeerClick: (PeerEntity) -> Unit
+) {
     Column {
         Text(
             text = "--- █ ACTIVE_IDENTITIES █ ---",
@@ -86,7 +120,7 @@ fun PeerList(peers: List<PeerEntity>, onPeerClick: (PeerEntity) -> Unit) {
                 Text("WAITING_FOR_PAIRING...", color = Color.Gray, fontFamily = FontFamily.Monospace)
             }
         } else {
-            LazyColumn {
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
                 items(peers) { peer ->
                     ListItem(
                         headlineContent = { Text(peer.id, color = Color.White, fontFamily = FontFamily.Monospace) },
@@ -114,10 +148,11 @@ fun PeerList(peers: List<PeerEntity>, onPeerClick: (PeerEntity) -> Unit) {
 
 @Composable
 fun ChatWindow(
-    messages: List<com.hindrax.ss.data.entity.ChatMessageEntity>,
+    messages: List<ChatMessageEntity>,
     currentMessage: String,
     onMessageChange: (String) -> Unit,
-    onSend: () -> Unit
+    onSend: () -> Unit,
+    scrollBehavior: TopAppBarScrollBehavior
 ) {
     val dateFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
@@ -179,7 +214,11 @@ fun ChatWindow(
                 onClick = onSend,
                 modifier = Modifier.background(Color(0xFF002200), MaterialTheme.shapes.extraSmall)
             ) {
-                Icon(Icons.Default.Send, contentDescription = "Send", tint = Color.Green)
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Send,
+                    contentDescription = "Send",
+                    tint = Color.Green
+                )
             }
         }
     }

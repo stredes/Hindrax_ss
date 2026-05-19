@@ -9,6 +9,9 @@ interface InventoryDao {
     @Query("SELECT * FROM inventory ORDER BY name ASC")
     fun observeInventory(): Flow<List<InventoryEntity>>
 
+    @Query("SELECT * FROM inventory")
+    suspend fun getAllInventorySync(): List<InventoryEntity>
+
     @Query("SELECT * FROM inventory WHERE id = :id")
     suspend fun getById(id: Long): InventoryEntity?
 
