@@ -152,3 +152,10 @@ fun AutomationScreen(
         }
     }
 }
+
+class AutomationViewModelFactory(private val repository: com.hindrax.ss.data.repository.AuditRepository) : androidx.lifecycle.ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
+    override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+        return AutomationViewModel(repository) as T
+    }
+}
