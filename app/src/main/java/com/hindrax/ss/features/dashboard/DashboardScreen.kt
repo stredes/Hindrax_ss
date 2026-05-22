@@ -201,44 +201,49 @@ fun DashboardScreen(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    if (uiState.updateAvailable) {
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1600)),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.Yellow),
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                            shape = MaterialTheme.shapes.extraSmall
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = if (uiState.updateAvailable) Color(0xFF1A1600) else Color(0xFF0A0A0A)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, if (uiState.updateAvailable) Color.Yellow else Color.DarkGray),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                        shape = MaterialTheme.shapes.extraSmall
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier.padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            Icon(Icons.Default.Update, contentDescription = null, tint = if (uiState.updateAvailable) Color.Yellow else Color.DarkGray)
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    if (uiState.updateAvailable) "UPDATE_AVAILABLE: v${uiState.newVersion}" else "UPDATE_CHANNEL",
+                                    color = Color.White,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = if (isTablet) 14.sp else 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    uiState.updateInfo?.assetName ?: "Waiting for GitHub release APK.",
+                                    color = if (uiState.updateAvailable) Color.Yellow.copy(0.8f) else Color.Gray,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = if (isTablet) 12.sp else 10.sp
+                                )
+                                Text(uiState.updateStatus, color = Color.Gray, fontFamily = FontFamily.Monospace, fontSize = if (isTablet) 11.sp else 9.sp)
+                            }
+                            Button(
+                                onClick = { viewModel.installUpdate() },
+                                enabled = uiState.updateAvailable,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color.Yellow,
+                                    contentColor = Color.Black,
+                                    disabledContainerColor = Color.DarkGray,
+                                    disabledContentColor = Color.Black
+                                ),
+                                shape = MaterialTheme.shapes.extraSmall,
+                                contentPadding = PaddingValues(horizontal = 12.dp)
                             ) {
-                                Icon(Icons.Default.Update, contentDescription = null, tint = Color.Yellow)
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text("UPDATE_AVAILABLE: v${uiState.newVersion}", color = Color.White, fontFamily = FontFamily.Monospace, fontSize = if (isTablet) 14.sp else 12.sp, fontWeight = FontWeight.Bold)
-                                    Text(uiState.updateInfo?.assetName ?: "GitHub release APK ready.", color = Color.Yellow.copy(0.8f), fontFamily = FontFamily.Monospace, fontSize = if (isTablet) 12.sp else 10.sp)
-                                    Text(uiState.updateStatus, color = Color.Gray, fontFamily = FontFamily.Monospace, fontSize = if (isTablet) 11.sp else 9.sp)
-                                }
-                                Button(
-                                    onClick = { viewModel.installUpdate() },
-                                    enabled = uiState.updateAvailable,
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color.Yellow, contentColor = Color.Black),
-                                    shape = MaterialTheme.shapes.extraSmall,
-                                    contentPadding = PaddingValues(horizontal = 12.dp)
-                                ) {
-                                    Text("ACTUALIZAR", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = if (isTablet) 12.sp else 10.sp)
-                                }
+                                Text("ACTUALIZAR", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = if (isTablet) 12.sp else 10.sp)
                             }
                         }
-                    } else if (uiState.isCheckingUpdates) {
-                        Text(
-                            text = uiState.updateStatus,
-                            color = Color.Gray,
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 10.sp,
-                            modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.Center
-                        )
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
