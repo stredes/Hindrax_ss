@@ -49,12 +49,14 @@ fun DashboardScreen(
     onNavigateToTargets: () -> Unit,
     onNavigateToTermuxSetup: () -> Unit,
     onNavigateToTermuxScripts: () -> Unit,
+    onNavigateToToolCatalog: () -> Unit,
     onNavigateToAutomation: () -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToCydConnect: () -> Unit,
     onNavigateToTasks: () -> Unit,
     onNavigateToInventory: () -> Unit,
-    onNavigateToChat: () -> Unit
+    onNavigateToChat: () -> Unit,
+    onNavigateToNfcLab: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -245,8 +247,10 @@ fun DashboardScreen(
             item { ModuleCard("Logistics", Icons.Default.Inventory, onNavigateToInventory, accentColor = Color.Cyan) }
             item { ModuleCard("CYD_Link", Icons.Default.DeveloperBoard, onNavigateToCydConnect, accentColor = Color.Magenta) }
             item { ModuleCard("Mesh Chat", Icons.Default.Chat, onNavigateToChat, accentColor = Color.White) }
+            item { ModuleCard("NFC_Lab", Icons.Default.Nfc, onNavigateToNfcLab, accentColor = Color.Green) }
             item { ModuleCard("Net_Disc", Icons.Default.CellTower, onNavigateToNetworkDiscovery) }
             item { ModuleCard("Terminal", Icons.Default.Terminal, onNavigateToTermuxScripts) }
+            item { ModuleCard("Tool_Catalog", Icons.Default.List, onNavigateToToolCatalog, accentColor = Color.Cyan) }
             item { ModuleCard("Scanner", Icons.Default.Lan, onNavigateToPortScanner) }
             item { ModuleCard("Web_Scan", Icons.Default.ManageSearch, onNavigateToWebScanner) }
             item { ModuleCard("Logs", Icons.Default.History, onNavigateToReports) }

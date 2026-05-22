@@ -25,6 +25,7 @@ interface TaskRepository {
         quantity: Double? = null,
         unit: String? = null,
         inventoryItemId: Long? = null,
+        assignedPeerId: String? = null,
         checklist: List<ChecklistItem> = emptyList()
     )
 

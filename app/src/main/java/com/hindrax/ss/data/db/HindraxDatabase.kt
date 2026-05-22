@@ -21,7 +21,7 @@ import com.hindrax.ss.data.entity.*
         PeerEntity::class,
         ChatMessageEntity::class
     ],
-    version = 6,
+    version = 8,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -44,6 +44,22 @@ abstract class HindraxDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE tasks ADD COLUMN assignedPeerId TEXT")
+                database.execSQL("ALTER TABLE peers ADD COLUMN nickname TEXT")
+            }
+        }
+
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("ALTER TABLE peers ADD COLUMN latitude REAL")
+                database.execSQL("ALTER TABLE peers ADD COLUMN longitude REAL")
+                database.execSQL("ALTER TABLE peers ADD COLUMN locationAccuracy REAL")
+                database.execSQL("ALTER TABLE peers ADD COLUMN locationUpdatedAt INTEGER")
+            }
+        }
+
         fun getDatabase(context: Context): HindraxDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -51,7 +67,7 @@ abstract class HindraxDatabase : RoomDatabase() {
                     HindraxDatabase::class.java,
                     "hindrax_database"
                 )
-                .addMigrations(MIGRATION_5_6)
+                .addMigrations(MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                 // If there are missing migrations during development, allow destructive migration
                 // to avoid crashes. In production prefer providing proper Migration objects.
                 .fallbackToDestructiveMigration()

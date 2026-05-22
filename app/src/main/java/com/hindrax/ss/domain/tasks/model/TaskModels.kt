@@ -40,6 +40,7 @@ data class Task(
     val quantity: Double? = null,
     val unit: String? = null,
     val inventoryItemId: Long? = null,
+    val assignedPeerId: String? = null,
     val checklist: List<ChecklistItem> = emptyList(),
     val createdAt: Long,
     val updatedAt: Long

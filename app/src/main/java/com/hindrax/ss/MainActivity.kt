@@ -17,6 +17,7 @@ import com.hindrax.ss.features.network.NetworkScreen
 import com.hindrax.ss.features.network.PortScannerScreen
 import com.hindrax.ss.features.network.NetworkDiscoveryScreen
 import com.hindrax.ss.features.network.BannerGrabbingScreen
+import com.hindrax.ss.features.nfc.NfcLabScreen
 import com.hindrax.ss.features.apk.ApkAnalysisScreen
 import com.hindrax.ss.features.web.WebAnalysisScreen
 import com.hindrax.ss.features.web.WebScannerScreen
@@ -30,6 +31,7 @@ import com.hindrax.ss.features.automation.AutomationScreen
 import com.hindrax.ss.features.targets.AllowedTargetsScreen
 import com.hindrax.ss.features.termux.TermuxSetupScreen
 import com.hindrax.ss.features.termux.TermuxScriptsScreen
+import com.hindrax.ss.features.tools.ToolCatalogScreen
 import com.hindrax.ss.features.settings.SettingsScreen
 import com.hindrax.ss.presentation.cyd.CydDashboardScreen
 import com.hindrax.ss.presentation.cyd.CydDiscoveryScreen
@@ -73,12 +75,14 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToTargets = { navController.navigate("targets") },
                                 onNavigateToTermuxSetup = { navController.navigate("termux_setup") },
                                 onNavigateToTermuxScripts = { navController.navigate("termux_scripts") },
+                                onNavigateToToolCatalog = { navController.navigate("tool_catalog") },
                                 onNavigateToAutomation = { navController.navigate("automation") },
                                 onNavigateToSettings = { navController.navigate("settings") },
                                 onNavigateToCydConnect = { navController.navigate("cyd_discovery") },
                                 onNavigateToTasks = { navController.navigate("tasks_list") },
                                 onNavigateToInventory = { navController.navigate("inventory") },
-                                onNavigateToChat = { navController.navigate("chat") }
+                                onNavigateToChat = { navController.navigate("chat") },
+                                onNavigateToNfcLab = { navController.navigate("nfc_lab") }
                             )
                         }
                         
@@ -123,6 +127,8 @@ class MainActivity : ComponentActivity() {
                         composable("targets") { AllowedTargetsScreen(onBack = { navController.popBackStack() }) }
                         composable("termux_setup") { TermuxSetupScreen(onBack = { navController.popBackStack() }) }
                         composable("termux_scripts") { TermuxScriptsScreen(onBack = { navController.popBackStack() }) }
+                        composable("tool_catalog") { ToolCatalogScreen(onBack = { navController.popBackStack() }) }
+                        composable("nfc_lab") { NfcLabScreen(onBack = { navController.popBackStack() }) }
                         composable("settings") { SettingsScreen(onBack = { navController.popBackStack() }) }
                         
                         composable("reports") {

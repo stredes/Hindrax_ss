@@ -8,10 +8,28 @@ data class PeerEntity(
     @PrimaryKey
     val id: String, // Este es el Hash único (HNDX-XXXX)
     val name: String,
+    val nickname: String? = null,
     val lastKnownIp: String,
     val lastSeen: Long,
-    val isOnline: Boolean = false
-)
+    val isOnline: Boolean = false,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    val locationAccuracy: Float? = null,
+    val locationUpdatedAt: Long? = null
+) {
+    val displayName: String
+        get() = nickname?.takeIf { it.isNotBlank() } ?: name
+
+    val hasLocation: Boolean
+        get() = latitude != null && longitude != null
+
+    val locationLabel: String
+        get() = if (hasLocation) {
+            String.format(java.util.Locale.US, "%.6f,%.6f", latitude, longitude)
+        } else {
+            "NO_GPS_FIX"
+        }
+}
 
 @Entity(tableName = "chat_messages")
 data class ChatMessageEntity(

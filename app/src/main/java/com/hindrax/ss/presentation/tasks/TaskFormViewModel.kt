@@ -3,6 +3,8 @@ package com.hindrax.ss.presentation.tasks
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hindrax.ss.data.db.InventoryDao
+import com.hindrax.ss.data.entity.PeerEntity
+import com.hindrax.ss.data.repository.ChatRepository
 import com.hindrax.ss.domain.tasks.model.ChecklistItem
 import com.hindrax.ss.domain.tasks.model.InventoryItem
 import com.hindrax.ss.domain.tasks.model.Task
@@ -30,13 +32,15 @@ data class TaskFormUiState(
     val quantity: Double? = null,
     val unit: String? = null,
     val inventoryItemId: Long? = null,
+    val assignedPeerId: String? = null,
     val checklist: List<ChecklistItem> = emptyList(),
     val isLoading: Boolean = false,
     val isSaved: Boolean = false,
     val error: String? = null,
     val createdAt: Long = 0,
     val updatedAt: Long = 0,
-    val availableInventory: List<InventoryItem> = emptyList()
+    val availableInventory: List<InventoryItem> = emptyList(),
+    val availablePeers: List<PeerEntity> = emptyList()
 )
 
 @HiltViewModel
@@ -44,7 +48,8 @@ class TaskFormViewModel @Inject constructor(
     private val observeTaskDetailUseCase: ObserveTaskDetailUseCase,
     private val createTaskUseCase: CreateTaskUseCase,
     private val updateTaskUseCase: UpdateTaskUseCase,
-    private val inventoryDao: InventoryDao
+    private val inventoryDao: InventoryDao,
+    private val chatRepository: ChatRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TaskFormUiState())
@@ -56,6 +61,12 @@ class TaskFormViewModel @Inject constructor(
         inventoryDao.observeInventory()
             .onEach { entities ->
                 _uiState.update { it.copy(availableInventory = entities.map { e -> e.toDomain() }) }
+            }
+            .launchIn(viewModelScope)
+
+        chatRepository.observePeers()
+            .onEach { peers ->
+                _uiState.update { it.copy(availablePeers = peers) }
             }
             .launchIn(viewModelScope)
     }
@@ -79,6 +90,7 @@ class TaskFormViewModel @Inject constructor(
                         quantity = t.quantity,
                         unit = t.unit,
                         inventoryItemId = t.inventoryItemId,
+                        assignedPeerId = t.assignedPeerId,
                         checklist = t.checklist,
                         createdAt = t.createdAt,
                         updatedAt = t.updatedAt,
@@ -123,6 +135,10 @@ class TaskFormViewModel @Inject constructor(
             unit = selectedItem?.unit ?: it.unit,
             title = if (it.title.isBlank()) "Suministro: ${selectedItem?.name ?: ""}" else it.title
         ) }
+    }
+
+    fun onAssignedPeerChange(peerId: String?) {
+        _uiState.update { it.copy(assignedPeerId = peerId) }
     }
 
     fun addChecklistItem(text: String, quantity: Double? = null, unit: String? = null) {
@@ -186,6 +202,7 @@ class TaskFormViewModel @Inject constructor(
                         quantity = state.quantity,
                         unit = state.unit,
                         inventoryItemId = state.inventoryItemId,
+                        assignedPeerId = state.assignedPeerId,
                         checklist = state.checklist
                     )
                 } else {
@@ -203,6 +220,7 @@ class TaskFormViewModel @Inject constructor(
                             quantity = state.quantity,
                             unit = state.unit,
                             inventoryItemId = state.inventoryItemId,
+                            assignedPeerId = state.assignedPeerId,
                             checklist = state.checklist,
                             createdAt = state.createdAt,
                             updatedAt = state.updatedAt

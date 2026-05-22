@@ -145,7 +145,11 @@ fun TaskListScreen(
                             Spacer(modifier = Modifier.height(16.dp))
                         }
                         items(uiState.tasks) { task ->
-                            TaskTerminalItem(task = task, onClick = { onNavigateToDetail(task.id) })
+                            TaskTerminalItem(
+                                task = task,
+                                assignedDeviceName = task.assignedPeerId?.let { uiState.peerNamesById[it] },
+                                onClick = { onNavigateToDetail(task.id) }
+                            )
                         }
                     }
                 } else {
@@ -197,7 +201,11 @@ fun TaskListScreen(
                             Spacer(modifier = Modifier.height(16.dp))
                         }
                         items(uiState.tasks) { task ->
-                            TaskTerminalItem(task = task, onClick = { onNavigateToDetail(task.id) })
+                            TaskTerminalItem(
+                                task = task,
+                                assignedDeviceName = task.assignedPeerId?.let { uiState.peerNamesById[it] },
+                                onClick = { onNavigateToDetail(task.id) }
+                            )
                         }
                     }
                 }
@@ -250,7 +258,7 @@ fun SummaryCard(label: String, value: String, modifier: Modifier = Modifier, acc
 }
 
 @Composable
-fun TaskTerminalItem(task: Task, onClick: () -> Unit) {
+fun TaskTerminalItem(task: Task, assignedDeviceName: String? = null, onClick: () -> Unit) {
     val statusColor = when (task.status) {
         TaskStatus.COMPLETADA -> Color.Green
         TaskStatus.EN_PROGRESO -> Color.Cyan
@@ -305,6 +313,15 @@ fun TaskTerminalItem(task: Task, onClick: () -> Unit) {
                             fontSize = 10.sp
                         )
                     }
+                }
+                if (task.assignedPeerId != null) {
+                    Text(
+                        text = "└─ DEVICE: ${assignedDeviceName ?: task.assignedPeerId}",
+                        color = Color.Cyan,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 10.sp,
+                        maxLines = 1
+                    )
                 }
             }
             Text(text = "»", color = Color.Green, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)

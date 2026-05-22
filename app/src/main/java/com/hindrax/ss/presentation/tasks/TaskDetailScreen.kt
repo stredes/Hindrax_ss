@@ -259,6 +259,17 @@ fun TaskDetailScreen(
                         StatusBadge(status = task.status)
                     }
 
+                    if (task.assignedPeerId != null) {
+                        val assignedPeer = uiState.availablePeers.find { it.id == task.assignedPeerId }
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "DESIGNATED_DEVICE: ${assignedPeer?.displayName ?: task.assignedPeerId}",
+                            color = Color.Cyan,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 11.sp
+                        )
+                    }
+
                     // Checklist section
                     if (task.type == TaskType.SHOPPING || task.type == TaskType.FERIA) {
                         Spacer(modifier = Modifier.height(20.dp))
@@ -396,7 +407,8 @@ fun TaskDetailScreen(
                     } else {
                         uiState.availablePeers.forEach { peer ->
                             ListItem(
-                                headlineContent = { Text(peer.id, color = Color.White, fontFamily = FontFamily.Monospace) },
+                                headlineContent = { Text(peer.displayName, color = Color.White, fontFamily = FontFamily.Monospace) },
+                                supportingContent = { Text(peer.id, color = Color.Gray, fontFamily = FontFamily.Monospace, fontSize = 10.sp) },
                                 modifier = Modifier.clickable {
                                     viewModel.shareTask(peer.id)
                                     showShareDialog = false

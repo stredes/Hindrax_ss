@@ -19,6 +19,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.hindrax.ss.data.entity.PeerEntity
 import com.hindrax.ss.domain.tasks.model.InventoryItem
 import com.hindrax.ss.domain.tasks.model.TaskStatus
 import com.hindrax.ss.domain.tasks.model.TaskType
@@ -125,6 +126,19 @@ fun TaskFormScreen(
                 TaskTypeSelector(
                     selectedType = uiState.type,
                     onTypeSelected = viewModel::onTypeChange
+                )
+
+                Text(
+                    text = "--- DESIGNATED_DEVICE ---",
+                    color = Color.Cyan,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 12.sp
+                )
+
+                AssignedDeviceSelector(
+                    peers = uiState.availablePeers,
+                    selectedPeerId = uiState.assignedPeerId,
+                    onPeerSelected = viewModel::onAssignedPeerChange
                 )
 
                 // Dynamic fields based on type
@@ -427,6 +441,77 @@ fun InventoryLinkSelector(
                         expanded = false
                     }
                 )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AssignedDeviceSelector(
+    peers: List<PeerEntity>,
+    selectedPeerId: String?,
+    onPeerSelected: (String?) -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedPeer = peers.find { it.id == selectedPeerId }
+
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded }
+        ) {
+            OutlinedTextField(
+                value = selectedPeer?.displayName ?: "[ ALL_SYNCED_DEVICES ]",
+                onValueChange = {},
+                readOnly = true,
+                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                modifier = Modifier.menuAnchor().fillMaxWidth(),
+                textStyle = LocalTextStyle.current.copy(
+                    fontFamily = FontFamily.Monospace,
+                    color = if (selectedPeer != null) Color.Green else Color.Gray,
+                    fontSize = 13.sp
+                ),
+                supportingText = {
+                    Text(
+                        text = selectedPeer?.id ?: "Sin dispositivo designado: todos los peers reciben la mision por sincronizacion.",
+                        color = Color.DarkGray,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 10.sp
+                    )
+                },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color.Green,
+                    unfocusedBorderColor = Color.DarkGray
+                ),
+                shape = MaterialTheme.shapes.extraSmall
+            )
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.background(Color(0xFF0F0F0F))
+            ) {
+                DropdownMenuItem(
+                    text = { Text("--- ALL_SYNCED_DEVICES ---", fontFamily = FontFamily.Monospace, color = Color.Gray, fontSize = 12.sp) },
+                    onClick = {
+                        onPeerSelected(null)
+                        expanded = false
+                    }
+                )
+                peers.forEach { peer ->
+                    DropdownMenuItem(
+                        text = {
+                            Column {
+                                Text(peer.displayName.uppercase(), fontFamily = FontFamily.Monospace, color = Color.Green, fontSize = 12.sp)
+                                Text(peer.id, fontFamily = FontFamily.Monospace, color = Color.Gray, fontSize = 10.sp)
+                            }
+                        },
+                        onClick = {
+                            onPeerSelected(peer.id)
+                            expanded = false
+                        }
+                    )
+                }
             }
         }
     }

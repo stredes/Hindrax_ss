@@ -14,7 +14,9 @@ data class ChatUiState(
     val peers: List<PeerEntity> = emptyList(),
     val selectedPeer: PeerEntity? = null,
     val messages: List<ChatMessageEntity> = emptyList(),
-    val currentMessage: String = ""
+    val currentMessage: String = "",
+    val nicknameDraft: String = "",
+    val locationStatus: String? = null
 )
 
 @HiltViewModel
@@ -29,12 +31,23 @@ class ChatViewModel @Inject constructor(
 
     init {
         repository.observePeers()
-            .onEach { peers -> _uiState.update { it.copy(peers = peers) } }
+            .onEach { peers ->
+                _uiState.update { state ->
+                    val refreshedSelected = state.selectedPeer?.let { selected ->
+                        peers.find { it.id == selected.id } ?: selected
+                    }
+                    state.copy(
+                        peers = peers,
+                        selectedPeer = refreshedSelected,
+                        nicknameDraft = refreshedSelected?.nickname ?: state.nicknameDraft
+                    )
+                }
+            }
             .launchIn(viewModelScope)
     }
 
     fun selectPeer(peer: PeerEntity?) {
-        _uiState.update { it.copy(selectedPeer = peer, messages = emptyList()) }
+        _uiState.update { it.copy(selectedPeer = peer, messages = emptyList(), nicknameDraft = peer?.nickname ?: "") }
         messageJob?.cancel()
         
         if (peer != null) {
@@ -46,6 +59,18 @@ class ChatViewModel @Inject constructor(
 
     fun onMessageChange(text: String) {
         _uiState.update { it.copy(currentMessage = text) }
+    }
+
+    fun onNicknameChange(text: String) {
+        _uiState.update { it.copy(nicknameDraft = text) }
+    }
+
+    fun saveNickname() {
+        val peerId = _uiState.value.selectedPeer?.id ?: return
+        val nickname = _uiState.value.nicknameDraft
+        viewModelScope.launch {
+            repository.updatePeerNickname(peerId, nickname)
+        }
     }
 
     fun sendMessage() {
@@ -64,6 +89,33 @@ class ChatViewModel @Inject constructor(
         val peerId = _uiState.value.selectedPeer?.id ?: return
         viewModelScope.launch {
             repository.syncAllWithPeer(peerId)
+        }
+    }
+
+    fun syncAllDevices() {
+        viewModelScope.launch {
+            repository.syncAllDevices()
+        }
+    }
+
+    fun shareLocationWithSelected() {
+        val peerId = _uiState.value.selectedPeer?.id ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(locationStatus = "GPS_SHARE_PENDING") }
+            val result = repository.shareMyLocation(peerId)
+            _uiState.update {
+                it.copy(locationStatus = if (result.isSuccess) "GPS_SHARED" else "GPS_ERROR: ${result.exceptionOrNull()?.message}")
+            }
+        }
+    }
+
+    fun shareLocationWithAllDevices() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(locationStatus = "GPS_BROADCAST_PENDING") }
+            val result = repository.shareMyLocationWithAllPeers()
+            _uiState.update {
+                it.copy(locationStatus = if (result.isSuccess) "GPS_BROADCAST_SHARED" else "GPS_ERROR: ${result.exceptionOrNull()?.message}")
+            }
         }
     }
 }

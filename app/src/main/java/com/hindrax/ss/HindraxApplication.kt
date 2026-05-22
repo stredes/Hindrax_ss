@@ -10,6 +10,7 @@ import com.hindrax.ss.data.entity.ToolTaskEntity
 import com.hindrax.ss.data.repository.AuditRepository
 import com.hindrax.ss.data.repository.TargetRepository
 import com.hindrax.ss.data.repository.ToolRepository
+import com.hindrax.ss.domain.tools.AndraxToolCatalog
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -74,7 +75,7 @@ class HindraxApplication : Application(), Configuration.Provider {
 
     private fun prepopulateTasks() {
         applicationScope.launch {
-            val tasks = listOf(
+            val nativeTasks = listOf(
                 ToolTaskEntity("ping", "Ping Recon", "NETWORK", "NATIVE", null, Severity.LOW.name, true, false),
                 ToolTaskEntity("port_scan", "Port Scanner", "NETWORK", "NATIVE", null, Severity.MEDIUM.name, true, false),
                 ToolTaskEntity("dns_lookup", "DNS Lookup", "NETWORK", "NATIVE", null, Severity.LOW.name, true, false),
@@ -82,7 +83,22 @@ class HindraxApplication : Application(), Configuration.Provider {
                 ToolTaskEntity("web_headers", "Web Analysis", "WEB", "NATIVE", null, Severity.LOW.name, true, false),
                 ToolTaskEntity("osint_discovery", "OSINT Discovery", "OSINT", "NATIVE", null, Severity.LOW.name, true, false)
             )
-            for (task in tasks) {
+            val catalogTasks = AndraxToolCatalog.categories.flatMap { category ->
+                category.tools.map { tool ->
+                    ToolTaskEntity(
+                        id = "andrax_${tool.command.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_')}",
+                        name = tool.displayName,
+                        category = category.name.uppercase(),
+                        executionMode = tool.executionMode.name,
+                        scriptName = null,
+                        riskLevel = tool.riskLevel.name,
+                        enabled = true,
+                        localOnly = category.requirements.isNotEmpty()
+                    )
+                }
+            }
+
+            for (task in nativeTasks + catalogTasks) {
                 taskRepository.insertTask(task)
             }
         }

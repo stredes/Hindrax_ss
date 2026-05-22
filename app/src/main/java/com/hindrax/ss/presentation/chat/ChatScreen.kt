@@ -1,6 +1,12 @@
 @file:OptIn(ExperimentalMaterial3Api::class)
 package com.hindrax.ss.presentation.chat
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -9,9 +15,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -19,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.hindrax.ss.data.entity.PeerEntity
 import com.hindrax.ss.data.entity.ChatMessageEntity
@@ -32,6 +42,27 @@ fun ChatScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val context = LocalContext.current
+    var pendingLocationAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) pendingLocationAction?.invoke()
+        pendingLocationAction = null
+    }
+
+    fun runWithLocationPermission(action: () -> Unit) {
+        val granted = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED
+        if (granted) {
+            action()
+        } else {
+            pendingLocationAction = action
+            locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+    }
 
     Scaffold(
         modifier = Modifier
@@ -41,7 +72,7 @@ fun ChatScreen(
             TopAppBar(
                 title = { 
                     Text(
-                        text = if (uiState.selectedPeer != null) "LINKED_TO: ${uiState.selectedPeer?.id}" else "SECURE_MESH_CHAT",
+                        text = if (uiState.selectedPeer != null) "LINKED_TO: ${uiState.selectedPeer?.displayName}" else "SECURE_MESH_CHAT",
                         fontFamily = FontFamily.Monospace,
                         fontSize = 16.sp
                     ) 
@@ -63,10 +94,32 @@ fun ChatScreen(
                 },
                 actions = {
                     if (uiState.selectedPeer != null) {
+                        IconButton(onClick = { runWithLocationPermission { viewModel.shareLocationWithSelected() } }) {
+                            Icon(
+                                imageVector = Icons.Default.LocationOn,
+                                contentDescription = "Share GPS Location",
+                                tint = Color.Green
+                            )
+                        }
                         IconButton(onClick = { viewModel.syncFamilyData() }) {
                             Icon(
                                 imageVector = Icons.Default.Sync,
                                 contentDescription = "Sync Family Data",
+                                tint = Color.Cyan
+                            )
+                        }
+                    } else if (uiState.peers.isNotEmpty()) {
+                        IconButton(onClick = { runWithLocationPermission { viewModel.shareLocationWithAllDevices() } }) {
+                            Icon(
+                                imageVector = Icons.Default.LocationOn,
+                                contentDescription = "Share GPS With All Devices",
+                                tint = Color.Green
+                            )
+                        }
+                        IconButton(onClick = { viewModel.syncAllDevices() }) {
+                            Icon(
+                                imageVector = Icons.Default.Sync,
+                                contentDescription = "Sync All Devices",
                                 tint = Color.Cyan
                             )
                         }
@@ -90,9 +143,15 @@ fun ChatScreen(
                 PeerList(uiState.peers, scrollBehavior) { viewModel.selectPeer(it) }
             } else {
                 ChatWindow(
+                    selectedPeer = uiState.selectedPeer,
                     messages = uiState.messages,
                     currentMessage = uiState.currentMessage,
+                    nicknameDraft = uiState.nicknameDraft,
+                    locationStatus = uiState.locationStatus,
                     onMessageChange = viewModel::onMessageChange,
+                    onNicknameChange = viewModel::onNicknameChange,
+                    onSaveNickname = viewModel::saveNickname,
+                    onShareLocation = { runWithLocationPermission { viewModel.shareLocationWithSelected() } },
                     onSend = viewModel::sendMessage,
                     scrollBehavior = scrollBehavior
                 )
@@ -123,9 +182,14 @@ fun PeerList(
             LazyColumn(modifier = Modifier.fillMaxSize()) {
                 items(peers) { peer ->
                     ListItem(
-                        headlineContent = { Text(peer.id, color = Color.White, fontFamily = FontFamily.Monospace) },
+                        headlineContent = { Text(peer.displayName, color = Color.White, fontFamily = FontFamily.Monospace) },
                         supportingContent = { 
-                            Text("LAST_IP: ${peer.lastKnownIp}", color = Color.Gray, fontFamily = FontFamily.Monospace, fontSize = 10.sp) 
+                            Column {
+                                Text("HASH: ${peer.id} | LAST_IP: ${peer.lastKnownIp}", color = Color.Gray, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+                                if (peer.hasLocation) {
+                                    Text("GPS: ${peer.locationLabel}", color = Color.Cyan, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+                                }
+                            }
                         },
                         trailingContent = {
                             Box(
@@ -148,15 +212,30 @@ fun PeerList(
 
 @Composable
 fun ChatWindow(
+    selectedPeer: PeerEntity?,
     messages: List<ChatMessageEntity>,
     currentMessage: String,
+    nicknameDraft: String,
+    locationStatus: String?,
     onMessageChange: (String) -> Unit,
+    onNicknameChange: (String) -> Unit,
+    onSaveNickname: () -> Unit,
+    onShareLocation: () -> Unit,
     onSend: () -> Unit,
     scrollBehavior: TopAppBarScrollBehavior
 ) {
     val dateFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
     Column(modifier = Modifier.fillMaxSize()) {
+        DeviceNicknamePanel(
+            peer = selectedPeer,
+            nicknameDraft = nicknameDraft,
+            locationStatus = locationStatus,
+            onNicknameChange = onNicknameChange,
+            onSaveNickname = onSaveNickname,
+            onShareLocation = onShareLocation
+        )
+
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
@@ -219,6 +298,118 @@ fun ChatWindow(
                     contentDescription = "Send",
                     tint = Color.Green
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun DeviceNicknamePanel(
+    peer: PeerEntity?,
+    nicknameDraft: String,
+    locationStatus: String?,
+    onNicknameChange: (String) -> Unit,
+    onSaveNickname: () -> Unit,
+    onShareLocation: () -> Unit
+) {
+    if (peer == null) return
+    val context = LocalContext.current
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF0A0A0A)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.DarkGray),
+        shape = MaterialTheme.shapes.extraSmall
+    ) {
+        Column(modifier = Modifier.padding(10.dp)) {
+            Text(
+                text = "--- DEVICE_NICKNAME_CONFIG ---",
+                color = Color.Cyan,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                OutlinedTextField(
+                    value = nicknameDraft,
+                    onValueChange = onNicknameChange,
+                    modifier = Modifier.weight(1f),
+                    label = { Text("NICKNAME", fontFamily = FontFamily.Monospace, fontSize = 10.sp) },
+                    placeholder = { Text(peer.name, color = Color.DarkGray, fontFamily = FontFamily.Monospace, fontSize = 12.sp) },
+                    singleLine = true,
+                    textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = Color.Green, fontSize = 13.sp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = Color.DarkGray,
+                        focusedBorderColor = Color.Green,
+                        cursorColor = Color.Green
+                    ),
+                    shape = MaterialTheme.shapes.extraSmall
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(
+                    onClick = onSaveNickname,
+                    modifier = Modifier.background(Color(0xFF002200), MaterialTheme.shapes.extraSmall)
+                ) {
+                    Icon(Icons.Default.Save, contentDescription = "Save nickname", tint = Color.Green)
+                }
+            }
+            Text(
+                text = "HASH_ID: ${peer.id}",
+                color = Color.Gray,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 10.sp
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = "--- DEVICE_LOCATION_GPS ---",
+                color = Color.Cyan,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = if (peer.hasLocation) {
+                    "LAST_FIX: ${peer.locationLabel} | ACC: ${peer.locationAccuracy ?: "?"}m"
+                } else {
+                    "LAST_FIX: NO_GPS_DATA"
+                },
+                color = if (peer.hasLocation) Color.Green else Color.Gray,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 10.sp
+            )
+            if (locationStatus != null) {
+                Text(
+                    text = "STATUS: $locationStatus",
+                    color = if (locationStatus.startsWith("GPS_ERROR")) Color.Red else Color.Cyan,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 10.sp
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = onShareLocation,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Green, contentColor = Color.Black),
+                    shape = MaterialTheme.shapes.extraSmall,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("SHARE_MY_GPS", fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+                }
+                OutlinedButton(
+                    onClick = {
+                        if (peer.hasLocation) {
+                            val uri = Uri.parse("geo:${peer.latitude},${peer.longitude}?q=${peer.latitude},${peer.longitude}(${Uri.encode(peer.displayName)})")
+                            context.startActivity(Intent(Intent.ACTION_VIEW, uri))
+                        }
+                    },
+                    enabled = peer.hasLocation,
+                    shape = MaterialTheme.shapes.extraSmall,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("OPEN_MAP", fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+                }
             }
         }
     }

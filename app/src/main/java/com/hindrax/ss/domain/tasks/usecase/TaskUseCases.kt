@@ -34,10 +34,11 @@ class CreateTaskUseCase @Inject constructor(private val repository: TaskReposito
         quantity: Double? = null,
         unit: String? = null,
         inventoryItemId: Long? = null,
+        assignedPeerId: String? = null,
         checklist: List<ChecklistItem> = emptyList()
     ) = repository.createTask(
         title, description, status, type, scheduledTime,
-        locationName, latitude, longitude, quantity, unit, inventoryItemId, checklist
+        locationName, latitude, longitude, quantity, unit, inventoryItemId, assignedPeerId, checklist
     )
 }
 

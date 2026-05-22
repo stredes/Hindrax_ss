@@ -75,10 +75,20 @@ class TaskDetailViewModel @Inject constructor(
         viewModelScope.launch {
             // Mapping domain model to entity for the repository method
             val entity = TaskEntity(
+                id = task.id,
                 title = task.title,
                 description = task.description,
                 status = task.status,
                 type = task.type,
+                scheduledTime = task.scheduledTime,
+                locationName = task.locationName,
+                latitude = task.latitude,
+                longitude = task.longitude,
+                quantity = task.quantity,
+                unit = task.unit,
+                inventoryItemId = task.inventoryItemId,
+                assignedPeerId = task.assignedPeerId,
+                checklist = task.checklist,
                 createdAt = task.createdAt,
                 updatedAt = task.updatedAt
             )

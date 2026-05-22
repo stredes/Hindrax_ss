@@ -50,6 +50,7 @@ class TaskRepositoryImpl @Inject constructor(
         quantity: Double?,
         unit: String?,
         inventoryItemId: Long?,
+        assignedPeerId: String?,
         checklist: List<ChecklistItem>
     ) {
         val now = System.currentTimeMillis()
@@ -65,6 +66,7 @@ class TaskRepositoryImpl @Inject constructor(
             quantity = quantity,
             unit = unit,
             inventoryItemId = inventoryItemId,
+            assignedPeerId = assignedPeerId,
             checklist = checklist,
             createdAt = now,
             updatedAt = now
@@ -182,13 +184,13 @@ class TaskRepositoryImpl @Inject constructor(
 fun TaskEntity.toDomain() = Task(
     id, title, description, status, type, scheduledTime, 
     locationName, latitude, longitude, quantity, unit, 
-    inventoryItemId, checklist, createdAt, updatedAt
+    inventoryItemId, assignedPeerId, checklist, createdAt, updatedAt
 )
 
 fun Task.toEntity() = TaskEntity(
     id, title, description, status, type, scheduledTime,
     locationName, latitude, longitude, quantity, unit,
-    inventoryItemId, checklist, createdAt, updatedAt
+    inventoryItemId, assignedPeerId, checklist, createdAt, updatedAt
 )
 
 fun TaskHistoryEntity.toDomain() = TaskHistory(id, taskId, action, detail, createdAt)
