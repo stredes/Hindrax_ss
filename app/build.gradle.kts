@@ -21,8 +21,8 @@ android {
         applicationId = "com.hindrax.ss"
         minSdk = 24
         targetSdk = 36
-        versionCode = 11
-        versionName = "1.10"
+        versionCode = 12
+        versionName = "1.11"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -63,6 +63,12 @@ android {
     buildFeatures {
         compose = true
     }
+}
+
+tasks.register("testClasses") {
+    group = "verification"
+    description = "Compatibility alias for Android builds that expect a JVM-style testClasses task."
+    dependsOn("testDebugUnitTest")
 }
 
 dependencies {

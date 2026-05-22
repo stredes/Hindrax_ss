@@ -41,13 +41,17 @@ class UpdateManager @Inject constructor(
                 
                 httpClient.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) {
+                        if (response.code == 404) {
+                            clearCachedUpdate()
+                            return@withContext UpdateResult.NoUpdate("GITHUB_RELEASE_NOT_PUBLISHED")
+                        }
                         return@withContext UpdateResult.Error("GITHUB_HTTP_${response.code}")
                     }
                     
                     val json = JSONObject(response.body?.string() ?: "")
                     if (json.optBoolean("draft", false) || json.optBoolean("prerelease", false)) {
                         clearCachedUpdate()
-                        return@withContext UpdateResult.NoUpdate
+                        return@withContext UpdateResult.NoUpdate("GITHUB_RELEASE_NOT_PUBLIC")
                     }
 
                     val latestTag = normalizeVersion(json.getString("tag_name"))
@@ -79,7 +83,11 @@ class UpdateManager @Inject constructor(
                         ).also { cacheUpdate(it.info) }
                     } else {
                         clearCachedUpdate()
-                        UpdateResult.NoUpdate
+                        if (downloadUrl == null) {
+                            UpdateResult.NoUpdate("GITHUB_RELEASE_WITHOUT_APK")
+                        } else {
+                            UpdateResult.NoUpdate("APP_UP_TO_DATE")
+                        }
                     }
                 }
             } catch (e: Exception) {
@@ -228,7 +236,7 @@ data class UpdateInfo(
 )
 
 sealed class UpdateResult {
-    object NoUpdate : UpdateResult()
+    data class NoUpdate(val reason: String = "APP_UP_TO_DATE") : UpdateResult()
     data class Available(val info: UpdateInfo) : UpdateResult()
     data class Error(val message: String) : UpdateResult()
 }

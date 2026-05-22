@@ -76,7 +76,7 @@ class DashboardViewModel @Inject constructor(
                         updateAvailable = false,
                         newVersion = null,
                         updateInfo = null,
-                        updateStatus = "APP_UP_TO_DATE"
+                        updateStatus = result.reason
                     )
                 }
                 is UpdateResult.Error -> {
