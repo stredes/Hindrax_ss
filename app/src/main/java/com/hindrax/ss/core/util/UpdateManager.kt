@@ -84,9 +84,11 @@ class UpdateManager @Inject constructor(
                     } else {
                         clearCachedUpdate()
                         if (downloadUrl == null) {
-                            UpdateResult.NoUpdate("GITHUB_RELEASE_WITHOUT_APK")
+                            UpdateResult.NoUpdate("GITHUB_RELEASE_WITHOUT_APK: latest=v$latestTag")
                         } else {
-                            UpdateResult.NoUpdate("APP_UP_TO_DATE")
+                            UpdateResult.NoUpdate(
+                                "LATEST_RELEASE_NOT_NEWER: current=v${normalizeVersion(currentVersion)} latest=v$latestTag asset=${apkAsset.optString("name", "apk")}"
+                            )
                         }
                     }
                 }

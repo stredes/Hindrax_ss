@@ -16,6 +16,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
@@ -35,6 +36,16 @@ import com.hindrax.ss.domain.tools.AndraxToolCatalog
 import com.hindrax.ss.domain.tools.ToolCatalogItem
 import com.hindrax.ss.domain.tools.ToolRiskLevel
 import com.hindrax.ss.presentation.tasks.AsciiBanners
+
+private val NeonBg = Color(0xFF030604)
+private val NeonPanel = Color(0xFF07100B)
+private val NeonPanelHot = Color(0xFF101004)
+private val NeonGreen = Color(0xFF39FF14)
+private val NeonCyan = Color(0xFF00E5FF)
+private val NeonYellow = Color(0xFFFFEA00)
+private val NeonMagenta = Color(0xFFFF2BD6)
+private val NeonRed = Color(0xFFFF365E)
+private val NeonGrid = Color(0xFF173020)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,33 +108,49 @@ fun DashboardScreen(
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF050505)),
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(NeonBg, Color(0xFF020202), Color(0xFF050805))
+                )
+            ),
         topBar = if (!isFullScreen) {
             {
                 // Use a compact top bar to save vertical space in landscape/tablet
                 TopAppBar(
-                    title = { Text("HINDRAX_CORE", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, color = Color.Green) },
+                    title = {
+                        Text(
+                            "[ HINDRAX_CORE :: NEON_ASCII ]",
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            color = NeonGreen,
+                            fontSize = 14.sp
+                        )
+                    },
                     actions = {
                         IconButton(onClick = { viewModel.refreshStatus(context, currentVersion) }) {
-                            Icon(imageVector = Icons.Default.Refresh, contentDescription = "Refresh Status", tint = Color.Green)
+                            Icon(imageVector = Icons.Default.Refresh, contentDescription = "Refresh Status", tint = NeonGreen)
                         }
 
                         IconButton(
                             enabled = uiState.updateAvailable,
                             onClick = { if (uiState.updateAvailable) viewModel.installUpdate() }
                         ) {
-                            Icon(Icons.Default.Update, contentDescription = "Install Update", tint = if (uiState.updateAvailable) Color.Yellow else Color.DarkGray)
+                            Icon(Icons.Default.Update, contentDescription = "Install Update", tint = if (uiState.updateAvailable) NeonYellow else Color.DarkGray)
                         }
 
                         IconButton(onClick = { isFullScreenState.value = true }) {
-                            Icon(Icons.Default.Fullscreen, contentDescription = "Full screen", tint = Color.Green)
+                            Icon(Icons.Default.Fullscreen, contentDescription = "Full screen", tint = NeonGreen)
                         }
 
-                        IconButton(onClick = onNavigateToSettings) { Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.Green) }
-                        IconButton(onClick = onNavigateToProfile) { Icon(Icons.Default.Person, contentDescription = "Profile", tint = Color.Green) }
-                        IconButton(onClick = onNavigateToTermuxSetup) { Icon(Icons.Default.Build, contentDescription = "Termux Setup", tint = Color.Green) }
-                        IconButton(onClick = onNavigateToTargets) { Icon(Icons.Default.Lock, contentDescription = "Authorized Targets", tint = Color.Green) }
+                        IconButton(onClick = onNavigateToSettings) { Icon(Icons.Default.Settings, contentDescription = "Settings", tint = NeonGreen) }
+                        IconButton(onClick = onNavigateToProfile) { Icon(Icons.Default.Person, contentDescription = "Profile", tint = NeonCyan) }
+                        IconButton(onClick = onNavigateToTermuxSetup) { Icon(Icons.Default.Build, contentDescription = "Termux Setup", tint = NeonYellow) }
+                        IconButton(onClick = onNavigateToTargets) { Icon(Icons.Default.Lock, contentDescription = "Authorized Targets", tint = NeonMagenta) }
                     },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color(0xFF020302),
+                        titleContentColor = NeonGreen
+                    ),
                     scrollBehavior = scrollBehavior
                 )
             }
@@ -146,7 +173,7 @@ fun DashboardScreen(
                     FloatingActionButton(
                         onClick = { viewModel.refreshStatus(context, currentVersion) },
                         containerColor = Color.DarkGray,
-                        contentColor = Color.Green,
+                        contentColor = NeonGreen,
                         shape = MaterialTheme.shapes.small,
                         modifier = Modifier.padding(bottom = 8.dp)
                     ) {
@@ -155,7 +182,7 @@ fun DashboardScreen(
 
                     FloatingActionButton(
                         onClick = { if (uiState.updateAvailable) viewModel.installUpdate() },
-                        containerColor = if (uiState.updateAvailable) Color.Yellow else Color.DarkGray,
+                        containerColor = if (uiState.updateAvailable) NeonYellow else Color.DarkGray,
                         contentColor = Color.Black,
                         shape = MaterialTheme.shapes.small
                     ) {
@@ -174,6 +201,7 @@ fun DashboardScreen(
                 .padding(innerPadding)
                 .padding(16.dp)
                 .fillMaxSize()
+                .background(NeonBg.copy(alpha = 0.35f))
                 .nestedScroll(scrollBehavior.nestedScrollConnection)
         ) {
             // Header spans all columns so it scrolls with the content
@@ -181,7 +209,7 @@ fun DashboardScreen(
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
                         text = AsciiBanners.HINDRAX_MAIN,
-                        color = Color.Green,
+                        color = NeonGreen,
                         fontFamily = FontFamily.Monospace,
                         fontSize = if (isTablet) 12.sp else 7.sp,
                         lineHeight = if (isTablet) 14.sp else 8.sp,
@@ -192,19 +220,36 @@ fun DashboardScreen(
 
                     Spacer(modifier = Modifier.height(10.dp))
 
-                    Image(
-                        painter = painterResource(id = R.drawable.hindrax_logo),
-                        contentDescription = "Hindrax",
-                        modifier = Modifier
-                            .size(if (isTablet) 116.dp else 86.dp)
-                            .align(Alignment.CenterHorizontally)
-                    )
+                    NeonAsciiPanel(
+                        title = "SYSTEM_SIGNAL",
+                        accent = NeonCyan,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Image(
+                                painter = painterResource(id = R.drawable.hindrax_logo),
+                                contentDescription = "Hindrax",
+                                modifier = Modifier.size(if (isTablet) 104.dp else 76.dp)
+                            )
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column {
+                                Text("+- HINDRAX NODE ONLINE -+", color = NeonGreen, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = if (isTablet) 14.sp else 11.sp)
+                                Text("| MODE: DASHBOARD_ASCII", color = NeonCyan, fontFamily = FontFamily.Monospace, fontSize = if (isTablet) 12.sp else 10.sp)
+                                Text("| CORE: v$currentVersion", color = NeonYellow, fontFamily = FontFamily.Monospace, fontSize = if (isTablet) 12.sp else 10.sp)
+                                Text("+------------------------+", color = NeonGrid, fontFamily = FontFamily.Monospace, fontSize = if (isTablet) 12.sp else 10.sp)
+                            }
+                        }
+                    }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = if (uiState.updateAvailable) Color(0xFF1A1600) else Color(0xFF0A0A0A)),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, if (uiState.updateAvailable) Color.Yellow else Color.DarkGray),
+                        colors = CardDefaults.cardColors(containerColor = if (uiState.updateAvailable) NeonPanelHot else NeonPanel),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, if (uiState.updateAvailable) NeonYellow else NeonGrid),
                         modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                         shape = MaterialTheme.shapes.extraSmall
                     ) {
@@ -212,29 +257,29 @@ fun DashboardScreen(
                             modifier = Modifier.padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Update, contentDescription = null, tint = if (uiState.updateAvailable) Color.Yellow else Color.DarkGray)
+                            Icon(Icons.Default.Update, contentDescription = null, tint = if (uiState.updateAvailable) NeonYellow else Color.DarkGray)
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    if (uiState.updateAvailable) "UPDATE_AVAILABLE: v${uiState.newVersion}" else "UPDATE_CHANNEL",
+                                    if (uiState.updateAvailable) "!! UPDATE_AVAILABLE :: v${uiState.newVersion} !!" else "[ UPDATE_CHANNEL ]",
                                     color = Color.White,
                                     fontFamily = FontFamily.Monospace,
                                     fontSize = if (isTablet) 14.sp else 12.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    uiState.updateInfo?.assetName ?: "Waiting for GitHub release APK.",
-                                    color = if (uiState.updateAvailable) Color.Yellow.copy(0.8f) else Color.Gray,
+                                    uiState.updateInfo?.assetName ?: uiState.updateStatus,
+                                    color = if (uiState.updateAvailable) NeonYellow.copy(0.9f) else Color.Gray,
                                     fontFamily = FontFamily.Monospace,
                                     fontSize = if (isTablet) 12.sp else 10.sp
                                 )
-                                Text(uiState.updateStatus, color = Color.Gray, fontFamily = FontFamily.Monospace, fontSize = if (isTablet) 11.sp else 9.sp)
+                                Text("status> ${uiState.updateStatus}", color = Color.Gray, fontFamily = FontFamily.Monospace, fontSize = if (isTablet) 11.sp else 9.sp)
                             }
                             Button(
                                 onClick = { viewModel.installUpdate() },
                                 enabled = uiState.updateAvailable,
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color.Yellow,
+                                    containerColor = NeonYellow,
                                     contentColor = Color.Black,
                                     disabledContainerColor = Color.DarkGray,
                                     disabledContentColor = Color.Black
@@ -249,10 +294,10 @@ fun DashboardScreen(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFF0A0A0A)),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.DarkGray)
+                    NeonAsciiPanel(
+                        title = "NODE_STATUS",
+                        accent = NeonGreen,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
                             StatusItem(label = "NET_ADDR", value = uiState.localIp, icon = Icons.Default.Info)
@@ -260,50 +305,40 @@ fun DashboardScreen(
                                 label = "TERMUX",
                                 value = if (uiState.isTermuxInstalled) "READY" else "OFFLINE",
                                 icon = Icons.Default.Terminal,
-                                color = if (uiState.isTermuxInstalled) Color.Green else Color.Red
+                                color = if (uiState.isTermuxInstalled) NeonGreen else NeonRed
                             )
-                            StatusItem(label = "VERSION", value = "v$currentVersion", icon = Icons.Default.Fingerprint, color = Color.Cyan)
+                            StatusItem(label = "VERSION", value = "v$currentVersion", icon = Icons.Default.Fingerprint, color = NeonCyan)
                         }
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    Text(
-                        text = "--- CORE_MODULES ---",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontFamily = FontFamily.Monospace,
-                        color = Color.Cyan
-                    )
+                    NeonSectionLabel("CORE_MODULES", "FAST_ACCESS")
 
                     Spacer(modifier = Modifier.height(8.dp))
                 }
             }
 
-            item { ModuleCard("Automation", Icons.Default.Bolt, onNavigateToAutomation, accentColor = Color.Green) }
-            item { ModuleCard("AI_Assist", Icons.Default.Psychology, onNavigateToAiAssist, accentColor = Color.Green) }
-            item { ModuleCard("Profile", Icons.Default.Person, onNavigateToProfile, accentColor = Color.Green) }
-            item { ModuleCard("File_Analyzer", Icons.Default.FolderOpen, onNavigateToFileAnalyzer, accentColor = Color.Green) }
-            item { ModuleCard("Missions", Icons.Default.Assignment, onNavigateToTasks, accentColor = Color.Yellow) }
-            item { ModuleCard("Logistics", Icons.Default.Inventory, onNavigateToInventory, accentColor = Color.Cyan) }
-            item { ModuleCard("CYD_Link", Icons.Default.DeveloperBoard, onNavigateToCydConnect, accentColor = Color.Magenta) }
+            item { ModuleCard("Automation", Icons.Default.Bolt, onNavigateToAutomation, accentColor = NeonGreen) }
+            item { ModuleCard("AI_Assist", Icons.Default.Psychology, onNavigateToAiAssist, accentColor = NeonGreen) }
+            item { ModuleCard("Profile", Icons.Default.Person, onNavigateToProfile, accentColor = NeonGreen) }
+            item { ModuleCard("File_Analyzer", Icons.Default.FolderOpen, onNavigateToFileAnalyzer, accentColor = NeonCyan) }
+            item { ModuleCard("Missions", Icons.Default.Assignment, onNavigateToTasks, accentColor = NeonYellow) }
+            item { ModuleCard("Logistics", Icons.Default.Inventory, onNavigateToInventory, accentColor = NeonCyan) }
+            item { ModuleCard("CYD_Link", Icons.Default.DeveloperBoard, onNavigateToCydConnect, accentColor = NeonMagenta) }
             item { ModuleCard("Mesh Chat", Icons.Default.Chat, onNavigateToChat, accentColor = Color.White) }
-            item { ModuleCard("Geo_Live", Icons.Default.MyLocation, onNavigateToLiveLocation, accentColor = Color.Cyan) }
-            item { ModuleCard("Offline_Music", Icons.Default.LibraryMusic, onNavigateToOfflineMusic, accentColor = Color.Yellow) }
-            item { ModuleCard("NFC_Lab", Icons.Default.Nfc, onNavigateToNfcLab, accentColor = Color.Green) }
-            item { ModuleCard("Net_Disc", Icons.Default.CellTower, onNavigateToNetworkDiscovery) }
-            item { ModuleCard("Terminal", Icons.Default.Terminal, onNavigateToTermuxScripts) }
-            item { ModuleCard("Scanner", Icons.Default.Lan, onNavigateToPortScanner) }
-            item { ModuleCard("Web_Scan", Icons.Default.ManageSearch, onNavigateToWebScanner) }
+            item { ModuleCard("Geo_Live", Icons.Default.MyLocation, onNavigateToLiveLocation, accentColor = NeonCyan) }
+            item { ModuleCard("Offline_Music", Icons.Default.LibraryMusic, onNavigateToOfflineMusic, accentColor = NeonYellow) }
+            item { ModuleCard("NFC_Lab", Icons.Default.Nfc, onNavigateToNfcLab, accentColor = NeonGreen) }
+            item { ModuleCard("Net_Disc", Icons.Default.CellTower, onNavigateToNetworkDiscovery, accentColor = NeonCyan) }
+            item { ModuleCard("Terminal", Icons.Default.Terminal, onNavigateToTermuxScripts, accentColor = NeonGreen) }
+            item { ModuleCard("Scanner", Icons.Default.Lan, onNavigateToPortScanner, accentColor = NeonYellow) }
+            item { ModuleCard("Web_Scan", Icons.Default.ManageSearch, onNavigateToWebScanner, accentColor = NeonMagenta) }
             item { ModuleCard("Logs", Icons.Default.History, onNavigateToReports) }
 
             item(span = { GridItemSpan(columns) }) {
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "--- EXPOSED_TOOLS ---",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontFamily = FontFamily.Monospace,
-                    color = Color.Cyan
-                )
+                NeonSectionLabel("EXPOSED_TOOLS", "ANDRAX_CATALOG")
             }
 
             AndraxToolCatalog.categories.forEach { category ->
@@ -344,24 +379,84 @@ fun DashboardScreen(
 }
 
 @Composable
+private fun NeonAsciiPanel(
+    title: String,
+    accent: Color,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(containerColor = NeonPanel),
+        border = androidx.compose.foundation.BorderStroke(1.dp, accent.copy(alpha = 0.72f)),
+        shape = MaterialTheme.shapes.extraSmall
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = "+--[ $title ]--------------------------------+",
+                color = accent,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                fontSize = 10.sp,
+                maxLines = 1,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color(0xFF020402))
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            )
+            content()
+            Text(
+                text = "+--------------------------------------------+",
+                color = NeonGrid,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 9.sp,
+                maxLines = 1,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun NeonSectionLabel(title: String, meta: String) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = "+-- $title :: $meta --+",
+            style = MaterialTheme.typography.labelSmall,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Bold,
+            color = NeonCyan
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>",
+            fontFamily = FontFamily.Monospace,
+            color = NeonGrid,
+            fontSize = 9.sp,
+            maxLines = 1
+        )
+    }
+}
+
+@Composable
 fun ToolCategoryHeader(title: String, count: Int, capabilities: String) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF061006)),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1F7A00)),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF04120B)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, NeonCyan.copy(alpha = 0.65f)),
         shape = MaterialTheme.shapes.extraSmall
     ) {
         Column(modifier = Modifier.padding(10.dp)) {
             Text(
-                text = ">> ${title.uppercase()} [$count]",
-                color = Color.Green,
+                text = "+-- ${title.uppercase()} [$count] --+",
+                color = NeonCyan,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
                 fontSize = 12.sp
             )
             Text(
                 text = capabilities,
-                color = Color.Gray,
+                color = NeonGreen.copy(alpha = 0.72f),
                 fontFamily = FontFamily.Monospace,
                 fontSize = 10.sp,
                 maxLines = 2
@@ -374,14 +469,14 @@ fun ToolCategoryHeader(title: String, count: Int, capabilities: String) {
 @Composable
 fun ToolHomeCard(tool: ToolCatalogItem, onClick: () -> Unit) {
     val riskColor = when (tool.riskLevel) {
-        ToolRiskLevel.LOW -> Color.Green
-        ToolRiskLevel.MEDIUM -> Color.Yellow
-        ToolRiskLevel.HIGH -> Color.Red
+        ToolRiskLevel.LOW -> NeonGreen
+        ToolRiskLevel.MEDIUM -> NeonYellow
+        ToolRiskLevel.HIGH -> NeonRed
     }
     Card(
         onClick = onClick,
-        modifier = Modifier.height(88.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF090909)),
+        modifier = Modifier.height(96.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF050806)),
         border = androidx.compose.foundation.BorderStroke(1.dp, riskColor.copy(alpha = 0.55f)),
         shape = MaterialTheme.shapes.extraSmall
     ) {
@@ -392,7 +487,7 @@ fun ToolHomeCard(tool: ToolCatalogItem, onClick: () -> Unit) {
             verticalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = tool.displayName.uppercase(),
+                text = "[${tool.displayName.uppercase()}]",
                 color = Color.White,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
@@ -401,7 +496,7 @@ fun ToolHomeCard(tool: ToolCatalogItem, onClick: () -> Unit) {
             )
             Text(
                 text = tool.tutorial.authorizedUse,
-                color = Color.Gray,
+                color = Color(0xFF9EA99F),
                 fontFamily = FontFamily.Monospace,
                 fontSize = 9.sp,
                 lineHeight = 11.sp,
@@ -409,8 +504,8 @@ fun ToolHomeCard(tool: ToolCatalogItem, onClick: () -> Unit) {
             )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = tool.executionMode.name,
-                    color = Color.Cyan,
+                    text = "exec:${tool.executionMode.name}",
+                    color = NeonCyan,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 9.sp,
                     modifier = Modifier.weight(1f)
@@ -473,7 +568,7 @@ fun StatusItem(label: String, value: String, icon: ImageVector, color: Color = C
     ) {
         Icon(icon, contentDescription = null, modifier = Modifier.size(14.dp), tint = color)
         Spacer(modifier = Modifier.width(8.dp))
-        Text(text = "$label: ", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, color = Color.Gray)
+        Text(text = "| $label: ", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, color = Color.Gray)
         Text(text = value, color = color, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
     }
 }
@@ -488,25 +583,29 @@ fun ModuleCard(
 ) {
     Card(
         onClick = onClick,
-        modifier = Modifier.height(80.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF111111)),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color.DarkGray),
+        modifier = Modifier.height(88.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF060A07)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, accentColor.copy(alpha = 0.68f)),
         shape = MaterialTheme.shapes.extraSmall
     ) {
         Column(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Text("+---------+", color = accentColor.copy(alpha = 0.55f), fontFamily = FontFamily.Monospace, fontSize = 8.sp, maxLines = 1)
             Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp), tint = accentColor)
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = name.uppercase(), 
+                text = name.uppercase(),
                 fontWeight = FontWeight.Bold, 
                 style = MaterialTheme.typography.labelSmall,
                 fontFamily = FontFamily.Monospace,
-                color = Color.White
+                color = Color.White,
+                maxLines = 1,
+                textAlign = TextAlign.Center
             )
+            Text("+-run-+", color = NeonGrid, fontFamily = FontFamily.Monospace, fontSize = 8.sp, maxLines = 1)
         }
     }
 }
