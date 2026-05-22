@@ -34,6 +34,7 @@ import com.hindrax.ss.features.ai.HindraxAiScreen
 import com.hindrax.ss.features.ai.OpenAiStartupKeyScreen
 import com.hindrax.ss.features.files.FileAnalyzerScreen
 import com.hindrax.ss.features.location.LiveLocationScreen
+import com.hindrax.ss.features.music.OfflineMusicScreen
 import com.hindrax.ss.features.profile.HindraxProfileScreen
 import com.hindrax.ss.features.targets.AllowedTargetsScreen
 import com.hindrax.ss.features.termux.TermuxSetupScreen
@@ -109,6 +110,7 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToInventory = { navController.navigate("inventory") },
                                 onNavigateToChat = { navController.navigate("chat") },
                                 onNavigateToLiveLocation = { navController.navigate("live_location") },
+                                onNavigateToOfflineMusic = { navController.navigate("offline_music") },
                                 onNavigateToNfcLab = { navController.navigate("nfc_lab") }
                             )
                         }
@@ -159,6 +161,7 @@ class MainActivity : ComponentActivity() {
                         composable("profile") { HindraxProfileScreen(onBack = { navController.popBackStack() }) }
                         composable("file_analyzer") { FileAnalyzerScreen(onBack = { navController.popBackStack() }) }
                         composable("live_location") { LiveLocationScreen(onBack = { navController.popBackStack() }) }
+                        composable("offline_music") { OfflineMusicScreen(onBack = { navController.popBackStack() }) }
                         composable("ai_assist") {
                             HindraxAiScreen(
                                 onBack = { navController.popBackStack() },

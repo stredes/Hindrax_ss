@@ -7,6 +7,7 @@ import androidx.work.*
 import com.hindrax.ss.core.work.AuditWorker
 import com.hindrax.ss.data.entity.AuditSessionEntity
 import com.hindrax.ss.data.repository.AuditRepository
+import com.hindrax.ss.domain.tools.NetworkToolSuggestions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -14,6 +15,8 @@ import java.util.UUID
 
 data class PortScannerUiState(
     val target: String = "",
+    val selectedProfileId: String = NetworkToolSuggestions.defaultPortProfile.id,
+    val ports: String = NetworkToolSuggestions.portCsv(NetworkToolSuggestions.defaultPortProfile.id),
     val isRunning: Boolean = false,
     val logs: String = "",
     val workId: UUID? = null
@@ -29,12 +32,27 @@ class PortScannerViewModel(
         _uiState.value = _uiState.value.copy(target = newTarget)
     }
 
+    fun onPortsChange(newPorts: String) {
+        _uiState.value = _uiState.value.copy(ports = newPorts, selectedProfileId = "custom")
+    }
+
+    fun selectPortProfile(profileId: String) {
+        _uiState.value = _uiState.value.copy(
+            selectedProfileId = profileId,
+            ports = NetworkToolSuggestions.portCsv(profileId)
+        )
+    }
+
     fun startScan(context: Context) {
         val target = _uiState.value.target
+        val ports = NetworkToolSuggestions.parsePorts(_uiState.value.ports)
         if (target.isBlank()) return
 
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isRunning = true, logs = "Iniciando escaneo en segundo plano...\n")
+            _uiState.value = _uiState.value.copy(
+                isRunning = true,
+                logs = "Iniciando escaneo en segundo plano...\nPuertos: ${ports.joinToString(", ")}\n"
+            )
             
             val sessionId = auditRepository.startSession(
                 AuditSessionEntity(
@@ -52,7 +70,8 @@ class PortScannerViewModel(
                 .setInputData(workDataOf(
                     "SESSION_ID" to sessionId,
                     "TARGET" to target,
-                    "TASK_TYPE" to "PORT_SCAN"
+                    "TASK_TYPE" to "PORT_SCAN",
+                    "PORTS" to ports.joinToString(",")
                 ))
                 .setConstraints(Constraints.Builder()
                     .setRequiredNetworkType(NetworkType.CONNECTED)

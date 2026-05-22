@@ -15,6 +15,7 @@ import com.hindrax.ss.data.entity.AuditSessionEntity
 import com.hindrax.ss.domain.ai.OpenAiFunctionCall
 import com.hindrax.ss.domain.ai.OpenAiResponseParser
 import com.hindrax.ss.domain.ai.OpenAiToolOutput
+import com.hindrax.ss.domain.tools.NetworkToolSuggestions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.booleanOrNull
@@ -56,20 +57,25 @@ class HindraxAiToolExecutor(
             ToolSummary("dns_lookup", "DNS Lookup", "NETWORK", true),
             ToolSummary("web_headers", "Web Analysis", "WEB", true),
             ToolSummary("osint_discovery", "OSINT Discovery", "OSINT", true),
-            ToolSummary("port_scan", "Port Scanner", "NETWORK", true)
+            ToolSummary("port_scan", "Port Scanner", "NETWORK", true),
+            ToolSummary("net_disc", "Network Discovery", "NETWORK", false)
         ).filter { category == null || it.category == category }
 
         val toolsJson = directTools.joinToString(prefix = "[", postfix = "]") { tool ->
             """{"id":"${tool.id}","name":"${tool.name}","category":"${tool.category}","directLaunch":${tool.directLaunch}}"""
         }
+        val portProfilesJson = NetworkToolSuggestions.profiles.joinToString(prefix = "[", postfix = "]") { profile ->
+            """{"id":"${profile.id}","label":"${profile.label}","ports":"${profile.ports.joinToString(",")}","description":"${safe(profile.description)}"}"""
+        }
 
-        return """{"status":"OK","tools":$toolsJson,"note":"Only directLaunch=true tools are executed by the AI agent in this build."}"""
+        return """{"status":"OK","tools":$toolsJson,"netDiscSuggestions":{"recommendedTools":["ping","port_scan","banner_grab","dns_lookup","web_headers","hindrax_chat","live_location","cyd_console"],"portProfiles":$portProfilesJson},"note":"directLaunch=false tools are shown as app suggestions or workflow guidance."}"""
     }
 
     private suspend fun runTool(arguments: String): String {
         val args = OpenAiResponseParser.parseArguments(arguments)
         val toolId = args["tool_id"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
         val targetValue = args["target"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+        val ports = NetworkToolSuggestions.parsePorts(args["ports"]?.jsonPrimitive?.contentOrNull)
         val authorizationConfirmed = args["authorization_confirmed"]?.jsonPrimitive?.booleanOrNull == true
 
         if (toolId.isBlank() || targetValue.isBlank()) {
@@ -87,7 +93,8 @@ class HindraxAiToolExecutor(
             "ping" -> runPing(target.value)
             "dns_lookup" -> runDnsLookup(target.value)
             "web_headers", "osint_discovery" -> runWebHeaders(target.value, toolId)
-            "port_scan" -> enqueuePortScan(target.value)
+            "port_scan" -> enqueuePortScan(target.value, ports)
+            "net_disc" -> netDiscGuidance(target.value)
             else -> """{"status":"BLOCKED","reason":"UNSUPPORTED_DIRECT_TOOL","tool_id":"$toolId"}"""
         }
     }
@@ -146,14 +153,22 @@ class HindraxAiToolExecutor(
         }
     }
 
-    private suspend fun enqueuePortScan(target: String): String {
+    private fun netDiscGuidance(target: String): String {
+        val profiles = NetworkToolSuggestions.profiles.joinToString(prefix = "[", postfix = "]") { profile ->
+            """{"profile":"${profile.label}","ports":"${profile.ports.joinToString(",")}","description":"${safe(profile.description)}"}"""
+        }
+        return """{"status":"SUGGESTED","target":"${safe(target)}","tool":"net_disc","nextTools":["ping","port_scan","banner_grab","dns_lookup","web_headers"],"portProfiles":$profiles,"note":"Open NODES_DISCOVERY in the dashboard to scan BLE/LAN; run port_scan with a selected port profile for a specific authorized node."}"""
+    }
+
+    private suspend fun enqueuePortScan(target: String, ports: List<Int>): String {
         val sessionId = startSession("AI Port Scan: $target", "PORT_SCAN", target, "IP/DOMAIN", System.currentTimeMillis())
         val workRequest = OneTimeWorkRequestBuilder<AuditWorker>()
             .setInputData(
                 workDataOf(
                     "SESSION_ID" to sessionId,
                     "TARGET" to target,
-                    "TASK_TYPE" to "PORT_SCAN"
+                    "TASK_TYPE" to "PORT_SCAN",
+                    "PORTS" to ports.joinToString(",")
                 )
             )
             .setConstraints(
@@ -164,7 +179,7 @@ class HindraxAiToolExecutor(
             .build()
 
         WorkManager.getInstance(context).enqueue(workRequest)
-        return """{"status":"QUEUED","sessionId":$sessionId,"workId":"${workRequest.id}","note":"Port scan is running in WorkManager; results will appear in history."}"""
+        return """{"status":"QUEUED","sessionId":$sessionId,"workId":"${workRequest.id}","ports":"${ports.joinToString(",")}","note":"Port scan is running in WorkManager; results will appear in history."}"""
     }
 
     private suspend fun startSession(

@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hindrax.ss.HindraxApplication
+import com.hindrax.ss.domain.tools.NetworkToolSuggestions
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,6 +63,64 @@ fun PortScannerScreen(
                 value = uiState.target,
                 onValueChange = { viewModel.onTargetChange(it) },
                 label = { Text("TARGET_IP_OR_DOMAIN", fontFamily = FontFamily.Monospace) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                enabled = !uiState.isRunning,
+                textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = Color.Green),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = Color.DarkGray,
+                    focusedBorderColor = Color.Green,
+                    cursorColor = Color.Green
+                ),
+                shape = MaterialTheme.shapes.extraSmall
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "--- PORT_PROFILES ---",
+                style = MaterialTheme.typography.labelSmall,
+                fontFamily = FontFamily.Monospace,
+                color = Color.Cyan
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                NetworkToolSuggestions.profiles.chunked(3).forEach { rowProfiles ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        rowProfiles.forEach { profile ->
+                            FilterChip(
+                                selected = uiState.selectedProfileId == profile.id,
+                                onClick = { viewModel.selectPortProfile(profile.id) },
+                                enabled = !uiState.isRunning,
+                                label = {
+                                    Text(profile.label, fontFamily = FontFamily.Monospace, fontSize = MaterialTheme.typography.labelSmall.fontSize)
+                                },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = Color.Green,
+                                    selectedLabelColor = Color.Black,
+                                    labelColor = Color.Green
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    enabled = !uiState.isRunning,
+                                    selected = uiState.selectedProfileId == profile.id,
+                                    borderColor = Color.DarkGray,
+                                    selectedBorderColor = Color.Green
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = uiState.ports,
+                onValueChange = { viewModel.onPortsChange(it) },
+                label = { Text("PORTS_CSV", fontFamily = FontFamily.Monospace) },
+                supportingText = {
+                    Text("Ej: 22,80,443,8080,9999", fontFamily = FontFamily.Monospace)
+                },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 enabled = !uiState.isRunning,

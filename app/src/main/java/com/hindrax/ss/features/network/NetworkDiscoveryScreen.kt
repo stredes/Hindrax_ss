@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.hindrax.ss.domain.tools.NetworkToolSuggestions
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -115,6 +116,10 @@ fun NetworkDiscoveryScreen(
                     )
                 }
             }
+
+            NetDiscSuggestionsPanel()
+
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Discovery Actions
             Button(
@@ -222,6 +227,30 @@ fun DeviceItemComponent(
                     color = nodeColor.copy(alpha = 0.7f),
                     fontSize = 10.sp
                 )
+                val suggestedTools = NetworkToolSuggestions.toolsForNode(
+                    isHindraxNode = device.isHindraxNode,
+                    isCyd = device.isCyd,
+                    hasIp = device.ip != null
+                )
+                val suggestedPorts = NetworkToolSuggestions.portsForNode(device.isHindraxNode, device.isCyd)
+                if (suggestedTools.isNotEmpty()) {
+                    Text(
+                        text = "TOOLS: ${suggestedTools.joinToString("  ") { it.label }}",
+                        fontFamily = FontFamily.Monospace,
+                        color = Color.White.copy(alpha = 0.72f),
+                        fontSize = 9.sp,
+                        modifier = Modifier.padding(top = 6.dp)
+                    )
+                }
+                if (device.ip != null) {
+                    Text(
+                        text = "PORT_HINTS: ${suggestedPorts.joinToString("  ") { "${it.port}/${it.service}" }}",
+                        fontFamily = FontFamily.Monospace,
+                        color = Color.Green.copy(alpha = 0.72f),
+                        fontSize = 9.sp,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
             }
             if (device.isHindraxNode) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -263,6 +292,46 @@ fun DeviceItemComponent(
                 ) {
                     Text("CONNECT", fontSize = 10.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NetDiscSuggestionsPanel() {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF101010)),
+        modifier = Modifier.fillMaxWidth(),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF2A2A2A)),
+        shape = MaterialTheme.shapes.extraSmall
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Build, contentDescription = null, tint = Color.Yellow, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "NET_DISC_TOOL_HINTS",
+                    color = Color.Yellow,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Usa PING para validar vida, PORT_SCAN para servicios, BANNER en HTTP/TCP, MESH_CHAT/GEO_LIVE en nodos Hindrax y CYD_CONSOLE en firmware CYD.",
+                color = Color.White.copy(alpha = 0.78f),
+                fontFamily = FontFamily.Monospace,
+                fontSize = 10.sp
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            NetworkToolSuggestions.profiles.forEach { profile ->
+                Text(
+                    text = "${profile.label}: ${profile.ports.joinToString(",")}  # ${profile.description}",
+                    color = Color.Green.copy(alpha = 0.75f),
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 9.sp
+                )
             }
         }
     }

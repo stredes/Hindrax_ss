@@ -6,6 +6,7 @@ import androidx.work.WorkerParameters
 import com.hindrax.ss.HindraxApplication
 import com.hindrax.ss.core.model.Severity
 import com.hindrax.ss.data.entity.AuditResultEntity
+import com.hindrax.ss.domain.tools.NetworkToolSuggestions
 import java.net.InetSocketAddress
 import java.net.Socket
 
@@ -18,13 +19,14 @@ class AuditWorker(
         val sessionId = inputData.getLong("SESSION_ID", -1)
         val target = inputData.getString("TARGET") ?: return Result.failure()
         val taskType = inputData.getString("TASK_TYPE") ?: return Result.failure()
+        val ports = NetworkToolSuggestions.parsePorts(inputData.getString("PORTS"))
 
         val app = applicationContext as HindraxApplication
         val repository = app.auditRepository
 
         return try {
             when (taskType) {
-                "PORT_SCAN" -> runPortScan(sessionId, target, repository)
+                "PORT_SCAN" -> runPortScan(sessionId, target, ports, repository)
                 else -> Result.failure()
             }
             Result.success()
@@ -33,8 +35,12 @@ class AuditWorker(
         }
     }
 
-    private suspend fun runPortScan(sessionId: Long, target: String, repository: com.hindrax.ss.data.repository.AuditRepository) {
-        val ports = listOf(22, 53, 80, 443, 445, 3306, 5432, 6379, 8080, 8443)
+    private suspend fun runPortScan(
+        sessionId: Long,
+        target: String,
+        ports: List<Int>,
+        repository: com.hindrax.ss.data.repository.AuditRepository
+    ) {
         val openPorts = mutableListOf<Int>()
 
         ports.forEach { port ->
@@ -53,13 +59,23 @@ class AuditWorker(
                     severity = Severity.MEDIUM.name,
                     category = "Network",
                     findingTitle = "Open Ports Found",
-                    findingBody = "Detected open ports: ${openPorts.joinToString(", ")}"
+                    findingBody = "Detected open ports: ${openPorts.joinToString(", ")}\nScanned ports: ${ports.joinToString(", ")}"
                 )
             )
         }
 
         repository.getSessionById(sessionId)?.let { session ->
-            repository.updateSession(session.copy(status = "FINISHED", finishedAt = System.currentTimeMillis()))
+            repository.updateSession(
+                session.copy(
+                    status = "FINISHED",
+                    finishedAt = System.currentTimeMillis(),
+                    summary = if (openPorts.isEmpty()) {
+                        "No open ports detected in ${ports.joinToString(", ")}"
+                    } else {
+                        "Open ports: ${openPorts.joinToString(", ")}"
+                    }
+                )
+            )
         }
     }
 }

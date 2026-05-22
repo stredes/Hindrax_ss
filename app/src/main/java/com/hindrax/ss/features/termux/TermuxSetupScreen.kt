@@ -67,8 +67,8 @@ fun TermuxSetupScreen(onBack: () -> Unit) {
 
             StepItem(
                 number = "02",
-                text = "Initialize Hindrax Scripts Directory:",
-                command = "mkdir -p ~/.hindrax_ss/scripts"
+                text = "Initialize storage and Hindrax Scripts Directory:",
+                command = "termux-setup-storage && mkdir -p ~/.hindrax_ss/scripts /storage/emulated/0/Music/HindraxOfflineMusic"
             )
 
             StepItem(
@@ -91,6 +91,30 @@ fun TermuxSetupScreen(onBack: () -> Unit) {
 
             StepItem(
                 number = "06",
+                text = "Install spotDL for the offline music bridge:",
+                command = "curl -L https://raw.githubusercontent.com/spotDL/spotify-downloader/master/scripts/termux.sh | sh"
+            )
+
+            StepItem(
+                number = "07",
+                text = "Deploy spotDL Download Script:",
+                command = """
+                    mkdir -p ~/.hindrax_ss/scripts /storage/emulated/0/Music/HindraxOfflineMusic && cat > ~/.hindrax_ss/scripts/spotdl_download.sh <<'EOF'
+                    #!/data/data/com.termux/files/usr/bin/bash
+                    set -euo pipefail
+                    QUERY="${'$'}{1:-}"
+                    OUTPUT_DIR="${'$'}{2:-/storage/emulated/0/Music/HindraxOfflineMusic}"
+                    if [ -z "${'$'}QUERY" ]; then echo "missing spotDL query"; exit 2; fi
+                    mkdir -p "${'$'}OUTPUT_DIR"
+                    cd "${'$'}OUTPUT_DIR"
+                    spotdl download "${'$'}QUERY" --output "${'$'}OUTPUT_DIR/{artist} - {title}.{output-ext}"
+                    EOF
+                    chmod +x ~/.hindrax_ss/scripts/spotdl_download.sh
+                """.trimIndent()
+            )
+
+            StepItem(
+                number = "08",
                 text = "Grant 'com.termux.permission.RUN_COMMAND' permission in Android Settings."
             )
 

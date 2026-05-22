@@ -12,6 +12,11 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      RELEASE_KEYSTORE_BASE64: ${{ secrets.HINDRAX_RELEASE_KEYSTORE_BASE64 }}
+      HINDRAX_KEYSTORE_PASSWORD: ${{ secrets.HINDRAX_KEYSTORE_PASSWORD }}
+      HINDRAX_KEY_ALIAS: ${{ secrets.HINDRAX_KEY_ALIAS }}
+      HINDRAX_KEY_PASSWORD: ${{ secrets.HINDRAX_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
       - name: set up JDK 17
@@ -25,24 +30,21 @@ jobs:
         run: chmod +x gradlew
 
       - name: Restore release keystore
-        if: ${{ secrets.HINDRAX_RELEASE_KEYSTORE_BASE64 != '' }}
+        if: ${{ env.RELEASE_KEYSTORE_BASE64 != '' }}
         run: |
-          echo "${{ secrets.HINDRAX_RELEASE_KEYSTORE_BASE64 }}" | base64 --decode > "$RUNNER_TEMP/hindrax-release.jks"
+          echo "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/hindrax-release.jks"
 
       - name: Validate with Gradle tests
         run: ./gradlew testDebugUnitTest
 
       - name: Build signed release APK
-        if: ${{ secrets.HINDRAX_RELEASE_KEYSTORE_BASE64 != '' }}
+        if: ${{ env.RELEASE_KEYSTORE_BASE64 != '' }}
         env:
           HINDRAX_KEYSTORE_PATH: ${{ runner.temp }}/hindrax-release.jks
-          HINDRAX_KEYSTORE_PASSWORD: ${{ secrets.HINDRAX_KEYSTORE_PASSWORD }}
-          HINDRAX_KEY_ALIAS: ${{ secrets.HINDRAX_KEY_ALIAS }}
-          HINDRAX_KEY_PASSWORD: ${{ secrets.HINDRAX_KEY_PASSWORD }}
         run: ./gradlew assembleRelease
 
       - name: Build fallback debug APK
-        if: ${{ secrets.HINDRAX_RELEASE_KEYSTORE_BASE64 == '' }}
+        if: ${{ env.RELEASE_KEYSTORE_BASE64 == '' }}
         run: ./gradlew assembleDebug
 
       - name: Prepare release asset

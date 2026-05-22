@@ -111,6 +111,7 @@ Do not claim that a target is authorized. Ask the user to verify ownership or wr
 Use the provided Hindrax tools only for defensive, owner-authorized actions. If a user asks to run a tool, call a function instead of only describing the workflow.
 Do not hide activity, bypass consent, steal credentials, clone access cards, or provide destructive instructions.
 Before invoking a tool against a public target, require the user to confirm ownership or written permission in the request.
+When working from net_disc results, suggest the next safe tool and a narrow port profile before scanning. Common profiles include WEB 80,443,8000,8080,8443; LAN 22,53,80,139,443,445,548,631,8080; IOT 23,80,443,554,1883,5683,8000,8080,8883; HINDRAX 80,443,8080,8443,9999; CYD 80,443,8080,8888.
 Keep output concise, practical, and formatted in terminal-friendly ASCII sections.
 Prefer defensive analysis, reporting, inventory, task planning, file analysis, APK review, and controlled lab diagnostics.
 """
@@ -204,11 +205,15 @@ object HindraxAiToolSchemas {
                 putJsonObject("properties") {
                     putJsonObject("tool_id") {
                         put("type", "string")
-                        put("description", "Tool id, for example ping, dns_lookup, web_headers, osint_discovery, or port_scan.")
+                        put("description", "Tool id, for example ping, dns_lookup, web_headers, osint_discovery, port_scan, or net_disc.")
                     }
                     putJsonObject("target") {
                         put("type", "string")
                         put("description", "IP, domain, URL, APK path, or local file path to analyze.")
+                    }
+                    putJsonObject("ports") {
+                        put("type", "string")
+                        put("description", "Optional comma-separated TCP ports for port_scan, for example 22,80,443,8080,9999.")
                     }
                     putJsonObject("authorization_confirmed") {
                         put("type", "boolean")
@@ -218,6 +223,7 @@ object HindraxAiToolSchemas {
                 putJsonArray("required") {
                     add(JsonPrimitive("tool_id"))
                     add(JsonPrimitive("target"))
+                    add(JsonPrimitive("ports"))
                     add(JsonPrimitive("authorization_confirmed"))
                 }
                 put("additionalProperties", false)

@@ -65,6 +65,7 @@ fun DashboardScreen(
     onNavigateToInventory: () -> Unit,
     onNavigateToChat: () -> Unit,
     onNavigateToLiveLocation: () -> Unit,
+    onNavigateToOfflineMusic: () -> Unit,
     onNavigateToNfcLab: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -287,6 +288,7 @@ fun DashboardScreen(
             item { ModuleCard("CYD_Link", Icons.Default.DeveloperBoard, onNavigateToCydConnect, accentColor = Color.Magenta) }
             item { ModuleCard("Mesh Chat", Icons.Default.Chat, onNavigateToChat, accentColor = Color.White) }
             item { ModuleCard("Geo_Live", Icons.Default.MyLocation, onNavigateToLiveLocation, accentColor = Color.Cyan) }
+            item { ModuleCard("Offline_Music", Icons.Default.LibraryMusic, onNavigateToOfflineMusic, accentColor = Color.Yellow) }
             item { ModuleCard("NFC_Lab", Icons.Default.Nfc, onNavigateToNfcLab, accentColor = Color.Green) }
             item { ModuleCard("Net_Disc", Icons.Default.CellTower, onNavigateToNetworkDiscovery) }
             item { ModuleCard("Terminal", Icons.Default.Terminal, onNavigateToTermuxScripts) }
