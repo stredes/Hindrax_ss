@@ -90,7 +90,7 @@ class NetworkDiscoveryViewModel @Inject constructor(
             val currentVersion = "1.0.0"
             when (val result = updateManager.checkForUpdates(currentVersion)) {
                 is UpdateResult.Available -> {
-                    _uiState.update { it.copy(updateAvailable = true, latestVersion = result.version) }
+                    _uiState.update { it.copy(updateAvailable = true, latestVersion = result.info.version) }
                 }
                 else -> {
                     _uiState.update { it.copy(updateAvailable = false) }

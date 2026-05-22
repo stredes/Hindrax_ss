@@ -22,6 +22,22 @@ class DeviceIdManager @Inject constructor(
         return id
     }
 
+    fun getNickname(): String {
+        return prefs.getString("device_nickname", null)
+            ?: "Hindrax_${getDeviceId().takeLast(4)}"
+    }
+
+    fun setNickname(nickname: String) {
+        val normalized = nickname.trim()
+        prefs.edit().apply {
+            if (normalized.isBlank()) {
+                remove("device_nickname")
+            } else {
+                putString("device_nickname", normalized)
+            }
+        }.apply()
+    }
+
     private fun generateUniqueHash(): String {
         // Generate a random UUID and take the first 8-12 chars or hash it
         val uuid = UUID.randomUUID().toString().replace("-", "")

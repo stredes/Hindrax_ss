@@ -47,9 +47,9 @@ object HindraxEnvironmentGuide {
         EnvironmentGuideSection(
             title = "TUTORIAL",
             steps = listOf(
-                "Abre Tool_Catalog desde el dashboard.",
+                "Usa las herramientas directamente desde el inicio de Hindrax.",
                 "Elige una categoria y revisa CAPABILITIES antes de ejecutar.",
-                "Usa el bloque TUTORIAL de cada herramienta como punto de partida.",
+                "Cada tool abre el modulo funcional mas cercano: nativo, Termux, CYD o NFC.",
                 "Cambia siempre <TARGET_AUTORIZADO> por un activo propio o autorizado."
             )
         ),

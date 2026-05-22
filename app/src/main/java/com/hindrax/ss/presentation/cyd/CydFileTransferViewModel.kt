@@ -32,9 +32,13 @@ class CydFileTransferViewModel @Inject constructor(
 
     fun refreshFileList() {
         viewModelScope.launch {
-            // Bruce firmware typically list files via /api/files or similar
-            // This is a placeholder as the repository needs extension for file listing
-            _uiState.update { it.copy(files = listOf("capture_sub.sub", "nfc_dump.bin", "bruce_logs.txt")) }
+            repository.listFiles()
+                .onSuccess { files ->
+                    _uiState.update { it.copy(files = files, errorMessage = null) }
+                }
+                .onFailure { error ->
+                    _uiState.update { it.copy(files = emptyList(), errorMessage = error.message) }
+                }
         }
     }
 

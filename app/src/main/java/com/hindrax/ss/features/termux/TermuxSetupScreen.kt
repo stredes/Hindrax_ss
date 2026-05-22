@@ -74,11 +74,23 @@ fun TermuxSetupScreen(onBack: () -> Unit) {
             StepItem(
                 number = "03",
                 text = "Deploy Discovery Probe Script:",
-                command = "echo '#!/bin/bash\\nping -c 4 \"$1\"' > ~/.hindrax_ss/scripts/network_ping.sh && chmod +x ~/.hindrax_ss/scripts/network_ping.sh"
+                command = "echo '#!/bin/bash\\nping -c 4 \"\$1\"' > ~/.hindrax_ss/scripts/network_ping.sh && chmod +x ~/.hindrax_ss/scripts/network_ping.sh"
             )
 
             StepItem(
                 number = "04",
+                text = "Deploy Nmap Scan Script:",
+                command = "echo '#!/bin/bash\\nif ! command -v nmap >/dev/null 2>&1; then echo \"nmap not installed: pkg install nmap\"; exit 1; fi\\nnmap -sV \"\$1\"' > ~/.hindrax_ss/scripts/nmap_scan.sh && chmod +x ~/.hindrax_ss/scripts/nmap_scan.sh"
+            )
+
+            StepItem(
+                number = "05",
+                text = "Deploy Banner Grab Script:",
+                command = "echo '#!/bin/bash\\nHOST=\"\$1\"\\nPORT=\"\${2:-80}\"\\nprintf \"HEAD / HTTP/1.0\\\\r\\\\n\\\\r\\\\n\" | timeout 5 nc \"\$HOST\" \"\$PORT\"' > ~/.hindrax_ss/scripts/banner_grab.sh && chmod +x ~/.hindrax_ss/scripts/banner_grab.sh"
+            )
+
+            StepItem(
+                number = "06",
                 text = "Grant 'com.termux.permission.RUN_COMMAND' permission in Android Settings."
             )
 

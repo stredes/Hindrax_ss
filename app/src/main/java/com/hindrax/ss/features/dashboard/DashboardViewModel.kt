@@ -3,6 +3,7 @@ package com.hindrax.ss.features.dashboard
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hindrax.ss.core.util.UpdateInfo
 import com.hindrax.ss.core.util.UpdateManager
 import com.hindrax.ss.core.util.UpdateResult
 import com.hindrax.ss.termux.TermuxBridge
@@ -21,7 +22,9 @@ data class DashboardUiState(
     val recentSessionsCount: Int = 0,
     val updateAvailable: Boolean = false,
     val newVersion: String? = null,
-    val updateUrl: String? = null
+    val updateInfo: UpdateInfo? = null,
+    val updateStatus: String = "UPDATE_IDLE",
+    val isCheckingUpdates: Boolean = false
 )
 
 @HiltViewModel
@@ -40,6 +43,15 @@ class DashboardViewModel @Inject constructor(
                 localIp = ip,
                 isTermuxInstalled = termux
             )
+
+            updateManager.getCachedUpdate(currentVersion)?.let { cached ->
+                _uiState.value = _uiState.value.copy(
+                    updateAvailable = true,
+                    newVersion = cached.info.version,
+                    updateInfo = cached.info,
+                    updateStatus = "UPDATE_READY_FROM_CACHE"
+                )
+            }
             
             checkUpdates(currentVersion)
         }
@@ -47,22 +59,40 @@ class DashboardViewModel @Inject constructor(
 
     private fun checkUpdates(currentVersion: String) {
         viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isCheckingUpdates = true, updateStatus = "CHECKING_GITHUB_RELEASES")
             when (val result = updateManager.checkForUpdates(currentVersion)) {
                 is UpdateResult.Available -> {
                     _uiState.value = _uiState.value.copy(
+                        isCheckingUpdates = false,
                         updateAvailable = true,
-                        newVersion = result.version,
-                        updateUrl = result.url
+                        newVersion = result.info.version,
+                        updateInfo = result.info,
+                        updateStatus = "UPDATE_READY"
                     )
                 }
-                else -> {}
+                is UpdateResult.NoUpdate -> {
+                    _uiState.value = _uiState.value.copy(
+                        isCheckingUpdates = false,
+                        updateAvailable = false,
+                        newVersion = null,
+                        updateInfo = null,
+                        updateStatus = "APP_UP_TO_DATE"
+                    )
+                }
+                is UpdateResult.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        isCheckingUpdates = false,
+                        updateStatus = "UPDATE_CHECK_ERROR: ${result.message}"
+                    )
+                }
             }
         }
     }
 
     fun installUpdate() {
-        val url = _uiState.value.updateUrl ?: return
-        updateManager.downloadAndInstall(url)
+        val info = _uiState.value.updateInfo ?: return
+        _uiState.value = _uiState.value.copy(updateStatus = "DOWNLOADING_UPDATE")
+        updateManager.downloadAndInstall(info)
     }
 
     private fun getLocalIpAddress(): String? {

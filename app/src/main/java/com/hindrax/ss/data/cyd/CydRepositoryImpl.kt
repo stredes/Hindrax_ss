@@ -17,6 +17,7 @@ import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import org.json.JSONArray
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -207,6 +208,49 @@ class CydRepositoryImpl @Inject constructor(
                 if (it.isSuccessful) Result.success(Unit) else Result.failure(IOException())
             }
         } catch (e: Exception) { Result.failure(e) }
+    }
+
+    override suspend fun listFiles(): Result<List<String>> {
+        val device = connectedDevice ?: return Result.failure(Exception("No device"))
+        val ip = device.ipAddress ?: return Result.failure(Exception("No IP"))
+        val request = Request.Builder().url("http://$ip/api/files").build()
+
+        return try {
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@use Result.failure(IOException("HTTP ${response.code}"))
+                val body = response.body?.string().orEmpty()
+                Result.success(parseFileList(body))
+            }
+        } catch (e: Exception) { Result.failure(e) }
+    }
+
+    private fun parseFileList(body: String): List<String> {
+        val trimmed = body.trim()
+        if (trimmed.isBlank()) return emptyList()
+
+        return when {
+            trimmed.startsWith("[") -> {
+                val array = JSONArray(trimmed)
+                List(array.length()) { index ->
+                    val item = array.get(index)
+                    when (item) {
+                        is JSONObject -> item.optString("name", item.optString("path", "file_$index"))
+                        else -> item.toString()
+                    }
+                }
+            }
+            else -> {
+                val root = JSONObject(trimmed)
+                val files = root.optJSONArray("files") ?: root.optJSONArray("data") ?: JSONArray()
+                List(files.length()) { index ->
+                    val item = files.get(index)
+                    when (item) {
+                        is JSONObject -> item.optString("name", item.optString("path", "file_$index"))
+                        else -> item.toString()
+                    }
+                }
+            }
+        }.filter { it.isNotBlank() }
     }
 
     override suspend fun downloadFile(fileName: String): Result<ByteArray> {

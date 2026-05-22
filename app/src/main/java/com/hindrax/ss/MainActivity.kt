@@ -1,11 +1,13 @@
 package com.hindrax.ss
 
 import android.os.Bundle
+import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -28,13 +30,19 @@ import com.hindrax.ss.features.osint.OsintScreen
 import com.hindrax.ss.features.osint.MetadataScreen
 import com.hindrax.ss.features.osint.WhoisScreen
 import com.hindrax.ss.features.automation.AutomationScreen
+import com.hindrax.ss.features.ai.HindraxAiScreen
+import com.hindrax.ss.features.ai.OpenAiStartupKeyScreen
+import com.hindrax.ss.features.files.FileAnalyzerScreen
+import com.hindrax.ss.features.location.LiveLocationScreen
+import com.hindrax.ss.features.profile.HindraxProfileScreen
 import com.hindrax.ss.features.targets.AllowedTargetsScreen
 import com.hindrax.ss.features.termux.TermuxSetupScreen
 import com.hindrax.ss.features.termux.TermuxScriptsScreen
-import com.hindrax.ss.features.tools.ToolCatalogScreen
 import com.hindrax.ss.features.settings.SettingsScreen
 import com.hindrax.ss.presentation.cyd.CydDashboardScreen
 import com.hindrax.ss.presentation.cyd.CydDiscoveryScreen
+import com.hindrax.ss.presentation.cyd.CydFileTransferScreen
+import com.hindrax.ss.presentation.cyd.CydTerminalScreen
 import com.hindrax.ss.presentation.tasks.TaskDetailScreen
 import com.hindrax.ss.presentation.tasks.TaskFormScreen
 import com.hindrax.ss.presentation.tasks.TaskHistoryScreen
@@ -52,12 +60,28 @@ class MainActivity : ComponentActivity() {
         setContent {
             HindraxTheme {
                 val navController = rememberNavController()
+                val hasOpenAiKey = remember {
+                    getSharedPreferences("hindrax_prefs", Context.MODE_PRIVATE)
+                        .getString("api_key_openai", "")
+                        .orEmpty()
+                        .isNotBlank()
+                }
                 Scaffold { innerPadding ->
                     NavHost(
                         navController = navController,
-                        startDestination = "dashboard",
+                        startDestination = if (hasOpenAiKey) "dashboard" else "openai_startup_key",
                         modifier = Modifier.padding(innerPadding)
                     ) {
+                        composable("openai_startup_key") {
+                            OpenAiStartupKeyScreen(
+                                onKeySaved = {
+                                    navController.navigate("dashboard") {
+                                        popUpTo("openai_startup_key") { inclusive = true }
+                                    }
+                                }
+                            )
+                        }
+
                         composable("dashboard") {
                             DashboardScreen(
                                 onNavigateToNetwork = { navController.navigate("network") },
@@ -75,13 +99,16 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToTargets = { navController.navigate("targets") },
                                 onNavigateToTermuxSetup = { navController.navigate("termux_setup") },
                                 onNavigateToTermuxScripts = { navController.navigate("termux_scripts") },
-                                onNavigateToToolCatalog = { navController.navigate("tool_catalog") },
                                 onNavigateToAutomation = { navController.navigate("automation") },
                                 onNavigateToSettings = { navController.navigate("settings") },
+                                onNavigateToProfile = { navController.navigate("profile") },
+                                onNavigateToFileAnalyzer = { navController.navigate("file_analyzer") },
+                                onNavigateToAiAssist = { navController.navigate("ai_assist") },
                                 onNavigateToCydConnect = { navController.navigate("cyd_discovery") },
                                 onNavigateToTasks = { navController.navigate("tasks_list") },
                                 onNavigateToInventory = { navController.navigate("inventory") },
                                 onNavigateToChat = { navController.navigate("chat") },
+                                onNavigateToLiveLocation = { navController.navigate("live_location") },
                                 onNavigateToNfcLab = { navController.navigate("nfc_lab") }
                             )
                         }
@@ -127,9 +154,17 @@ class MainActivity : ComponentActivity() {
                         composable("targets") { AllowedTargetsScreen(onBack = { navController.popBackStack() }) }
                         composable("termux_setup") { TermuxSetupScreen(onBack = { navController.popBackStack() }) }
                         composable("termux_scripts") { TermuxScriptsScreen(onBack = { navController.popBackStack() }) }
-                        composable("tool_catalog") { ToolCatalogScreen(onBack = { navController.popBackStack() }) }
                         composable("nfc_lab") { NfcLabScreen(onBack = { navController.popBackStack() }) }
                         composable("settings") { SettingsScreen(onBack = { navController.popBackStack() }) }
+                        composable("profile") { HindraxProfileScreen(onBack = { navController.popBackStack() }) }
+                        composable("file_analyzer") { FileAnalyzerScreen(onBack = { navController.popBackStack() }) }
+                        composable("live_location") { LiveLocationScreen(onBack = { navController.popBackStack() }) }
+                        composable("ai_assist") {
+                            HindraxAiScreen(
+                                onBack = { navController.popBackStack() },
+                                onOpenSettings = { navController.navigate("settings") }
+                            )
+                        }
                         
                         composable("reports") {
                             ReportsScreen(
@@ -183,8 +218,8 @@ class MainActivity : ComponentActivity() {
                         }
                         
                         composable("inventory") { InventoryScreen(onBack = { navController.popBackStack() }) }
-                        composable("cyd_terminal") { /* TODO */ }
-                        composable("cyd_file_manager") { /* TODO */ }
+                        composable("cyd_terminal") { CydTerminalScreen(onBack = { navController.popBackStack() }) }
+                        composable("cyd_file_manager") { CydFileTransferScreen(onBack = { navController.popBackStack() }) }
                     }
                 }
             }

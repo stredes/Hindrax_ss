@@ -1,6 +1,7 @@
 package com.hindrax.ss.features.dashboard
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -22,12 +23,17 @@ import android.content.res.Configuration
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.hindrax.ss.R
+import com.hindrax.ss.domain.tools.AndraxToolCatalog
+import com.hindrax.ss.domain.tools.ToolCatalogItem
+import com.hindrax.ss.domain.tools.ToolRiskLevel
 import com.hindrax.ss.presentation.tasks.AsciiBanners
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,13 +55,16 @@ fun DashboardScreen(
     onNavigateToTargets: () -> Unit,
     onNavigateToTermuxSetup: () -> Unit,
     onNavigateToTermuxScripts: () -> Unit,
-    onNavigateToToolCatalog: () -> Unit,
     onNavigateToAutomation: () -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToProfile: () -> Unit,
+    onNavigateToFileAnalyzer: () -> Unit,
+    onNavigateToAiAssist: () -> Unit,
     onNavigateToCydConnect: () -> Unit,
     onNavigateToTasks: () -> Unit,
     onNavigateToInventory: () -> Unit,
     onNavigateToChat: () -> Unit,
+    onNavigateToLiveLocation: () -> Unit,
     onNavigateToNfcLab: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -102,7 +111,7 @@ fun DashboardScreen(
                             enabled = uiState.updateAvailable,
                             onClick = { if (uiState.updateAvailable) viewModel.installUpdate() }
                         ) {
-                            Icon(Icons.Default.Update, contentDescription = "Install Update", tint = if (uiState.updateAvailable) Color.Green else Color.DarkGray)
+                            Icon(Icons.Default.Update, contentDescription = "Install Update", tint = if (uiState.updateAvailable) Color.Yellow else Color.DarkGray)
                         }
 
                         IconButton(onClick = { isFullScreenState.value = true }) {
@@ -110,6 +119,7 @@ fun DashboardScreen(
                         }
 
                         IconButton(onClick = onNavigateToSettings) { Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.Green) }
+                        IconButton(onClick = onNavigateToProfile) { Icon(Icons.Default.Person, contentDescription = "Profile", tint = Color.Green) }
                         IconButton(onClick = onNavigateToTermuxSetup) { Icon(Icons.Default.Build, contentDescription = "Termux Setup", tint = Color.Green) }
                         IconButton(onClick = onNavigateToTargets) { Icon(Icons.Default.Lock, contentDescription = "Authorized Targets", tint = Color.Green) }
                     },
@@ -144,7 +154,7 @@ fun DashboardScreen(
 
                     FloatingActionButton(
                         onClick = { if (uiState.updateAvailable) viewModel.installUpdate() },
-                        containerColor = if (uiState.updateAvailable) Color.Green else Color.DarkGray,
+                        containerColor = if (uiState.updateAvailable) Color.Yellow else Color.DarkGray,
                         contentColor = Color.Black,
                         shape = MaterialTheme.shapes.small
                     ) {
@@ -179,12 +189,22 @@ fun DashboardScreen(
                         softWrap = false
                     )
 
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Image(
+                        painter = painterResource(id = R.drawable.hindrax_logo),
+                        contentDescription = "Hindrax",
+                        modifier = Modifier
+                            .size(if (isTablet) 116.dp else 86.dp)
+                            .align(Alignment.CenterHorizontally)
+                    )
+
                     Spacer(modifier = Modifier.height(12.dp))
 
                     if (uiState.updateAvailable) {
                         Card(
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFF003300)),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.Green),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF1A1600)),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color.Yellow),
                             modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                             shape = MaterialTheme.shapes.extraSmall
                         ) {
@@ -192,22 +212,33 @@ fun DashboardScreen(
                                 modifier = Modifier.padding(12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Default.Update, contentDescription = null, tint = Color.Green)
+                                Icon(Icons.Default.Update, contentDescription = null, tint = Color.Yellow)
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text("UPDATE_AVAILABLE: v${uiState.newVersion}", color = Color.White, fontFamily = FontFamily.Monospace, fontSize = if (isTablet) 14.sp else 12.sp, fontWeight = FontWeight.Bold)
-                                    Text("Security and core optimizations ready.", color = Color.Green.copy(0.7f), fontFamily = FontFamily.Monospace, fontSize = if (isTablet) 12.sp else 10.sp)
+                                    Text(uiState.updateInfo?.assetName ?: "GitHub release APK ready.", color = Color.Yellow.copy(0.8f), fontFamily = FontFamily.Monospace, fontSize = if (isTablet) 12.sp else 10.sp)
+                                    Text(uiState.updateStatus, color = Color.Gray, fontFamily = FontFamily.Monospace, fontSize = if (isTablet) 11.sp else 9.sp)
                                 }
                                 Button(
                                     onClick = { viewModel.installUpdate() },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color.Green, contentColor = Color.Black),
+                                    enabled = uiState.updateAvailable,
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color.Yellow, contentColor = Color.Black),
                                     shape = MaterialTheme.shapes.extraSmall,
                                     contentPadding = PaddingValues(horizontal = 12.dp)
                                 ) {
-                                    Text("INSTALL", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = if (isTablet) 12.sp else 10.sp)
+                                    Text("ACTUALIZAR", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = if (isTablet) 12.sp else 10.sp)
                                 }
                             }
                         }
+                    } else if (uiState.isCheckingUpdates) {
+                        Text(
+                            text = uiState.updateStatus,
+                            color = Color.Gray,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 10.sp,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -243,18 +274,187 @@ fun DashboardScreen(
             }
 
             item { ModuleCard("Automation", Icons.Default.Bolt, onNavigateToAutomation, accentColor = Color.Green) }
+            item { ModuleCard("AI_Assist", Icons.Default.Psychology, onNavigateToAiAssist, accentColor = Color.Green) }
+            item { ModuleCard("Profile", Icons.Default.Person, onNavigateToProfile, accentColor = Color.Green) }
+            item { ModuleCard("File_Analyzer", Icons.Default.FolderOpen, onNavigateToFileAnalyzer, accentColor = Color.Green) }
             item { ModuleCard("Missions", Icons.Default.Assignment, onNavigateToTasks, accentColor = Color.Yellow) }
             item { ModuleCard("Logistics", Icons.Default.Inventory, onNavigateToInventory, accentColor = Color.Cyan) }
             item { ModuleCard("CYD_Link", Icons.Default.DeveloperBoard, onNavigateToCydConnect, accentColor = Color.Magenta) }
             item { ModuleCard("Mesh Chat", Icons.Default.Chat, onNavigateToChat, accentColor = Color.White) }
+            item { ModuleCard("Geo_Live", Icons.Default.MyLocation, onNavigateToLiveLocation, accentColor = Color.Cyan) }
             item { ModuleCard("NFC_Lab", Icons.Default.Nfc, onNavigateToNfcLab, accentColor = Color.Green) }
             item { ModuleCard("Net_Disc", Icons.Default.CellTower, onNavigateToNetworkDiscovery) }
             item { ModuleCard("Terminal", Icons.Default.Terminal, onNavigateToTermuxScripts) }
-            item { ModuleCard("Tool_Catalog", Icons.Default.List, onNavigateToToolCatalog, accentColor = Color.Cyan) }
             item { ModuleCard("Scanner", Icons.Default.Lan, onNavigateToPortScanner) }
             item { ModuleCard("Web_Scan", Icons.Default.ManageSearch, onNavigateToWebScanner) }
             item { ModuleCard("Logs", Icons.Default.History, onNavigateToReports) }
+
+            item(span = { GridItemSpan(columns) }) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "--- EXPOSED_TOOLS ---",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontFamily = FontFamily.Monospace,
+                    color = Color.Cyan
+                )
+            }
+
+            AndraxToolCatalog.categories.forEach { category ->
+                item(span = { GridItemSpan(columns) }) {
+                    ToolCategoryHeader(
+                        title = category.name,
+                        count = category.tools.size,
+                        capabilities = category.capabilities.joinToString(" / ")
+                    )
+                }
+                category.tools.forEach { tool ->
+                    item {
+                        ToolHomeCard(
+                            tool = tool,
+                            onClick = tool.homeAction(
+                                onNavigateToNetwork = onNavigateToNetwork,
+                                onNavigateToPortScanner = onNavigateToPortScanner,
+                                onNavigateToNetworkDiscovery = onNavigateToNetworkDiscovery,
+                                onNavigateToBannerGrabbing = onNavigateToBannerGrabbing,
+                                onNavigateToDns = onNavigateToDns,
+                                onNavigateToApk = onNavigateToApk,
+                                onNavigateToWeb = onNavigateToWeb,
+                                onNavigateToWebScanner = onNavigateToWebScanner,
+                                onNavigateToOsint = onNavigateToOsint,
+                                onNavigateToWhois = onNavigateToWhois,
+                                onNavigateToMetadata = onNavigateToMetadata,
+                                onNavigateToTermuxScripts = onNavigateToTermuxScripts,
+                                onNavigateToCydConnect = onNavigateToCydConnect,
+                                onNavigateToNfcLab = onNavigateToNfcLab,
+                                onNavigateToFileAnalyzer = onNavigateToFileAnalyzer
+                            )
+                        )
+                    }
+                }
+            }
         }
+    }
+}
+
+@Composable
+fun ToolCategoryHeader(title: String, count: Int, capabilities: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF061006)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF1F7A00)),
+        shape = MaterialTheme.shapes.extraSmall
+    ) {
+        Column(modifier = Modifier.padding(10.dp)) {
+            Text(
+                text = ">> ${title.uppercase()} [$count]",
+                color = Color.Green,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp
+            )
+            Text(
+                text = capabilities,
+                color = Color.Gray,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 10.sp,
+                maxLines = 2
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ToolHomeCard(tool: ToolCatalogItem, onClick: () -> Unit) {
+    val riskColor = when (tool.riskLevel) {
+        ToolRiskLevel.LOW -> Color.Green
+        ToolRiskLevel.MEDIUM -> Color.Yellow
+        ToolRiskLevel.HIGH -> Color.Red
+    }
+    Card(
+        onClick = onClick,
+        modifier = Modifier.height(88.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF090909)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, riskColor.copy(alpha = 0.55f)),
+        shape = MaterialTheme.shapes.extraSmall
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(8.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = tool.displayName.uppercase(),
+                color = Color.White,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                fontSize = 11.sp,
+                maxLines = 1
+            )
+            Text(
+                text = tool.tutorial.authorizedUse,
+                color = Color.Gray,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 9.sp,
+                lineHeight = 11.sp,
+                maxLines = 2
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = tool.executionMode.name,
+                    color = Color.Cyan,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 9.sp,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = tool.riskLevel.name,
+                    color = riskColor,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 9.sp
+                )
+            }
+        }
+    }
+}
+
+private fun ToolCatalogItem.homeAction(
+    onNavigateToNetwork: () -> Unit,
+    onNavigateToPortScanner: () -> Unit,
+    onNavigateToNetworkDiscovery: () -> Unit,
+    onNavigateToBannerGrabbing: () -> Unit,
+    onNavigateToDns: () -> Unit,
+    onNavigateToApk: () -> Unit,
+    onNavigateToWeb: () -> Unit,
+    onNavigateToWebScanner: () -> Unit,
+    onNavigateToOsint: () -> Unit,
+    onNavigateToWhois: () -> Unit,
+    onNavigateToMetadata: () -> Unit,
+    onNavigateToTermuxScripts: () -> Unit,
+    onNavigateToCydConnect: () -> Unit,
+    onNavigateToNfcLab: () -> Unit,
+    onNavigateToFileAnalyzer: () -> Unit
+): () -> Unit {
+    return when (command.lowercase()) {
+        "nmap", "masscan", "zmap" -> onNavigateToPortScanner
+        "netdiscover", "arp-scan", "fping" -> onNavigateToNetworkDiscovery
+        "hping3", "traceroute", "mtr" -> onNavigateToNetwork
+        "dnsrecon", "dnsenum", "dig" -> onNavigateToDns
+        "whois" -> onNavigateToWhois
+        "nikto", "whatweb", "wapiti" -> onNavigateToWeb
+        "dirsearch", "gobuster", "wfuzz", "ffuf", "sqlmap", "xsser", "burpsuite" -> onNavigateToWebScanner
+        "theharvester", "recon-ng", "sublist3r", "amass", "photon", "maltego" -> onNavigateToOsint
+        "metagoofil" -> onNavigateToMetadata
+        "apktool", "jadx", "dex2jar", "smali", "baksmali", "aapt", "apksigner", "uber-apk-signer" -> onNavigateToApk
+        "mfoc", "mfcuk", "libnfc", "nfc-tools" -> onNavigateToNfcLab
+        "binwalk", "foremost", "scalpel", "bulk_extractor", "strings", "dcfldd",
+        "firmwalker", "sasquatch" -> onNavigateToFileAnalyzer
+        "aircrack-ng", "aireplay-ng", "airodump-ng", "reaver", "bully", "hcxdumptool", "hcxtools",
+        "blue_hydra", "btscanner", "bluelog", "bluez" -> onNavigateToCydConnect
+        "tcpdump", "ettercap", "bettercap", "dsniff", "wireshark-cli" -> onNavigateToBannerGrabbing
+        else -> onNavigateToTermuxScripts
     }
 }
 

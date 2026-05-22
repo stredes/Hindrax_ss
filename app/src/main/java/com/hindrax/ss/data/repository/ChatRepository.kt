@@ -21,6 +21,7 @@ import com.hindrax.ss.data.entity.TaskEntity
 import com.hindrax.ss.domain.tasks.model.ChecklistItem
 import com.hindrax.ss.domain.tasks.model.TaskStatus
 import com.hindrax.ss.domain.tasks.model.TaskType
+import com.hindrax.ss.domain.profile.HindraxProfileCodec
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -104,13 +105,14 @@ class ChatRepository @Inject constructor(
                 val writer = PrintWriter(socket.getOutputStream(), true)
 
                 val header = reader.readLine() // IDENTITY, MESSAGE, TASK, INVENTORY, or LOCATION
-                val remoteId = reader.readLine()
+                val remoteIdentity = HindraxProfileCodec.decodePairingIdentity(reader.readLine())
+                val remoteId = remoteIdentity.deviceId
                 val remoteIp = socket.inetAddress.hostAddress ?: ""
 
                 when (header) {
                     "IDENTITY" -> {
-                        writer.println(myDeviceId)
-                        addManualPeer(remoteId, remoteIp)
+                        writer.println(HindraxProfileCodec.encodePairingIdentity(myDeviceId, deviceIdManager.getNickname()))
+                        addManualPeer(remoteId, remoteIp, remoteIdentity.nickname)
                     }
                     "MESSAGE" -> {
                         val text = reader.readLine()
@@ -120,22 +122,26 @@ class ChatRepository @Inject constructor(
                             timestamp = System.currentTimeMillis(),
                             isFromMe = false
                         ))
-                        addManualPeer(remoteId, remoteIp)
+                        addManualPeer(remoteId, remoteIp, remoteIdentity.nickname)
                     }
                     "TASK" -> {
                         val taskJson = reader.readLine()
                         receiveSharedTask(taskJson, remoteId)
-                        addManualPeer(remoteId, remoteIp)
+                        addManualPeer(remoteId, remoteIp, remoteIdentity.nickname)
                     }
                     "INVENTORY" -> {
                         val inventoryJson = reader.readLine()
                         receiveSharedInventory(inventoryJson, remoteId)
-                        addManualPeer(remoteId, remoteIp)
+                        addManualPeer(remoteId, remoteIp, remoteIdentity.nickname)
                     }
                     "LOCATION" -> {
                         val locationJson = reader.readLine()
-                        addManualPeer(remoteId, remoteIp)
+                        addManualPeer(remoteId, remoteIp, remoteIdentity.nickname)
                         receiveSharedLocation(locationJson, remoteId)
+                    }
+                    "LOCATION_REQUEST" -> {
+                        addManualPeer(remoteId, remoteIp, remoteIdentity.nickname)
+                        shareMyLocation(remoteId)
                     }
                 }
                 socket.close()
@@ -304,6 +310,24 @@ class ChatRepository @Inject constructor(
         peers.forEach { peer -> shareMyLocation(peer.id).getOrThrow() }
     }
 
+    suspend fun requestPeerLocation(peerId: String): Result<Unit> = runCatching {
+        val peer = chatDao.getPeerById(peerId) ?: error("Peer not found")
+        sendToPeer(peer, "LOCATION_REQUEST", "{}")
+        chatDao.insertMessage(
+            ChatMessageEntity(
+                peerId = peerId,
+                message = "📡 LOCATION_REQUEST_SENT",
+                timestamp = System.currentTimeMillis(),
+                isFromMe = true
+            )
+        )
+    }
+
+    suspend fun requestAllPeerLocations(): Result<Unit> = runCatching {
+        val peers = chatDao.getAllPeersSync()
+        peers.forEach { peer -> requestPeerLocation(peer.id).getOrThrow() }
+    }
+
     // Broadcast a task to all known peers
     suspend fun broadcastTask(task: TaskEntity) {
         val peers = chatDao.getAllPeersSync()
@@ -383,20 +407,21 @@ class ChatRepository @Inject constructor(
                     socket.connect(InetSocketAddress(peer.lastKnownIp, HINDRAX_PORT), 4000)
                     val writer = PrintWriter(socket.getOutputStream(), true)
                     writer.println(header)
-                    writer.println(myDeviceId)
+                    writer.println(HindraxProfileCodec.encodePairingIdentity(myDeviceId, deviceIdManager.getNickname()))
                     writer.println(content)
                 }
             } catch (e: Exception) { e.printStackTrace() }
         }
     }
 
-    suspend fun addManualPeer(deviceId: String, ip: String) {
+    suspend fun addManualPeer(deviceId: String, ip: String, nickname: String? = null) {
         if (!deviceId.startsWith("HNDX-")) return
         val existing = chatDao.getPeerById(deviceId)
+        val normalizedNickname = nickname?.trim()?.takeIf { it.isNotBlank() }
         val peer = PeerEntity(
             id = deviceId,
             name = existing?.name ?: "Node_${deviceId.takeLast(4)}",
-            nickname = existing?.nickname,
+            nickname = existing?.nickname ?: normalizedNickname,
             lastKnownIp = ip,
             lastSeen = System.currentTimeMillis(),
             isOnline = true,

@@ -1,5 +1,6 @@
 package com.hindrax.ss.features.automation
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -134,7 +135,7 @@ fun AutomationScreen(
                     .fillMaxWidth()
                     .heightIn(min = 200.dp, max = 400.dp)
                     .background(Color(0xFF0A0A0A))
-                    .border(1.dp, Color.DarkGray)
+                    .border(BorderStroke(1.dp, Color.DarkGray))
                     .padding(8.dp)
                     .verticalScroll(rememberScrollState())
             ) {

@@ -1,11 +1,14 @@
 package com.hindrax.ss.features.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -61,13 +64,148 @@ fun SettingsScreen(
         ) {
             item {
                 Text(
+                    text = "--- AI_CONFIGURATION (OPENAI) ---",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontFamily = FontFamily.Monospace,
+                    color = Color.Cyan
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                ApiKeyInput(
+                    name = "OpenAI",
+                    value = uiState.apiKeys["OpenAI"].orEmpty(),
+                    onValueChange = { viewModel.updateApiKey(context, "OpenAI", it) }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = uiState.openAiModel,
+                    onValueChange = { viewModel.updateOpenAiModel(context, it) },
+                    label = { Text("OPENAI_MODEL", fontFamily = FontFamily.Monospace) },
+                    modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = { Icon(Icons.Default.Psychology, contentDescription = null, tint = Color.Green) },
+                    singleLine = true,
+                    textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = Color.Green),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = Color.DarkGray,
+                        focusedBorderColor = Color.Green
+                    ),
+                    shape = MaterialTheme.shapes.extraSmall
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Responses API / Tool Calling / Safety Gate activo.",
+                    color = Color.Gray,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 10.sp
+                )
+            }
+
+            item {
+                Text(
+                    text = "--- AI_FALLBACK (OLLAMA_LITE) ---",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontFamily = FontFamily.Monospace,
+                    color = Color.Cyan
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("USE_OLLAMA_ON_QUOTA_LIMIT", color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 13.sp)
+                        Text("Fallback local cuando OpenAI devuelve cuota/rate-limit.", color = Color.Gray, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+                    }
+                    Switch(
+                        checked = uiState.ollamaFallbackEnabled,
+                        onCheckedChange = { viewModel.toggleOllamaFallback(context, it) },
+                        colors = SwitchDefaults.colors(checkedThumbColor = Color.Cyan, checkedTrackColor = Color.Cyan.copy(alpha = 0.45f))
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = uiState.ollamaBaseUrl,
+                    onValueChange = { viewModel.updateOllamaBaseUrl(context, it) },
+                    label = { Text("OLLAMA_BASE_URL", fontFamily = FontFamily.Monospace) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = Color.Cyan),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = Color.DarkGray,
+                        focusedBorderColor = Color.Cyan,
+                        cursorColor = Color.Cyan
+                    ),
+                    shape = MaterialTheme.shapes.extraSmall
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = uiState.ollamaModel,
+                    onValueChange = { viewModel.updateOllamaModel(context, it) },
+                    label = { Text("OLLAMA_LITE_MODEL", fontFamily = FontFamily.Monospace) },
+                    modifier = Modifier.fillMaxWidth(),
+                    leadingIcon = { Icon(Icons.Default.Psychology, contentDescription = null, tint = Color.Cyan) },
+                    singleLine = true,
+                    textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = Color.Cyan),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = Color.DarkGray,
+                        focusedBorderColor = Color.Cyan,
+                        cursorColor = Color.Cyan
+                    ),
+                    shape = MaterialTheme.shapes.extraSmall
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    OllamaPresetButton("gemma3:1b", Modifier.weight(1f)) { viewModel.updateOllamaModel(context, it) }
+                    OllamaPresetButton("llama3.2:1b", Modifier.weight(1f)) { viewModel.updateOllamaModel(context, it) }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    OllamaPresetButton("qwen2.5:0.5b", Modifier.weight(1f)) { viewModel.updateOllamaModel(context, it) }
+                    OllamaPresetButton("phi3:mini", Modifier.weight(1f)) { viewModel.updateOllamaModel(context, it) }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+                Button(
+                    onClick = { viewModel.pullOllamaModel(context) },
+                    enabled = !uiState.isPullingOllamaModel && uiState.ollamaBaseUrl.isNotBlank() && uiState.ollamaModel.isNotBlank(),
+                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Cyan, contentColor = Color.Black),
+                    shape = MaterialTheme.shapes.extraSmall
+                ) {
+                    Icon(Icons.Default.CloudDownload, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        if (uiState.isPullingOllamaModel) "DOWNLOADING_MODEL" else "DOWNLOAD_SELECTED_MODEL",
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                uiState.ollamaPullStatus?.let { status ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = status,
+                        color = if (status.contains("ERROR")) Color.Red else Color.Cyan,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 10.sp
+                    )
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "El modelo se descarga en el servidor Ollama configurado, no dentro del APK.",
+                    color = Color.Gray,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 10.sp
+                )
+            }
+
+            item {
+                Text(
                     text = "--- API_CONFIGURATIONS (OSINT) ---", 
                     style = MaterialTheme.typography.labelSmall, 
                     fontFamily = FontFamily.Monospace, 
                     color = Color.Cyan
                 )
                 Spacer(modifier = Modifier.height(12.dp))
-                uiState.apiKeys.forEach { (name, value) ->
+                uiState.apiKeys.filterKeys { it != "OpenAI" }.forEach { (name, value) ->
                     ApiKeyInput(
                         name = name,
                         value = value,
@@ -139,4 +277,27 @@ fun ApiKeyInput(name: String, value: String, onValueChange: (String) -> Unit) {
         visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
         shape = MaterialTheme.shapes.extraSmall
     )
+}
+
+@Composable
+private fun OllamaPresetButton(
+    model: String,
+    modifier: Modifier = Modifier,
+    onClick: (String) -> Unit
+) {
+    OutlinedButton(
+        onClick = { onClick(model) },
+        modifier = modifier.height(38.dp),
+        border = BorderStroke(1.dp, Color.DarkGray),
+        shape = MaterialTheme.shapes.extraSmall,
+        contentPadding = PaddingValues(horizontal = 6.dp)
+    ) {
+        Text(
+            text = model,
+            color = Color.Cyan,
+            fontFamily = FontFamily.Monospace,
+            fontSize = 10.sp,
+            maxLines = 1
+        )
+    }
 }

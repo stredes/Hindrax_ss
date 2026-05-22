@@ -10,6 +10,7 @@ interface CydRepository {
     fun observeLogs(): Flow<String>
     suspend fun getDeviceInfo(): Result<CydDevice>
     suspend fun executeAction(action: CydAction): Result<Unit>
+    suspend fun listFiles(): Result<List<String>>
     suspend fun uploadFile(fileName: String, content: ByteArray): Result<Unit>
     suspend fun downloadFile(fileName: String): Result<ByteArray>
 }
