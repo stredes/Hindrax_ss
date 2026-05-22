@@ -29,6 +29,7 @@ class UpdateManager @Inject constructor(
     // Public GitHub release channel. release.sh pushes the tag; GitHub Actions attaches the APK.
     private val githubRepo = "stredes/Hindrax_ss"
     private val latestReleaseUrl = "https://api.github.com/repos/$githubRepo/releases/latest"
+    private val latestReleaseWebUrl = "https://github.com/$githubRepo/releases/latest"
 
     suspend fun checkForUpdates(currentVersion: String): UpdateResult {
         return withContext(Dispatchers.IO) {
@@ -44,6 +45,9 @@ class UpdateManager @Inject constructor(
                         if (response.code == 404) {
                             clearCachedUpdate()
                             return@withContext UpdateResult.NoUpdate("GITHUB_RELEASE_NOT_PUBLISHED")
+                        }
+                        if (response.code == 403) {
+                            return@withContext checkForUpdatesFromGithubWeb(currentVersion, "GITHUB_API_RATE_LIMIT")
                         }
                         return@withContext UpdateResult.Error("GITHUB_HTTP_${response.code}")
                     }
@@ -95,6 +99,53 @@ class UpdateManager @Inject constructor(
             } catch (e: Exception) {
                 UpdateResult.Error(e.message ?: "Network error")
             }
+        }
+    }
+
+    private fun checkForUpdatesFromGithubWeb(currentVersion: String, reason: String): UpdateResult {
+        return try {
+            val request = Request.Builder()
+                .url(latestReleaseWebUrl)
+                .header("User-Agent", "Hindrax-SS-Updater")
+                .build()
+
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    return UpdateResult.Error("$reason; GITHUB_WEB_HTTP_${response.code}")
+                }
+
+                val latestTagWithPrefix = response.request.url.encodedPathSegments
+                    .let { segments ->
+                        val tagIndex = segments.indexOf("tag")
+                        if (tagIndex >= 0) segments.getOrNull(tagIndex + 1) else null
+                    }
+                    ?.takeIf { it.startsWith("v", ignoreCase = true) }
+                    ?: return UpdateResult.NoUpdate("$reason; GITHUB_LATEST_TAG_NOT_RESOLVED")
+
+                val latestVersion = normalizeVersion(latestTagWithPrefix)
+                val assetName = "hindrax-$latestTagWithPrefix-debug.apk"
+                val downloadUrl = "https://github.com/$githubRepo/releases/latest/download/$assetName"
+
+                if (isNewerVersion(currentVersion, latestVersion)) {
+                    UpdateResult.Available(
+                        info = UpdateInfo(
+                            version = latestVersion,
+                            url = downloadUrl,
+                            releaseName = "Release $latestTagWithPrefix",
+                            releasePageUrl = "https://github.com/$githubRepo/releases/tag/$latestTagWithPrefix",
+                            publishedAt = "",
+                            assetName = assetName
+                        )
+                    ).also { cacheUpdate(it.info) }
+                } else {
+                    clearCachedUpdate()
+                    UpdateResult.NoUpdate(
+                        "$reason; LATEST_RELEASE_NOT_NEWER: current=v${normalizeVersion(currentVersion)} latest=v$latestVersion asset=$assetName"
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            UpdateResult.Error("$reason; ${e.message ?: "GitHub web fallback error"}")
         }
     }
 
