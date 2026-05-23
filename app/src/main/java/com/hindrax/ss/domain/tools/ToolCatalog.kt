@@ -38,6 +38,17 @@ enum class ToolExecutionMode {
     OPTIONAL
 }
 
+object ToolWorkflowPlanner {
+    fun addTool(current: List<ToolCatalogItem>, tool: ToolCatalogItem): List<ToolCatalogItem> {
+        if (current.any { it.command.equals(tool.command, ignoreCase = true) }) return current
+        return current + tool
+    }
+
+    fun removeTool(current: List<ToolCatalogItem>, command: String): List<ToolCatalogItem> {
+        return current.filterNot { it.command.equals(command, ignoreCase = true) }
+    }
+}
+
 data class EnvironmentGuideSection(
     val title: String,
     val steps: List<String>

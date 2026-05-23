@@ -32,9 +32,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.hindrax.ss.R
-import com.hindrax.ss.domain.tools.AndraxToolCatalog
-import com.hindrax.ss.domain.tools.ToolCatalogItem
-import com.hindrax.ss.domain.tools.ToolRiskLevel
 import com.hindrax.ss.presentation.tasks.AsciiBanners
 
 private data class DashboardPalette(
@@ -362,42 +359,7 @@ fun DashboardScreen(
             item { ModuleCard("Logs", Icons.Default.History, onNavigateToReports) }
 
             item(span = { GridItemSpan(columns) }) {
-                Spacer(modifier = Modifier.height(8.dp))
-                NeonSectionLabel("EXPOSED_TOOLS", "ANDRAX_CATALOG")
-            }
-
-            AndraxToolCatalog.categories.forEach { category ->
-                item(span = { GridItemSpan(columns) }) {
-                    ToolCategoryHeader(
-                        title = category.name,
-                        count = category.tools.size,
-                        capabilities = category.capabilities.joinToString(" / ")
-                    )
-                }
-                category.tools.forEach { tool ->
-                    item {
-                        ToolHomeCard(
-                            tool = tool,
-                            onClick = tool.homeAction(
-                                onNavigateToNetwork = onNavigateToNetwork,
-                                onNavigateToPortScanner = onNavigateToPortScanner,
-                                onNavigateToNetworkDiscovery = onNavigateToNetworkDiscovery,
-                                onNavigateToBannerGrabbing = onNavigateToBannerGrabbing,
-                                onNavigateToDns = onNavigateToDns,
-                                onNavigateToApk = onNavigateToApk,
-                                onNavigateToWeb = onNavigateToWeb,
-                                onNavigateToWebScanner = onNavigateToWebScanner,
-                                onNavigateToOsint = onNavigateToOsint,
-                                onNavigateToWhois = onNavigateToWhois,
-                                onNavigateToMetadata = onNavigateToMetadata,
-                                onNavigateToTermuxScripts = onNavigateToTermuxScripts,
-                                onNavigateToCydConnect = onNavigateToCydConnect,
-                                onNavigateToNfcLab = onNavigateToNfcLab,
-                                onNavigateToFileAnalyzer = onNavigateToFileAnalyzer
-                            )
-                        )
-                    }
-                }
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }
@@ -462,130 +424,6 @@ private fun NeonSectionLabel(title: String, meta: String) {
             fontSize = 9.sp,
             maxLines = 1
         )
-    }
-}
-
-@Composable
-fun ToolCategoryHeader(title: String, count: Int, capabilities: String) {
-    val palette = dashboardPalette()
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = palette.panel),
-        border = androidx.compose.foundation.BorderStroke(1.dp, palette.secondary.copy(alpha = 0.65f)),
-        shape = MaterialTheme.shapes.extraSmall
-    ) {
-        Column(modifier = Modifier.padding(10.dp)) {
-            Text(
-                text = "+-- ${title.uppercase()} [$count] --+",
-                color = palette.secondary,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                fontSize = 12.sp
-            )
-            Text(
-                text = capabilities,
-                color = palette.accent.copy(alpha = 0.72f),
-                fontFamily = FontFamily.Monospace,
-                fontSize = 10.sp,
-                maxLines = 2
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ToolHomeCard(tool: ToolCatalogItem, onClick: () -> Unit) {
-    val palette = dashboardPalette()
-    val riskColor = when (tool.riskLevel) {
-        ToolRiskLevel.LOW -> palette.accent
-        ToolRiskLevel.MEDIUM -> palette.warning
-        ToolRiskLevel.HIGH -> palette.danger
-    }
-    Card(
-        onClick = onClick,
-        modifier = Modifier.height(96.dp),
-        colors = CardDefaults.cardColors(containerColor = palette.panel),
-        border = androidx.compose.foundation.BorderStroke(1.dp, riskColor.copy(alpha = 0.55f)),
-        shape = MaterialTheme.shapes.extraSmall
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(8.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = "[${tool.displayName.uppercase()}]",
-                color = palette.text,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold,
-                fontSize = 11.sp,
-                maxLines = 1
-            )
-            Text(
-                text = tool.tutorial.authorizedUse,
-                color = palette.muted,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 9.sp,
-                lineHeight = 11.sp,
-                maxLines = 2
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "exec:${tool.executionMode.name}",
-                    color = palette.secondary,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 9.sp,
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    text = tool.riskLevel.name,
-                    color = riskColor,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 9.sp
-                )
-            }
-        }
-    }
-}
-
-private fun ToolCatalogItem.homeAction(
-    onNavigateToNetwork: () -> Unit,
-    onNavigateToPortScanner: () -> Unit,
-    onNavigateToNetworkDiscovery: () -> Unit,
-    onNavigateToBannerGrabbing: () -> Unit,
-    onNavigateToDns: () -> Unit,
-    onNavigateToApk: () -> Unit,
-    onNavigateToWeb: () -> Unit,
-    onNavigateToWebScanner: () -> Unit,
-    onNavigateToOsint: () -> Unit,
-    onNavigateToWhois: () -> Unit,
-    onNavigateToMetadata: () -> Unit,
-    onNavigateToTermuxScripts: () -> Unit,
-    onNavigateToCydConnect: () -> Unit,
-    onNavigateToNfcLab: () -> Unit,
-    onNavigateToFileAnalyzer: () -> Unit
-): () -> Unit {
-    return when (command.lowercase()) {
-        "nmap", "masscan", "zmap" -> onNavigateToPortScanner
-        "netdiscover", "arp-scan", "fping" -> onNavigateToNetworkDiscovery
-        "hping3", "traceroute", "mtr" -> onNavigateToNetwork
-        "dnsrecon", "dnsenum", "dig" -> onNavigateToDns
-        "whois" -> onNavigateToWhois
-        "nikto", "whatweb", "wapiti" -> onNavigateToWeb
-        "dirsearch", "gobuster", "wfuzz", "ffuf", "sqlmap", "xsser", "burpsuite" -> onNavigateToWebScanner
-        "theharvester", "recon-ng", "sublist3r", "amass", "photon", "maltego" -> onNavigateToOsint
-        "metagoofil" -> onNavigateToMetadata
-        "apktool", "jadx", "dex2jar", "smali", "baksmali", "aapt", "apksigner", "uber-apk-signer" -> onNavigateToApk
-        "mfoc", "mfcuk", "libnfc", "nfc-tools" -> onNavigateToNfcLab
-        "binwalk", "foremost", "scalpel", "bulk_extractor", "strings", "dcfldd",
-        "firmwalker", "sasquatch" -> onNavigateToFileAnalyzer
-        "aircrack-ng", "aireplay-ng", "airodump-ng", "reaver", "bully", "hcxdumptool", "hcxtools",
-        "blue_hydra", "btscanner", "bluelog", "bluez" -> onNavigateToCydConnect
-        "tcpdump", "ettercap", "bettercap", "dsniff", "wireshark-cli" -> onNavigateToBannerGrabbing
-        else -> onNavigateToTermuxScripts
     }
 }
 

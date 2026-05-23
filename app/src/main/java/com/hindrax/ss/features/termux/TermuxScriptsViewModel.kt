@@ -9,6 +9,7 @@ import com.hindrax.ss.domain.tools.AndraxToolCatalog
 import com.hindrax.ss.domain.tools.ToolCatalogItem
 import com.hindrax.ss.domain.tools.ToolCategory
 import com.hindrax.ss.domain.tools.ToolRiskLevel
+import com.hindrax.ss.domain.tools.ToolWorkflowPlanner
 import com.hindrax.ss.termux.TermuxBridge
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,7 +28,10 @@ data class TermuxScriptsUiState(
     val visibleTools: List<ToolCatalogItem> = AndraxToolCatalog.categoryById("network-recon").tools,
     val selectedTool: ToolCatalogItem? = AndraxToolCatalog.categoryById("network-recon").tools.firstOrNull(),
     val commandPreview: String = "",
-    val canRunSelectedTool: Boolean = false
+    val canRunSelectedTool: Boolean = false,
+    val workflowTools: List<ToolCatalogItem> = emptyList(),
+    val workflowPreview: String = "",
+    val canRunWorkflow: Boolean = false
 )
 
 class TermuxScriptsViewModel(
@@ -120,6 +124,54 @@ class TermuxScriptsViewModel(
         }
     }
 
+    fun addSelectedToolToWorkflow() {
+        val tool = _uiState.value.selectedTool ?: return
+        _uiState.value = _uiState.value.copy(
+            workflowTools = ToolWorkflowPlanner.addTool(_uiState.value.workflowTools, tool)
+        )
+        recalculate()
+    }
+
+    fun removeWorkflowTool(command: String) {
+        _uiState.value = _uiState.value.copy(
+            workflowTools = ToolWorkflowPlanner.removeTool(_uiState.value.workflowTools, command)
+        )
+        recalculate()
+    }
+
+    fun clearWorkflow() {
+        _uiState.value = _uiState.value.copy(workflowTools = emptyList())
+        recalculate()
+    }
+
+    fun executeWorkflow(context: Context) {
+        val state = _uiState.value
+        if (!state.canRunWorkflow) return
+
+        viewModelScope.launch {
+            appendLog("WORKFLOW_START steps=${state.workflowTools.size} target=${state.target.ifBlank { "LOCAL_TERMUX" }}")
+            state.workflowTools.forEachIndexed { index, tool ->
+                val args = commandArgumentsFor(tool, state.target, "")
+                appendLog("WORKFLOW_STEP ${index + 1}/${state.workflowTools.size}: ${tool.command} ${args.joinToString(" ")}")
+                val sent = TermuxBridge.executeCommand(context, tool.command, args.toTypedArray())
+                appendLog(if (sent) "WORKFLOW_SENT ${tool.command}" else "WORKFLOW_ERROR ${tool.command}")
+            }
+            auditRepository.startSession(
+                AuditSessionEntity(
+                    title = "Termux Workflow: ${state.workflowTools.joinToString(" -> ") { it.command }}",
+                    taskType = "TERMUX_WORKFLOW",
+                    target = state.target.ifBlank { "LOCAL_TERMUX" },
+                    targetType = "TERMUX_WORKFLOW",
+                    authorizationMode = if (state.authorizationConfirmed) "USER_CONFIRMED" else "LOW_RISK_OR_LOCAL",
+                    status = "SENT_TO_TERMUX",
+                    startedAt = System.currentTimeMillis(),
+                    summary = state.workflowPreview
+                )
+            )
+            appendLog("WORKFLOW_DONE")
+        }
+    }
+
     fun installSelectedToolPackage(context: Context) {
         val state = _uiState.value
         val tool = state.selectedTool ?: return
@@ -169,13 +221,24 @@ class TermuxScriptsViewModel(
             preview.isNotBlank() &&
             !preview.contains("<") &&
             (selectedTool.riskLevel != ToolRiskLevel.HIGH || state.authorizationConfirmed)
+        val workflowPreview = state.workflowTools.joinToString("\n") { tool ->
+            buildPreview(tool, state.target, "")
+        }
+        val workflowHasHighRisk = state.workflowTools.any { it.riskLevel == ToolRiskLevel.HIGH }
+        val canRunWorkflow = state.isTermuxInstalled &&
+            state.workflowTools.isNotEmpty() &&
+            workflowPreview.isNotBlank() &&
+            !workflowPreview.contains("<") &&
+            (!workflowHasHighRisk || state.authorizationConfirmed)
 
         _uiState.value = state.copy(
             visibleTools = visibleTools,
             selectedTool = selectedTool,
             selectedToolCommand = selectedTool?.command,
             commandPreview = preview,
-            canRunSelectedTool = canRun
+            canRunSelectedTool = canRun,
+            workflowPreview = workflowPreview,
+            canRunWorkflow = canRunWorkflow
         )
     }
 

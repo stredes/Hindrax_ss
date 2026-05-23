@@ -8,6 +8,9 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -202,9 +205,21 @@ fun TermuxScriptsScreen(
                         authorizationConfirmed = uiState.authorizationConfirmed,
                         onAuthorizationConfirmedChange = viewModel::onAuthorizationConfirmedChange,
                         onInstallPackage = { viewModel.installSelectedToolPackage(context) },
-                        canInstallPackage = uiState.isTermuxInstalled && tool.termuxPackage != null
+                        canInstallPackage = uiState.isTermuxInstalled && tool.termuxPackage != null,
+                        onAddToWorkflow = viewModel::addSelectedToolToWorkflow
                     )
                 }
+            }
+
+            item {
+                ToolWorkflowPanel(
+                    tools = uiState.workflowTools,
+                    workflowPreview = uiState.workflowPreview,
+                    canRunWorkflow = uiState.canRunWorkflow,
+                    onRemoveTool = viewModel::removeWorkflowTool,
+                    onClearWorkflow = viewModel::clearWorkflow,
+                    onRunWorkflow = { viewModel.executeWorkflow(context) }
+                )
             }
 
             item {
@@ -308,7 +323,8 @@ private fun ToolExecutionPanel(
     authorizationConfirmed: Boolean,
     onAuthorizationConfirmedChange: (Boolean) -> Unit,
     onInstallPackage: () -> Unit,
-    canInstallPackage: Boolean
+    canInstallPackage: Boolean,
+    onAddToWorkflow: () -> Unit
 ) {
     val riskColor = when (tool.riskLevel) {
         ToolRiskLevel.LOW -> Color.Green
@@ -325,6 +341,16 @@ private fun ToolExecutionPanel(
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("--- COMMAND_PREVIEW ---", color = riskColor, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 12.sp)
             Text(commandPreview, color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+            OutlinedButton(
+                onClick = onAddToWorkflow,
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.extraSmall,
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.Green)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, tint = Color.Green)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("ADD_TO_WORKFLOW_CHAIN", color = Color.Green, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+            }
             tool.termuxPackage?.let { packageName ->
                 Text(
                     "TERMUX_PACKAGE: $packageName",
@@ -358,6 +384,81 @@ private fun ToolExecutionPanel(
                         fontWeight = FontWeight.Bold
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ToolWorkflowPanel(
+    tools: List<ToolCatalogItem>,
+    workflowPreview: String,
+    canRunWorkflow: Boolean,
+    onRemoveTool: (String) -> Unit,
+    onClearWorkflow: () -> Unit,
+    onRunWorkflow: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF0A0A0A)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.Cyan.copy(alpha = 0.7f)),
+        shape = MaterialTheme.shapes.extraSmall
+    ) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "--- WORKFLOW_CHAIN ---",
+                    color = Color.Cyan,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = onClearWorkflow, enabled = tools.isNotEmpty()) {
+                    Icon(Icons.Default.Delete, contentDescription = "Clear workflow", tint = if (tools.isNotEmpty()) Color.Red else Color.DarkGray)
+                }
+            }
+
+            if (tools.isEmpty()) {
+                Text(
+                    text = "Selecciona tools del catalogo y usa ADD_TO_WORKFLOW_CHAIN para entrelazarlas.",
+                    color = Color.Gray,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 10.sp
+                )
+            } else {
+                tools.forEachIndexed { index, tool ->
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "${index + 1}. ${tool.command}",
+                            color = Color.White,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(onClick = { onRemoveTool(tool.command) }, modifier = Modifier.size(36.dp)) {
+                            Icon(Icons.Default.Close, contentDescription = "Remove workflow step", tint = Color.Red)
+                        }
+                    }
+                }
+                Text(
+                    text = workflowPreview,
+                    color = Color.Green,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 10.sp
+                )
+            }
+
+            Button(
+                onClick = onRunWorkflow,
+                enabled = canRunWorkflow,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Cyan, contentColor = Color.Black),
+                shape = MaterialTheme.shapes.extraSmall
+            ) {
+                Icon(Icons.Default.PlayArrow, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("RUN_WORKFLOW_CHAIN", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
             }
         }
     }
