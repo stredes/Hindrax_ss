@@ -2,8 +2,11 @@ package com.hindrax.ss.features.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CloudDownload
@@ -25,6 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.hindrax.ss.domain.theme.HindraxThemePalette
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -381,21 +385,43 @@ private fun ThemeColorInput(
     value: String,
     onColorChange: (String, String) -> Unit
 ) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Box(
-            modifier = Modifier
-                .size(34.dp)
-                .background(value.toPreviewColor(), MaterialTheme.shapes.extraSmall)
-        )
-        OutlinedTextField(
-            value = value,
-            onValueChange = { onColorChange(key, it) },
-            label = { Text(label, fontFamily = FontFamily.Monospace, fontSize = 10.sp) },
-            modifier = Modifier.weight(1f),
-            singleLine = true,
-            textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurface),
-            shape = MaterialTheme.shapes.extraSmall
-        )
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .background(value.toPreviewColor(), MaterialTheme.shapes.extraSmall)
+            )
+            OutlinedTextField(
+                value = value,
+                onValueChange = { onColorChange(key, it) },
+                label = { Text(label, fontFamily = FontFamily.Monospace, fontSize = 10.sp) },
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurface),
+                shape = MaterialTheme.shapes.extraSmall
+            )
+        }
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(HindraxThemePalette.all) { paletteColor ->
+                val selected = value.equals(paletteColor.hex, ignoreCase = true)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        modifier = Modifier
+                            .size(if (selected) 34.dp else 30.dp)
+                            .background(paletteColor.hex.toPreviewColor(), MaterialTheme.shapes.extraSmall)
+                            .clickable { onColorChange(key, paletteColor.hex) }
+                    )
+                    Text(
+                        text = paletteColor.name.take(4).uppercase(),
+                        color = if (selected) MaterialTheme.colorScheme.primary else Color.Gray,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 8.sp,
+                        maxLines = 1
+                    )
+                }
+            }
+        }
     }
 }
 

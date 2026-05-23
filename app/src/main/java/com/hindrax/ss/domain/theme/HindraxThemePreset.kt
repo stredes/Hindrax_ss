@@ -10,6 +10,28 @@ data class HindraxThemePreset(
     val danger: String = "#FF5252"
 )
 
+data class HindraxPaletteColor(
+    val name: String,
+    val hex: String
+)
+
+object HindraxThemePalette {
+    val all = listOf(
+        HindraxPaletteColor("Matrix", "#00FF66"),
+        HindraxPaletteColor("Cyan", "#00E5FF"),
+        HindraxPaletteColor("Amber", "#FFD54F"),
+        HindraxPaletteColor("Red", "#FF5252"),
+        HindraxPaletteColor("Violet", "#B388FF"),
+        HindraxPaletteColor("White", "#E8FFF2"),
+        HindraxPaletteColor("Black", "#050505"),
+        HindraxPaletteColor("Panel", "#101010"),
+        HindraxPaletteColor("Slate", "#1E293B"),
+        HindraxPaletteColor("Blue", "#2196F3"),
+        HindraxPaletteColor("Orange", "#FF9800"),
+        HindraxPaletteColor("Gray", "#7A7A7A")
+    )
+}
+
 object HindraxThemePresetCodec {
     private val hexRegex = Regex("^#[0-9A-Fa-f]{6}$")
 
