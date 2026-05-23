@@ -18,6 +18,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.hindrax.ss.core.util.HindraxThemeStore
 import com.hindrax.ss.features.dashboard.DashboardScreen
 import com.hindrax.ss.features.network.NetworkScreen
 import com.hindrax.ss.features.network.PortScannerScreen
@@ -54,8 +55,6 @@ import com.hindrax.ss.presentation.tasks.TaskHistoryScreen
 import com.hindrax.ss.presentation.tasks.TaskListScreen
 import com.hindrax.ss.presentation.inventory.InventoryScreen
 import com.hindrax.ss.presentation.chat.ChatScreen
-import com.hindrax.ss.domain.theme.HindraxThemePreset
-import com.hindrax.ss.domain.theme.HindraxThemePresetCodec
 import com.hindrax.ss.ui.theme.HindraxTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -68,17 +67,13 @@ class MainActivity : ComponentActivity() {
             val prefs = remember { getSharedPreferences("hindrax_prefs", Context.MODE_PRIVATE) }
             var themePreset by remember {
                 mutableStateOf(
-                    prefs.getString("theme_preset", null)
-                        ?.let { runCatching { HindraxThemePresetCodec.decode(it) }.getOrNull() }
-                        ?: HindraxThemePreset()
+                    HindraxThemeStore.loadActiveTheme(this@MainActivity)
                 )
             }
             DisposableEffect(prefs) {
-                val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { sharedPrefs, key ->
-                    if (key == "theme_preset") {
-                        themePreset = sharedPrefs.getString("theme_preset", null)
-                            ?.let { runCatching { HindraxThemePresetCodec.decode(it) }.getOrNull() }
-                            ?: HindraxThemePreset()
+                val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+                    if (key == HindraxThemeStore.KEY_ACTIVE_THEME) {
+                        themePreset = HindraxThemeStore.loadActiveTheme(this@MainActivity)
                     }
                 }
                 prefs.registerOnSharedPreferenceChangeListener(listener)

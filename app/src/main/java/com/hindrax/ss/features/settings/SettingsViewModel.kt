@@ -3,6 +3,7 @@ package com.hindrax.ss.features.settings
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hindrax.ss.core.util.HindraxThemeStore
 import com.hindrax.ss.data.repository.OllamaEndpointDefaults
 import com.hindrax.ss.data.repository.OllamaRepository
 import com.hindrax.ss.domain.ai.OpenAiResponsesPayloadBuilder
@@ -23,6 +24,7 @@ data class SettingsUiState(
     val isDarkTheme: Boolean = true,
     val saveReportsAutomatically: Boolean = false,
     val themePreset: HindraxThemePreset = HindraxThemePreset(),
+    val savedThemes: List<HindraxThemePreset> = listOf(HindraxThemePreset()),
     val themeExport: String = HindraxThemePresetCodec.encode(HindraxThemePreset()),
     val themeImportDraft: String = "",
     val themeStatus: String? = null
@@ -36,10 +38,10 @@ class SettingsViewModel(
 
     fun loadSettings(context: Context) {
         val prefs = context.getSharedPreferences("hindrax_prefs", Context.MODE_PRIVATE)
+        val activeTheme = HindraxThemeStore.loadActiveTheme(context)
         _uiState.value = SettingsUiState(
-            themePreset = prefs.getString("theme_preset", null)
-                ?.let { runCatching { HindraxThemePresetCodec.decode(it) }.getOrNull() }
-                ?: HindraxThemePreset(),
+            themePreset = activeTheme,
+            savedThemes = HindraxThemeStore.loadLibrary(context),
             apiKeys = mapOf(
                 "OpenAI" to (prefs.getString("api_key_openai", "") ?: ""),
                 "Shodan" to (prefs.getString("api_key_shodan", "") ?: ""),
@@ -149,6 +151,17 @@ class SettingsViewModel(
         saveTheme(context, HindraxThemePreset(), "THEME_RESET")
     }
 
+    fun createNewTheme(context: Context) {
+        val name = HindraxThemeStore.nextThemeName(_uiState.value.savedThemes)
+        saveTheme(context, HindraxThemePreset(name = name), "NEW_THEME_READY")
+    }
+
+    fun saveThemeToProfile(context: Context) {
+        HindraxThemeStore.saveThemeToProfile(context, _uiState.value.themePreset)
+        _uiState.value = _uiState.value.copy(themeStatus = "THEME_SAVED_IN_PROFILE")
+        loadSettings(context)
+    }
+
     fun updateThemeImportDraft(value: String) {
         _uiState.value = _uiState.value.copy(themeImportDraft = value)
     }
@@ -161,26 +174,17 @@ class SettingsViewModel(
             _uiState.value = _uiState.value.copy(themeStatus = "THEME_IMPORT_ERROR")
             return
         }
+        HindraxThemeStore.saveThemeToProfile(context, decoded)
         saveTheme(context, decoded, "THEME_IMPORTED")
     }
 
     private fun saveTheme(context: Context, preset: HindraxThemePreset, status: String = "THEME_SAVED") {
-        val normalized = normalizeTheme(preset)
-        val prefs = context.getSharedPreferences("hindrax_prefs", Context.MODE_PRIVATE)
-        prefs.edit().putString("theme_preset", HindraxThemePresetCodec.encode(normalized)).apply()
+        HindraxThemeStore.saveActiveTheme(context, normalizeTheme(preset))
         _uiState.value = _uiState.value.copy(themeStatus = status)
         loadSettings(context)
     }
 
     private fun normalizeTheme(preset: HindraxThemePreset): HindraxThemePreset {
-        val defaults = HindraxThemePreset()
-        return preset.copy(
-            background = HindraxThemePresetCodec.normalizeHex(preset.background, defaults.background),
-            surface = HindraxThemePresetCodec.normalizeHex(preset.surface, defaults.surface),
-            text = HindraxThemePresetCodec.normalizeHex(preset.text, defaults.text),
-            accent = HindraxThemePresetCodec.normalizeHex(preset.accent, defaults.accent),
-            warning = HindraxThemePresetCodec.normalizeHex(preset.warning, defaults.warning),
-            danger = HindraxThemePresetCodec.normalizeHex(preset.danger, defaults.danger)
-        )
+        return HindraxThemeStore.normalize(preset)
     }
 }

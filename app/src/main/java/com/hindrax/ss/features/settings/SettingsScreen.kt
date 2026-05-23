@@ -2,6 +2,7 @@ package com.hindrax.ss.features.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,6 +15,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hindrax.ss.domain.theme.HindraxThemePalette
+import com.hindrax.ss.domain.theme.HindraxThemePreset
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,8 +79,10 @@ fun SettingsScreen(
                     state = uiState,
                     onNameChange = { viewModel.updateThemeName(context, it) },
                     onColorChange = { key, value -> viewModel.updateThemeColor(context, key, value) },
+                    onCreateNew = { viewModel.createNewTheme(context) },
                     onReset = { viewModel.resetTheme(context) },
                     onCopy = { clipboardManager.setText(AnnotatedString(uiState.themeExport)) },
+                    onSaveToProfile = { viewModel.saveThemeToProfile(context) },
                     onImportDraftChange = viewModel::updateThemeImportDraft,
                     onImport = { viewModel.importTheme(context) }
                 )
@@ -294,8 +299,10 @@ private fun ThemeEditorPanel(
     state: SettingsUiState,
     onNameChange: (String) -> Unit,
     onColorChange: (String, String) -> Unit,
+    onCreateNew: () -> Unit,
     onReset: () -> Unit,
     onCopy: () -> Unit,
+    onSaveToProfile: () -> Unit,
     onImportDraftChange: (String) -> Unit,
     onImport: () -> Unit
 ) {
@@ -334,16 +341,38 @@ private fun ThemeEditorPanel(
             ThemeColorInput("WARNING", "warning", preset.warning, onColorChange)
             ThemeColorInput("DANGER", "danger", preset.danger, onColorChange)
 
+            ThemeLivePreview(preset = preset)
+
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 Button(
-                    onClick = onCopy,
+                    onClick = onSaveToProfile,
                     modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = Color.Black),
                     shape = MaterialTheme.shapes.extraSmall
                 ) {
+                    Icon(Icons.Default.Palette, contentDescription = null)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("SAVE_PROFILE", fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+                }
+                OutlinedButton(
+                    onClick = onCopy,
+                    modifier = Modifier.weight(1f),
+                    shape = MaterialTheme.shapes.extraSmall
+                ) {
                     Icon(Icons.Default.ContentCopy, contentDescription = null)
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("COPY_THEME", fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+                    Text("COPY", fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    onClick = onCreateNew,
+                    modifier = Modifier.weight(1f),
+                    shape = MaterialTheme.shapes.extraSmall
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("NEW_THEME", fontFamily = FontFamily.Monospace, fontSize = 11.sp)
                 }
                 OutlinedButton(
                     onClick = onReset,
@@ -371,8 +400,118 @@ private fun ThemeEditorPanel(
             ) {
                 Text("APPLY_IMPORTED_THEME", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
             }
+            Text(
+                text = "PROFILE_LIBRARY: ${state.savedThemes.size} temas guardados",
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.68f),
+                fontFamily = FontFamily.Monospace,
+                fontSize = 10.sp
+            )
             state.themeStatus?.let {
                 Text(it, color = MaterialTheme.colorScheme.primary, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThemeLivePreview(preset: HindraxThemePreset) {
+    val background = preset.background.toPreviewColor()
+    val surface = preset.surface.toPreviewColor()
+    val text = preset.text.toPreviewColor()
+    val accent = preset.accent.toPreviewColor()
+    val warning = preset.warning.toPreviewColor()
+    val danger = preset.danger.toPreviewColor()
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(background, MaterialTheme.shapes.extraSmall)
+            .border(1.dp, accent.copy(alpha = 0.7f), MaterialTheme.shapes.extraSmall)
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "LIVE_PREVIEW",
+                color = accent,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp
+            )
+            Text(
+                text = preset.name,
+                color = text,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp,
+                maxLines = 1
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(surface, MaterialTheme.shapes.extraSmall)
+                .border(1.dp, accent.copy(alpha = 0.35f), MaterialTheme.shapes.extraSmall)
+                .padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = "+--[ SYSTEM_SAMPLE ]----------------",
+                color = accent,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp
+            )
+            Text(
+                text = "| PRIMARY_TEXT: inventario sincronizado",
+                color = text,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp
+            )
+            Text(
+                text = "| WARNING_TEXT: actualizacion pendiente",
+                color = warning,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp
+            )
+            Text(
+                text = "| DANGER_TEXT: conflicto detectado",
+                color = danger,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp
+            )
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(36.dp)
+                    .background(accent, MaterialTheme.shapes.extraSmall),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("ACTION", color = Color.Black, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+            }
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(36.dp)
+                    .border(1.dp, warning, MaterialTheme.shapes.extraSmall),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("WAIT", color = warning, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+            }
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(36.dp)
+                    .border(1.dp, danger, MaterialTheme.shapes.extraSmall),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("ALERT", color = danger, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
             }
         }
     }

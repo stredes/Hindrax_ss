@@ -72,3 +72,17 @@ object HindraxThemePresetCodec {
     private fun String.escapeField(): String = replace("%", "%25").replace("|", "%7C")
     private fun String.unescapeField(): String = replace("%7C", "|").replace("%25", "%")
 }
+
+object HindraxThemeLibraryCodec {
+    private const val HEADER = "HINDRAX_THEME_LIBRARY_V1"
+
+    fun encode(themes: List<HindraxThemePreset>): String {
+        return (listOf(HEADER) + themes.map(HindraxThemePresetCodec::encode)).joinToString("\n")
+    }
+
+    fun decode(payload: String): List<HindraxThemePreset> {
+        val lines = payload.lines().filter { it.isNotBlank() }
+        if (lines.firstOrNull() != HEADER) return emptyList()
+        return lines.drop(1).map { HindraxThemePresetCodec.decode(it) }
+    }
+}
