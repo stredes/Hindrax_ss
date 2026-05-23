@@ -11,6 +11,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.ParcelUuid
 import androidx.core.content.ContextCompat
+import com.hindrax.ss.domain.profile.HindraxProfileCodec
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.*
 import javax.inject.Inject
@@ -37,9 +38,13 @@ class BleIdentityManager @Inject constructor(
             .build()
 
         val myHash = deviceIdManager.getDeviceId()
+        val advertisedIdentity = HindraxProfileCodec.encodePairingIdentity(
+            myHash,
+            deviceIdManager.getNickname().take(10)
+        )
         val data = AdvertiseData.Builder()
             .addServiceUuid(ParcelUuid(HINDRAX_SERVICE_UUID))
-            .addServiceData(ParcelUuid(HINDRAX_SERVICE_UUID), myHash.toByteArray())
+            .addServiceData(ParcelUuid(HINDRAX_SERVICE_UUID), advertisedIdentity.toByteArray())
             .setIncludeDeviceName(false)
             .build()
 

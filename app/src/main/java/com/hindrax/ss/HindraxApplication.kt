@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.hindrax.ss.core.model.Severity
+import com.hindrax.ss.core.util.HindraxNotificationCenter
 import com.hindrax.ss.core.work.UpdateWorker
 import com.hindrax.ss.data.db.HindraxDatabase
 import com.hindrax.ss.data.entity.ToolTaskEntity
@@ -28,6 +29,7 @@ class HindraxApplication : Application(), Configuration.Provider {
     private val applicationScope = CoroutineScope(SupervisorJob())
 
     @Inject lateinit var workerFactory: HiltWorkerFactory
+    @Inject lateinit var notificationCenter: HindraxNotificationCenter
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -53,6 +55,7 @@ class HindraxApplication : Application(), Configuration.Provider {
             android.util.Log.i("HindraxApplication", "WorkManager already initialized: ${ise.message}")
         }
 
+        notificationCenter.createChannels()
         prepopulateTasks()
         scheduleUpdateChecks()
     }

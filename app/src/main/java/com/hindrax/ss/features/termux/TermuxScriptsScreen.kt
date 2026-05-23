@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -21,6 +22,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hindrax.ss.HindraxApplication
+import com.hindrax.ss.domain.tools.ToolCatalogItem
+import com.hindrax.ss.domain.tools.ToolRiskLevel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,8 +36,6 @@ fun TermuxScriptsScreen(
         factory = TermuxScriptsViewModelFactory(app.auditRepository)
     )
     val uiState by viewModel.uiState.collectAsState()
-    var selectedScript by remember { mutableStateOf<TermuxScriptItem?>(null) }
-    var targetHost by remember { mutableStateOf("") }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     LaunchedEffect(Unit) {
@@ -89,7 +90,7 @@ fun TermuxScriptsScreen(
 
             item {
                 Text(
-                    text = "--- CONTROLLED_SCRIPT_EXECUTION ---",
+                    text = "--- TOOL_CATALOG_EXECUTION ---",
                     style = MaterialTheme.typography.labelSmall,
                     fontFamily = FontFamily.Monospace,
                     color = Color.Cyan
@@ -98,12 +99,12 @@ fun TermuxScriptsScreen(
 
             item {
                 OutlinedTextField(
-                    value = targetHost,
-                    onValueChange = { targetHost = it },
-                    label = { Text("TARGET_HOST_IP", fontFamily = FontFamily.Monospace) },
+                    value = uiState.query,
+                    onValueChange = viewModel::onQueryChange,
+                    label = { Text("SEARCH_TOOL", fontFamily = FontFamily.Monospace) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    placeholder = { Text("192.168.1.1", color = Color.DarkGray) },
+                    placeholder = { Text("nmap, apktool, binwalk, curl...", color = Color.DarkGray) },
                     textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = Color.Green),
                     colors = OutlinedTextFieldDefaults.colors(
                         unfocusedBorderColor = Color.DarkGray,
@@ -115,35 +116,110 @@ fun TermuxScriptsScreen(
             }
 
             item {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(uiState.categories) { category ->
+                        FilterChip(
+                            selected = uiState.selectedCategoryId == category.id && uiState.query.isBlank(),
+                            onClick = { viewModel.selectCategory(category.id) },
+                            label = {
+                                Text(category.name, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = Color.Green,
+                                selectedLabelColor = Color.Black,
+                                labelColor = Color.Green
+                            ),
+                            border = FilterChipDefaults.filterChipBorder(
+                                enabled = true,
+                                selected = uiState.selectedCategoryId == category.id && uiState.query.isBlank(),
+                                borderColor = Color.DarkGray,
+                                selectedBorderColor = Color.Green
+                            )
+                        )
+                    }
+                }
+            }
+
+            item {
+                OutlinedTextField(
+                    value = uiState.target,
+                    onValueChange = viewModel::onTargetChange,
+                    label = { Text("TARGET_OR_FILE", fontFamily = FontFamily.Monospace) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    placeholder = { Text("192.168.1.1 / dominio / archivo local", color = Color.DarkGray) },
+                    textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = Color.Green),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = Color.DarkGray,
+                        focusedBorderColor = Color.Green,
+                        cursorColor = Color.Green
+                    ),
+                    shape = MaterialTheme.shapes.extraSmall
+                )
+            }
+
+            item {
+                OutlinedTextField(
+                    value = uiState.customArguments,
+                    onValueChange = viewModel::onCustomArgumentsChange,
+                    label = { Text("ARGS_OVERRIDE", fontFamily = FontFamily.Monospace) },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2,
+                    maxLines = 4,
+                    placeholder = { Text("-sV 192.168.1.10", color = Color.DarkGray) },
+                    textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = Color.Cyan, fontSize = 12.sp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = Color.DarkGray,
+                        focusedBorderColor = Color.Cyan,
+                        cursorColor = Color.Cyan
+                    ),
+                    shape = MaterialTheme.shapes.extraSmall
+                )
+            }
+
+            item {
                 Text(
-                    text = "AVAILABLE_SCRIPTS:",
+                    text = "TOOLS_VISIBLE: ${uiState.visibleTools.size}",
                     style = MaterialTheme.typography.labelSmall,
                     fontFamily = FontFamily.Monospace,
                     color = Color.Gray
                 )
             }
 
-            items(uiState.availableScripts) { script ->
-                ScriptListItem(
-                    script = script,
-                    isSelected = selectedScript == script,
-                    onClick = { selectedScript = script }
+            items(uiState.visibleTools) { tool ->
+                ToolCatalogListItem(
+                    tool = tool,
+                    isSelected = uiState.selectedTool?.command == tool.command,
+                    onClick = { viewModel.selectTool(tool) }
                 )
+            }
+
+            uiState.selectedTool?.let { tool ->
+                item {
+                    ToolExecutionPanel(
+                        tool = tool,
+                        commandPreview = uiState.commandPreview,
+                        authorizationConfirmed = uiState.authorizationConfirmed,
+                        onAuthorizationConfirmedChange = viewModel::onAuthorizationConfirmedChange,
+                        onInstallPackage = { viewModel.installSelectedToolPackage(context) },
+                        canInstallPackage = uiState.isTermuxInstalled && tool.termuxPackage != null
+                    )
+                }
             }
 
             item {
                 Button(
                     onClick = {
-                        selectedScript?.let { viewModel.executeScript(context, it.fileName, targetHost) }
+                        viewModel.executeSelectedTool(context)
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = uiState.isTermuxInstalled && selectedScript != null && targetHost.isNotBlank(),
+                    enabled = uiState.canRunSelectedTool,
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Green, contentColor = Color.Black),
                     shape = MaterialTheme.shapes.extraSmall
                 ) {
                     Icon(Icons.Default.PlayArrow, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("RUN_IN_TERMUX", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                    Text("RUN_SELECTED_TOOL", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -172,7 +248,13 @@ fun TermuxScriptsScreen(
 }
 
 @Composable
-fun ScriptListItem(script: TermuxScriptItem, isSelected: Boolean, onClick: () -> Unit) {
+fun ToolCatalogListItem(tool: ToolCatalogItem, isSelected: Boolean, onClick: () -> Unit) {
+    val riskColor = when (tool.riskLevel) {
+        ToolRiskLevel.LOW -> Color.Green
+        ToolRiskLevel.MEDIUM -> Color.Yellow
+        ToolRiskLevel.HIGH -> Color.Red
+    }
+
     Card(
         onClick = onClick,
         modifier = Modifier
@@ -188,24 +270,95 @@ fun ScriptListItem(script: TermuxScriptItem, isSelected: Boolean, onClick: () ->
         shape = MaterialTheme.shapes.extraSmall
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(
+                    text = tool.displayName.uppercase(),
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    color = if (isSelected) Color.Green else Color.White
+                )
+                Text(
+                    text = tool.riskLevel.name,
+                    color = riskColor,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
             Text(
-                text = script.displayName.uppercase(), 
-                fontWeight = FontWeight.Bold, 
-                fontFamily = FontFamily.Monospace,
-                color = if (isSelected) Color.Green else Color.White
-            )
-            Text(
-                text = script.description, 
-                style = MaterialTheme.typography.bodySmall, 
+                text = tool.tutorial.authorizedUse,
+                style = MaterialTheme.typography.bodySmall,
                 fontFamily = FontFamily.Monospace,
                 color = Color.Gray
             )
             Text(
-                text = "FILE: ${script.fileName}", 
-                style = MaterialTheme.typography.labelSmall, 
+                text = "MODE: ${tool.executionMode}  CMD: ${tool.command}",
+                style = MaterialTheme.typography.labelSmall,
                 color = Color.Cyan,
                 fontFamily = FontFamily.Monospace
             )
+        }
+    }
+}
+
+@Composable
+private fun ToolExecutionPanel(
+    tool: ToolCatalogItem,
+    commandPreview: String,
+    authorizationConfirmed: Boolean,
+    onAuthorizationConfirmedChange: (Boolean) -> Unit,
+    onInstallPackage: () -> Unit,
+    canInstallPackage: Boolean
+) {
+    val riskColor = when (tool.riskLevel) {
+        ToolRiskLevel.LOW -> Color.Green
+        ToolRiskLevel.MEDIUM -> Color.Yellow
+        ToolRiskLevel.HIGH -> Color.Red
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF0A0A0A)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, riskColor),
+        shape = MaterialTheme.shapes.extraSmall
+    ) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("--- COMMAND_PREVIEW ---", color = riskColor, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            Text(commandPreview, color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+            tool.termuxPackage?.let { packageName ->
+                Text(
+                    "TERMUX_PACKAGE: $packageName",
+                    color = Color.Cyan,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 10.sp
+                )
+                OutlinedButton(
+                    onClick = onInstallPackage,
+                    enabled = canInstallPackage,
+                    shape = MaterialTheme.shapes.extraSmall,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.Cyan),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("INSTALL_TOOL_PACKAGE", color = Color.Cyan, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                }
+            }
+            Text(tool.tutorial.notes.joinToString("  "), color = Color.Gray, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+            if (tool.riskLevel == ToolRiskLevel.HIGH) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = authorizationConfirmed,
+                        onCheckedChange = onAuthorizationConfirmedChange,
+                        colors = CheckboxDefaults.colors(checkedColor = Color.Red)
+                    )
+                    Text(
+                        "CONFIRMO_AUTORIZACION_EXPLICITA",
+                        color = Color.Red,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         }
     }
 }

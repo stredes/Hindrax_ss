@@ -12,6 +12,7 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.ParcelUuid
 import androidx.core.content.ContextCompat
+import com.hindrax.ss.domain.profile.HindraxProfileCodec
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -46,7 +47,8 @@ class BleScannerManager @Inject constructor(
                 // Intentar obtener el hash de 3 fuentes:
                 // 1. Datos del servicio (lo más fiable)
                 val serviceData = result.scanRecord?.serviceData?.get(ParcelUuid(HINDRAX_SERVICE_UUID))
-                val hashFromData = serviceData?.let { String(it) }
+                val identityFromData = serviceData?.let { HindraxProfileCodec.decodePairingIdentity(String(it)) }
+                val hashFromData = identityFromData?.deviceId
 
                 // 2. Nombre del dispositivo
                 val deviceName = result.device.name ?: result.scanRecord?.deviceName
@@ -58,7 +60,7 @@ class BleScannerManager @Inject constructor(
                 }
 
                 if (finalHash != null) {
-                    trySend(BleDiscoveredNode(finalHash, result.device.address))
+                    trySend(BleDiscoveredNode(finalHash, result.device.address, identityFromData?.nickname))
                 }
             }
 
@@ -100,5 +102,6 @@ class BleScannerManager @Inject constructor(
 
 data class BleDiscoveredNode(
     val hash: String,
-    val macAddress: String
+    val macAddress: String,
+    val nickname: String? = null
 )

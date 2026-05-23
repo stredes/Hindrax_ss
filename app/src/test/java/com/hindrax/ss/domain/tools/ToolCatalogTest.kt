@@ -62,4 +62,12 @@ class ToolCatalogTest {
         assertTrue(HindraxEnvironmentGuide.sections.any { it.title == "TERMUX_BRIDGE" })
         assertTrue(HindraxEnvironmentGuide.sections.any { it.title == "SAFETY_GATE" })
     }
+
+    @Test
+    fun commonToolsExposeTermuxInstallHints() {
+        assertEquals("nmap", TermuxPackageHints.packageFor("nmap"))
+        assertEquals("dnsutils", TermuxPackageHints.packageFor("dig"))
+        assertEquals("openssh", TermuxPackageHints.packageFor("ssh"))
+        assertEquals("pkg install -y nmap", TermuxPackageHints.installCommandFor("nmap"))
+    }
 }

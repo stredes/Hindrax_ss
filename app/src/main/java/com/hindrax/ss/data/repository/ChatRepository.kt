@@ -11,6 +11,7 @@ import android.os.Bundle
 import android.os.Looper
 import androidx.core.content.ContextCompat
 import com.hindrax.ss.core.util.DeviceIdManager
+import com.hindrax.ss.core.util.HindraxNotificationCenter
 import com.hindrax.ss.data.db.ChatDao
 import com.hindrax.ss.data.db.InventoryDao
 import com.hindrax.ss.data.db.TaskDao
@@ -18,10 +19,12 @@ import com.hindrax.ss.data.entity.ChatMessageEntity
 import com.hindrax.ss.data.entity.InventoryEntity
 import com.hindrax.ss.data.entity.PeerEntity
 import com.hindrax.ss.data.entity.TaskEntity
+import com.hindrax.ss.domain.inventory.InventorySyncItem
+import com.hindrax.ss.domain.inventory.InventorySyncResolver
+import com.hindrax.ss.domain.profile.HindraxProfileCodec
 import com.hindrax.ss.domain.tasks.model.ChecklistItem
 import com.hindrax.ss.domain.tasks.model.TaskStatus
 import com.hindrax.ss.domain.tasks.model.TaskType
-import com.hindrax.ss.domain.profile.HindraxProfileCodec
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -53,7 +56,8 @@ class ChatRepository @Inject constructor(
     private val chatDao: ChatDao,
     private val taskDao: TaskDao,
     private val inventoryDao: InventoryDao,
-    private val deviceIdManager: DeviceIdManager
+    private val deviceIdManager: DeviceIdManager,
+    private val notificationCenter: HindraxNotificationCenter
 ) {
     private val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
     private val locationManager = context.applicationContext.getSystemService(Context.LOCATION_SERVICE) as LocationManager
@@ -66,6 +70,7 @@ class ChatRepository @Inject constructor(
 
     fun observePeers(): Flow<List<PeerEntity>> = chatDao.observePeers()
     fun observeMessages(peerId: String): Flow<List<ChatMessageEntity>> = chatDao.observeMessages(peerId)
+    suspend fun getAllPeers(): List<PeerEntity> = chatDao.getAllPeersSync()
     suspend fun getPeerById(id: String): PeerEntity? = chatDao.getPeerById(id)
     suspend fun updatePeerNickname(peerId: String, nickname: String?) {
         val normalized = nickname?.trim()?.takeIf { it.isNotBlank() }
@@ -123,21 +128,25 @@ class ChatRepository @Inject constructor(
                             isFromMe = false
                         ))
                         addManualPeer(remoteId, remoteIp, remoteIdentity.nickname)
+                        notificationCenter.notifyMessage(displayName(remoteId, remoteIdentity.nickname), text)
                     }
                     "TASK" -> {
                         val taskJson = reader.readLine()
                         receiveSharedTask(taskJson, remoteId)
                         addManualPeer(remoteId, remoteIp, remoteIdentity.nickname)
+                        notificationCenter.notifySync(displayName(remoteId, remoteIdentity.nickname), "MISSION_DATA_RECEIVED")
                     }
                     "INVENTORY" -> {
                         val inventoryJson = reader.readLine()
                         receiveSharedInventory(inventoryJson, remoteId)
                         addManualPeer(remoteId, remoteIp, remoteIdentity.nickname)
+                        notificationCenter.notifySync(displayName(remoteId, remoteIdentity.nickname), "INVENTORY_DATA_RECEIVED")
                     }
                     "LOCATION" -> {
                         val locationJson = reader.readLine()
                         addManualPeer(remoteId, remoteIp, remoteIdentity.nickname)
                         receiveSharedLocation(locationJson, remoteId)
+                        notificationCenter.notifySync(displayName(remoteId, remoteIdentity.nickname), "LOCATION_UPDATED")
                     }
                     "LOCATION_REQUEST" -> {
                         addManualPeer(remoteId, remoteIp, remoteIdentity.nickname)
@@ -220,8 +229,23 @@ class ChatRepository @Inject constructor(
         try {
             val json = JSONObject(jsonStr)
             val name = json.getString("name")
-            
             val existing = inventoryDao.getByName(name)
+            val incomingUpdatedAt = json.optLong("updatedAt", System.currentTimeMillis())
+            val incomingSyncItem = InventorySyncItem(
+                name = name,
+                currentQuantity = json.getDouble("currentQuantity"),
+                updatedAt = incomingUpdatedAt
+            )
+            val existingSyncItem = existing?.let {
+                InventorySyncItem(
+                    name = it.name,
+                    currentQuantity = it.currentQuantity,
+                    updatedAt = it.updatedAt
+                )
+            }
+            val syncResult = InventorySyncResolver.resolve(existingSyncItem, incomingSyncItem)
+            if (!syncResult.shouldApply) return
+
             val item = InventoryEntity(
                 id = existing?.id ?: 0,
                 name = name,
@@ -229,17 +253,18 @@ class ChatRepository @Inject constructor(
                 currentQuantity = json.getDouble("currentQuantity"),
                 minQuantity = json.getDouble("minQuantity"),
                 unit = json.getString("unit"),
-                updatedAt = System.currentTimeMillis()
+                updatedAt = incomingUpdatedAt
             )
             
             inventoryDao.insert(item)
             
             chatDao.insertMessage(ChatMessageEntity(
                 peerId = fromPeerId,
-                message = "🛠️ INVENTORY_SYNCED: ${item.name}",
+                message = syncResult.changeMessage,
                 timestamp = System.currentTimeMillis(),
                 isFromMe = false
             ))
+            notificationCenter.notifySync(displayName(fromPeerId, null), syncResult.changeMessage)
         } catch (e: Exception) { e.printStackTrace() }
     }
 
@@ -266,18 +291,28 @@ class ChatRepository @Inject constructor(
     }
 
     suspend fun syncAllWithPeer(peerId: String) {
-        val tasks = taskDao.getAllTasksSync()
-        tasks.forEach { shareTask(peerId, it) }
-        
-        val inventory = inventoryDao.getAllInventorySync()
-        inventory.forEach { shareInventoryItem(peerId, it) }
-        
+        syncTasksWithPeer(peerId)
+        syncInventoryWithPeer(peerId)
+
         chatDao.insertMessage(ChatMessageEntity(
             peerId = peerId,
             message = "🔄 FULL_FAMILY_SYNC_COMPLETED",
             timestamp = System.currentTimeMillis(),
             isFromMe = true
         ))
+        chatDao.getPeerById(peerId)?.let { peer ->
+            notificationCenter.notifySync(peer.displayName, "FULL_FAMILY_SYNC_COMPLETED")
+        }
+    }
+
+    suspend fun syncTasksWithPeer(peerId: String) {
+        val tasks = taskDao.getAllTasksSync()
+        tasks.forEach { shareTask(peerId, it) }
+    }
+
+    suspend fun syncInventoryWithPeer(peerId: String) {
+        val inventory = inventoryDao.getAllInventorySync()
+        inventory.forEach { shareInventoryItem(peerId, it) }
     }
 
     suspend fun syncAllDevices() {
@@ -388,6 +423,7 @@ class ChatRepository @Inject constructor(
             put("currentQuantity", item.currentQuantity)
             put("minQuantity", item.minQuantity)
             put("unit", item.unit)
+            put("updatedAt", item.updatedAt)
         }
 
         sendToPeer(peer, "INVENTORY", json.toString())
@@ -431,6 +467,9 @@ class ChatRepository @Inject constructor(
             locationUpdatedAt = existing?.locationUpdatedAt
         )
         chatDao.insertPeer(peer)
+        if (existing == null) {
+            notificationCenter.notifyPairing(peer.displayName, "IP: $ip")
+        }
     }
 
     suspend fun sendMessage(peerId: String, text: String) {
@@ -510,5 +549,9 @@ class ChatRepository @Inject constructor(
             accuracy = if (hasAccuracy()) accuracy else null,
             capturedAt = if (time > 0L) time else System.currentTimeMillis()
         )
+    }
+
+    private fun displayName(peerId: String, nickname: String?): String {
+        return nickname?.takeIf { it.isNotBlank() } ?: "Node_${peerId.takeLast(4)}"
     }
 }

@@ -13,7 +13,8 @@ data class ToolCatalogItem(
     val displayName: String = command,
     val riskLevel: ToolRiskLevel = ToolRiskLevel.LOW,
     val executionMode: ToolExecutionMode = ToolExecutionMode.TERMUX,
-    val tutorial: ToolTutorial = ToolTutorialFactory.forTool(command, riskLevel, executionMode)
+    val tutorial: ToolTutorial = ToolTutorialFactory.forTool(command, riskLevel, executionMode),
+    val termuxPackage: String? = TermuxPackageHints.packageFor(command)
 )
 
 data class ToolCategory(
@@ -81,6 +82,26 @@ object HindraxEnvironmentGuide {
             )
         )
     )
+}
+
+object TermuxPackageHints {
+    fun packageFor(command: String): String? {
+        return when (command.lowercase()) {
+            "dig" -> "dnsutils"
+            "ssh" -> "openssh"
+            "objdump", "readelf", "strings" -> "binutils"
+            "gcc", "clang" -> "clang"
+            "python", "ruby", "perl", "go", "make", "git", "curl", "wget", "nmap", "masscan",
+            "whois", "traceroute", "mtr", "tmux", "htop", "nano", "vim", "tor", "proxychains-ng" -> command.lowercase()
+            "proxychains" -> "proxychains-ng"
+            "apktool", "jadx", "binwalk", "radare2", "gdb", "ltrace", "strace", "sqlmap" -> command.lowercase()
+            else -> null
+        }
+    }
+
+    fun installCommandFor(command: String): String? {
+        return packageFor(command)?.let { "pkg install -y $it" }
+    }
 }
 
 object ToolTutorialFactory {

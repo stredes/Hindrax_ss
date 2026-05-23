@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hindrax.ss.data.db.InventoryDao
 import com.hindrax.ss.data.entity.InventoryEntity
+import com.hindrax.ss.data.repository.ChatRepository
 import com.hindrax.ss.domain.tasks.model.InventoryItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -18,7 +19,8 @@ data class InventoryUiState(
 
 @HiltViewModel
 class InventoryViewModel @Inject constructor(
-    private val inventoryDao: InventoryDao
+    private val inventoryDao: InventoryDao,
+    private val chatRepository: ChatRepository
 ) : ViewModel() {
 
     val uiState: StateFlow<InventoryUiState> = inventoryDao.observeInventory()
@@ -30,16 +32,16 @@ class InventoryViewModel @Inject constructor(
 
     fun addItem(name: String, category: String, minQty: Double, unit: String) {
         viewModelScope.launch {
-            inventoryDao.insert(
-                InventoryEntity(
-                    name = name,
-                    category = category,
-                    currentQuantity = 0.0,
-                    minQuantity = minQty,
-                    unit = unit,
-                    updatedAt = System.currentTimeMillis()
-                )
+            val item = InventoryEntity(
+                name = name,
+                category = category,
+                currentQuantity = 0.0,
+                minQuantity = minQty,
+                unit = unit,
+                updatedAt = System.currentTimeMillis()
             )
+            val id = inventoryDao.insert(item)
+            inventoryDao.getById(id)?.let { chatRepository.broadcastInventory(it) }
         }
     }
 
@@ -47,6 +49,7 @@ class InventoryViewModel @Inject constructor(
         viewModelScope.launch {
             val item = inventoryDao.getById(id) ?: return@launch
             inventoryDao.updateQuantity(id, item.currentQuantity + delta, System.currentTimeMillis())
+            inventoryDao.getById(id)?.let { chatRepository.broadcastInventory(it) }
         }
     }
 

@@ -22,6 +22,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.hindrax.ss.domain.sync.NodeSyncState
+import com.hindrax.ss.domain.sync.SyncStatusLabel
 import com.hindrax.ss.domain.tools.NetworkToolSuggestions
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -36,12 +38,15 @@ fun NetworkDiscoveryScreen(
     
     // Permission Handling
     val permissionsToRequest = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        arrayOf(
-            Manifest.permission.BLUETOOTH_SCAN,
-            Manifest.permission.BLUETOOTH_ADVERTISE,
-            Manifest.permission.BLUETOOTH_CONNECT,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        )
+        buildList {
+            add(Manifest.permission.BLUETOOTH_SCAN)
+            add(Manifest.permission.BLUETOOTH_ADVERTISE)
+            add(Manifest.permission.BLUETOOTH_CONNECT)
+            add(Manifest.permission.ACCESS_FINE_LOCATION)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }.toTypedArray()
     } else {
         arrayOf(
             Manifest.permission.ACCESS_FINE_LOCATION
@@ -76,6 +81,9 @@ fun NetworkDiscoveryScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { launcher.launch(permissionsToRequest) }) {
+                        Icon(Icons.Default.Radar, contentDescription = "Refresh Nodes", tint = Color.Cyan)
+                    }
                     IconButton(onClick = { viewModel.checkAppUpdates() }) {
                         Icon(Icons.Default.Refresh, contentDescription = "Check Updates", tint = Color.Green)
                     }
@@ -120,6 +128,13 @@ fun NetworkDiscoveryScreen(
                         Text(
                             text = "LOCAL_ADDR: ${uiState.localIp}",
                             color = Color.Green.copy(0.7f),
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 10.sp,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                        Text(
+                            text = "NICKNAME: ${uiState.myNickname}",
+                            color = Color.White.copy(alpha = 0.72f),
                             fontFamily = FontFamily.Monospace,
                             fontSize = 10.sp,
                             modifier = Modifier.padding(top = 4.dp)
@@ -225,12 +240,20 @@ fun DeviceItemComponent(
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = device.deviceHash ?: device.ip ?: "Unknown Node", 
+                    text = device.displayName,
                     fontWeight = FontWeight.Bold, 
                     fontFamily = FontFamily.Monospace, 
                     color = Color.White,
                     fontSize = 14.sp
                 )
+                device.deviceHash?.let { hash ->
+                    Text(
+                        text = "HASH: $hash",
+                        fontFamily = FontFamily.Monospace,
+                        color = Color.Gray,
+                        fontSize = 9.sp
+                    )
+                }
                 Text(
                     text = if (device.isHindraxNode) "HINDRAX_MESH [${device.discoveryMethod}]" else "GUEST_DEVICE",
                     style = MaterialTheme.typography.bodySmall,
@@ -238,6 +261,32 @@ fun DeviceItemComponent(
                     color = nodeColor.copy(alpha = 0.7f),
                     fontSize = 10.sp
                 )
+                if (device.isHindraxNode) {
+                    val statusLabel = SyncStatusLabel.forDevice(device.isAlreadyPaired, device.syncState)
+                    val statusColor = when (device.syncState) {
+                        NodeSyncState.SYNCING_TASKS, NodeSyncState.SYNCING_INVENTORY, NodeSyncState.PAIRING -> Color.Cyan
+                        NodeSyncState.SYNCED -> Color.Green
+                        NodeSyncState.ERROR -> Color.Red
+                        NodeSyncState.IDLE -> if (device.isAlreadyPaired) Color.Green else Color.Yellow
+                    }
+                    Text(
+                        text = statusLabel,
+                        fontFamily = FontFamily.Monospace,
+                        color = statusColor,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(top = 4.dp)
+                    )
+                    device.lastSyncAt?.let { lastSync ->
+                        Text(
+                            text = "LAST_SYNC: ${lastSync / 1000}s",
+                            fontFamily = FontFamily.Monospace,
+                            color = Color.White.copy(alpha = 0.56f),
+                            fontSize = 9.sp,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                }
                 val suggestedTools = NetworkToolSuggestions.toolsForNode(
                     isHindraxNode = device.isHindraxNode,
                     isCyd = device.isCyd,
@@ -268,15 +317,24 @@ fun DeviceItemComponent(
                     if (device.isAlreadyPaired) {
                         IconButton(
                             onClick = onSync,
+                            enabled = device.syncState != NodeSyncState.SYNCING_TASKS &&
+                                device.syncState != NodeSyncState.SYNCING_INVENTORY,
                             modifier = Modifier.size(32.dp)
                         ) {
-                            Icon(Icons.Default.Sync, contentDescription = "Sync Data", tint = Color.Cyan)
+                            if (device.syncState == NodeSyncState.SYNCING_TASKS ||
+                                device.syncState == NodeSyncState.SYNCING_INVENTORY
+                            ) {
+                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = Color.Cyan)
+                            } else {
+                                Icon(Icons.Default.Sync, contentDescription = "Sync Data", tint = Color.Cyan)
+                            }
                         }
                         Spacer(modifier = Modifier.width(4.dp))
                     }
                     
                     Button(
                         onClick = onConnectHindrax,
+                        enabled = device.syncState != NodeSyncState.PAIRING,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = if (device.isAlreadyPaired) Color.DarkGray else Color.Yellow, 
                             contentColor = Color.Black
@@ -285,12 +343,16 @@ fun DeviceItemComponent(
                         modifier = Modifier.height(32.dp),
                         shape = MaterialTheme.shapes.extraSmall
                     ) {
-                        Text(
-                            text = if (device.isAlreadyPaired) "OPEN" else "PAIR", 
-                            fontSize = 10.sp, 
-                            fontFamily = FontFamily.Monospace, 
-                            fontWeight = FontWeight.Bold
-                        )
+                        if (device.syncState == NodeSyncState.PAIRING) {
+                            CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp, color = Color.Black)
+                        } else {
+                            Text(
+                                text = if (device.isAlreadyPaired) "OPEN" else "PAIR",
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             } else if (device.isCyd) {
