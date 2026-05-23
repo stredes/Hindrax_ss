@@ -10,6 +10,8 @@ import com.hindrax.ss.data.entity.InventoryEntity
 import com.hindrax.ss.data.entity.MessageStatus
 import com.hindrax.ss.data.entity.PeerEntity
 import com.hindrax.ss.data.entity.TaskEntity
+import com.hindrax.ss.data.entity.TaskHistoryEntity
+import com.hindrax.ss.domain.inventory.ProductNameNormalizer
 import com.hindrax.ss.domain.tasks.model.ChecklistItem
 import com.hindrax.ss.domain.tasks.model.TaskStatus
 import com.hindrax.ss.domain.tasks.model.TaskType
@@ -56,6 +58,7 @@ class ApiHindraxRemoteSyncRepository @Inject constructor(
         val config = configStore.load()
         if (!config.isReady) return ApiHindraxRemoteSyncResult(enabled = false)
         val bootstrapPending = configStore.shouldRunBootstrap(config)
+        repairInventoryFromCompletedShoppingTasks()
 
         return coroutineScope {
             val tasksJob = async { syncTasks() }
@@ -124,6 +127,67 @@ class ApiHindraxRemoteSyncRepository @Inject constructor(
         return RemoteCollectionSyncResult(success = true, pushed = local.size, pulled = applied)
     }
 
+    private suspend fun repairInventoryFromCompletedShoppingTasks() {
+        val tasks = taskDao.getAllTasksSync()
+        tasks
+            .filter { it.status == TaskStatus.COMPLETADA }
+            .filter { it.type == TaskType.SHOPPING || it.type == TaskType.FERIA }
+            .forEach { task ->
+                val category = if (task.type == TaskType.FERIA) "FERIA" else "COMPRAS"
+                task.checklist
+                    .filter { it.text.isNotBlank() }
+                    .forEach { checklistItem ->
+                        ensureInventoryProduct(checklistItem.text, checklistItem.unit, category)
+                    }
+
+                task.checklist
+                    .filter { it.isChecked && it.quantity != null }
+                    .forEach { checklistItem ->
+                        val appliedKey = inventoryLineAppliedKey(checklistItem.id)
+                        if (taskDao.countHistoryByActionAndDetail(task.id, "INVENTORY_LINE_APPLIED", appliedKey) > 0) {
+                            return@forEach
+                        }
+                        val item = inventoryDao.getByNameNormalized(ProductNameNormalizer.displayName(checklistItem.text))
+                            ?: return@forEach
+                        val amount = checklistItem.quantity ?: return@forEach
+                        inventoryDao.updateQuantity(
+                            id = item.id,
+                            newQuantity = item.currentQuantity + amount,
+                            updatedAt = System.currentTimeMillis()
+                        )
+                        taskDao.insertHistory(
+                            TaskHistoryEntity(
+                                taskId = task.id,
+                                action = "INVENTORY_LINE_APPLIED",
+                                detail = appliedKey,
+                                createdAt = System.currentTimeMillis()
+                            )
+                        )
+                    }
+            }
+    }
+
+    private suspend fun ensureInventoryProduct(rawName: String, unit: String?, category: String): InventoryEntity? {
+        val itemName = ProductNameNormalizer.displayName(rawName)
+        if (itemName.isBlank()) return null
+        inventoryDao.getByNameNormalized(itemName)?.let { return it }
+        val id = inventoryDao.insert(
+            InventoryEntity(
+                name = itemName,
+                category = category,
+                currentQuantity = 0.0,
+                minQuantity = 1.0,
+                unit = unit?.trim()?.takeIf { it.isNotBlank() } ?: "unid",
+                updatedAt = System.currentTimeMillis()
+            )
+        )
+        return inventoryDao.getById(id)
+    }
+
+    private fun inventoryLineAppliedKey(checklistItemId: String): String {
+        return "checklist:$checklistItemId"
+    }
+
     private suspend fun syncChat(): RemoteCollectionSyncResult {
         val local = chatDao.getAllMessagesSync()
         client.syncChat(JSONArray().also { array ->
@@ -174,9 +238,12 @@ class ApiHindraxRemoteSyncRepository @Inject constructor(
         for (index in 0 until items.length()) {
             val json = items.optJSONObject(index) ?: continue
             if (json.optString("deviceId") == myDeviceId) continue
-            val name = json.optString("name").takeIf { it.isNotBlank() } ?: continue
+            val name = json.optString("name")
+                .takeIf { it.isNotBlank() }
+                ?.let(ProductNameNormalizer::displayName)
+                ?: continue
             val incomingUpdatedAt = json.optLong("updatedAt", System.currentTimeMillis())
-            val existing = inventoryDao.getByName(name)
+            val existing = inventoryDao.getByNameNormalized(name)
             if (existing != null && existing.updatedAt >= incomingUpdatedAt) continue
 
             val incoming = InventoryEntity(

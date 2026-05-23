@@ -339,14 +339,14 @@ fun ChecklistEditor(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "INVENTORY_RESOURCE",
+                                text = "PRODUCTO_GUARDADO",
                                 color = Color.Yellow,
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 10.sp
                             )
                             Text(
                                 text = selectedInventoryItem?.let { "${it.name.uppercase()} :: ${it.currentQuantity} ${it.unit}" }
-                                    ?: "[ SELECT_PRODUCT_FROM_INVENTORY ]",
+                                    ?: "[ SELECCIONAR_PRODUCTO_EXISTENTE ]",
                                 color = if (selectedInventoryItem != null) Color.White else Color.Gray,
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 12.sp
@@ -465,8 +465,8 @@ fun ChecklistEditor(
                     value = newItemText,
                     onValueChange = { newItemText = it },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Resource Name", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
-                    placeholder = { Text("Input data...", fontFamily = FontFamily.Monospace, fontSize = 12.sp) },
+                    label = { Text("NUEVO_PRODUCTO", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
+                    placeholder = { Text("Ej: Cerveza Austral", fontFamily = FontFamily.Monospace, fontSize = 12.sp) },
                     singleLine = true,
                     textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = Color.White, fontSize = 14.sp),
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color.Cyan),
@@ -481,7 +481,7 @@ fun ChecklistEditor(
                         value = newItemQty,
                         onValueChange = { newItemQty = it },
                         modifier = Modifier.weight(1f),
-                        label = { Text("Qty", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
+                        label = { Text("Cantidad", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         singleLine = true,
                         textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = Color.White, fontSize = 14.sp),
@@ -492,7 +492,7 @@ fun ChecklistEditor(
                         value = newItemUnit,
                         onValueChange = { newItemUnit = it },
                         modifier = Modifier.weight(1f),
-                        label = { Text("Unit", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
+                        label = { Text("Unidad", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
                         singleLine = true,
                         textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = Color.White, fontSize = 14.sp),
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color.Cyan),
@@ -501,7 +501,11 @@ fun ChecklistEditor(
                     IconButton(
                         onClick = {
                             if (newItemText.isNotBlank()) {
-                                onAddItem(newItemText, newItemQty.toDoubleOrNull(), newItemUnit)
+                                onAddItem(
+                                    newItemText,
+                                    ShoppingChecklistSelector.parseQuantity(newItemQty),
+                                    newItemUnit
+                                )
                                 newItemText = ""
                                 newItemQty = ""
                             }
@@ -564,7 +568,7 @@ fun InventoryLinkSelector(
         onExpandedChange = { expanded = !expanded }
     ) {
         OutlinedTextField(
-            value = selectedItem?.name ?: "[ SELECT_RESOURCE_LINK ]",
+            value = selectedItem?.name ?: "[ VINCULAR_PRODUCTO_DEL_INVENTARIO ]",
             onValueChange = {},
             readOnly = true,
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },

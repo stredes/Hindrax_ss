@@ -10,6 +10,7 @@ import com.hindrax.ss.domain.tasks.model.InventoryItem
 import com.hindrax.ss.domain.tasks.model.Task
 import com.hindrax.ss.domain.tasks.model.TaskStatus
 import com.hindrax.ss.domain.tasks.model.TaskType
+import com.hindrax.ss.domain.inventory.ProductNameNormalizer
 import com.hindrax.ss.domain.tasks.usecase.CreateTaskUseCase
 import com.hindrax.ss.domain.tasks.usecase.ObserveTaskDetailUseCase
 import com.hindrax.ss.domain.tasks.usecase.UpdateTaskUseCase
@@ -146,12 +147,13 @@ class TaskFormViewModel @Inject constructor(
     }
 
     fun addChecklistItem(text: String, quantity: Double? = null, unit: String? = null) {
-        if (text.isBlank()) return
+        val productName = ProductNameNormalizer.displayName(text)
+        if (productName.isBlank()) return
         val newItem = ChecklistItem(
             id = UUID.randomUUID().toString(), 
-            text = text,
+            text = productName,
             quantity = quantity,
-            unit = unit
+            unit = unit?.trim()?.takeIf { it.isNotBlank() } ?: "unid"
         )
         _uiState.update { it.copy(checklist = it.checklist + newItem) }
     }

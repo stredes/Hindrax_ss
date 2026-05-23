@@ -12,6 +12,7 @@ import com.hindrax.ss.domain.tasks.model.TaskStatus
 import com.hindrax.ss.domain.tasks.model.TaskType
 import com.hindrax.ss.domain.tasks.repository.TaskRepository
 import com.hindrax.ss.data.repository.ChatRepository
+import com.hindrax.ss.domain.inventory.ProductNameNormalizer
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -73,6 +74,7 @@ class TaskRepositoryImpl @Inject constructor(
         )
         val id = taskDao.insert(taskEntity)
         saveHistory(id, "CREACION", "Misión [${type.name}] inicializada: $title")
+        ensureChecklistProducts(taskEntity.copy(id = id).toDomain())
 
         // Broadcast new task to known peers (best-effort)
         try {
@@ -83,15 +85,17 @@ class TaskRepositoryImpl @Inject constructor(
 
     override suspend fun updateTask(task: Task) {
         val now = System.currentTimeMillis()
-        taskDao.update(task.toEntity().copy(updatedAt = now))
+        val updatedTask = task.copy(updatedAt = now)
+        taskDao.update(updatedTask.toEntity())
         saveHistory(task.id, "EDICION", "Parámetros de misión actualizados.")
+        ensureChecklistProducts(updatedTask)
         
-        if (task.status == TaskStatus.COMPLETADA) {
-            syncTaskWithInventory(task)
+        if (updatedTask.status == TaskStatus.COMPLETADA) {
+            syncTaskWithInventory(updatedTask)
         }
         // Broadcast updated task (best-effort)
         try {
-            chatRepository.broadcastTask(task.toEntity().copy(updatedAt = now))
+            chatRepository.broadcastTask(updatedTask.toEntity())
         } catch (e: Exception) { }
     }
 
@@ -122,29 +126,68 @@ class TaskRepositoryImpl @Inject constructor(
         }
 
         if (task.type == TaskType.SHOPPING || task.type == TaskType.FERIA) {
-            task.checklist.filter { it.isChecked && it.quantity != null }.forEach { checkItem ->
-                val itemName = checkItem.text.trim()
-                var inventoryItem = inventoryDao.getByName(itemName)
-                
-                if (inventoryItem == null) {
-                    val newId = inventoryDao.insert(
-                        InventoryEntity(
-                            name = itemName,
-                            category = if (task.type == TaskType.FERIA) "FERIA" else "COMPRAS",
-                            currentQuantity = 0.0,
-                            minQuantity = 1.0,
-                            unit = checkItem.unit ?: "unid",
-                            updatedAt = System.currentTimeMillis()
-                        )
+            task.checklist
+                .filter { it.text.isNotBlank() }
+                .forEach { checkItem ->
+                    ensureInventoryProduct(
+                        rawName = checkItem.text,
+                        unit = checkItem.unit,
+                        category = if (task.type == TaskType.FERIA) "FERIA" else "COMPRAS"
                     )
-                    inventoryItem = inventoryDao.getById(newId)
                 }
-                
+
+            task.checklist.filter { it.isChecked && it.quantity != null }.forEach { checkItem ->
+                val appliedKey = inventoryLineAppliedKey(checkItem.id)
+                if (taskDao.countHistoryByActionAndDetail(task.id, "INVENTORY_LINE_APPLIED", appliedKey) > 0) {
+                    return@forEach
+                }
+                val inventoryItem = inventoryDao.getByNameNormalized(ProductNameNormalizer.displayName(checkItem.text))
                 if (inventoryItem != null && checkItem.quantity != null) {
                     updateItemQuantity(inventoryItem, checkItem.quantity, task.type, task.id)
+                    saveHistory(task.id, "INVENTORY_LINE_APPLIED", appliedKey)
                 }
             }
         }
+    }
+
+    private suspend fun ensureChecklistProducts(task: Task) {
+        if (task.type != TaskType.SHOPPING && task.type != TaskType.FERIA) return
+        val category = if (task.type == TaskType.FERIA) "FERIA" else "COMPRAS"
+        task.checklist
+            .filter { it.text.isNotBlank() }
+            .forEach { checkItem ->
+                ensureInventoryProduct(
+                    rawName = checkItem.text,
+                    unit = checkItem.unit,
+                    category = category
+                )
+            }
+    }
+
+    private suspend fun ensureInventoryProduct(rawName: String, unit: String?, category: String): InventoryEntity? {
+        val itemName = ProductNameNormalizer.displayName(rawName)
+        if (itemName.isBlank()) return null
+        inventoryDao.getByNameNormalized(itemName)?.let { return it }
+
+        val now = System.currentTimeMillis()
+        val newId = inventoryDao.insert(
+            InventoryEntity(
+                name = itemName,
+                category = category,
+                currentQuantity = 0.0,
+                minQuantity = 1.0,
+                unit = unit?.trim()?.takeIf { it.isNotBlank() } ?: "unid",
+                updatedAt = now
+            )
+        )
+        val created = inventoryDao.getById(newId)
+        if (created != null) {
+            try {
+                chatRepository.broadcastInventory(created)
+            } catch (e: Exception) {
+            }
+        }
+        return created
     }
 
     private suspend fun updateItemQuantity(item: InventoryEntity, amount: Double, type: TaskType, taskId: Long) {
@@ -161,6 +204,10 @@ class TaskRepositoryImpl @Inject constructor(
             val updated = inventoryDao.getById(item.id)
             if (updated != null) chatRepository.broadcastInventory(updated)
         } catch (e: Exception) { }
+    }
+
+    private fun inventoryLineAppliedKey(checklistItemId: String): String {
+        return "checklist:$checklistItemId"
     }
 
     override suspend fun deleteTask(id: Long) {

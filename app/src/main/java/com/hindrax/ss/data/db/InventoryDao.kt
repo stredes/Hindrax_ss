@@ -18,6 +18,9 @@ interface InventoryDao {
     @Query("SELECT * FROM inventory WHERE name = :name LIMIT 1")
     suspend fun getByName(name: String): InventoryEntity?
 
+    @Query("SELECT * FROM inventory WHERE lower(trim(name)) = lower(trim(:name)) LIMIT 1")
+    suspend fun getByNameNormalized(name: String): InventoryEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(item: InventoryEntity): Long
 

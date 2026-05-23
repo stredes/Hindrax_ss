@@ -37,4 +37,7 @@ interface TaskDao {
 
     @Query("SELECT * FROM task_history WHERE taskId = :taskId ORDER BY createdAt DESC")
     fun observeHistoryByTaskId(taskId: Long): Flow<List<TaskHistoryEntity>>
+
+    @Query("SELECT COUNT(*) FROM task_history WHERE taskId = :taskId AND action = :action AND detail = :detail")
+    suspend fun countHistoryByActionAndDetail(taskId: Long, action: String, detail: String): Int
 }
