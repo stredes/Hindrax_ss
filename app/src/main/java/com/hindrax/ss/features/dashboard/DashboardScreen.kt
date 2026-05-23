@@ -229,15 +229,11 @@ fun DashboardScreen(
             // Header spans all columns so it scrolls with the content
             item(span = { GridItemSpan(columns) }) {
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    Text(
+                    ResponsiveAsciiBanner(
                         text = AsciiBanners.HINDRAX_MAIN,
+                        smallestScreenWidthDp = configuration.smallestScreenWidthDp,
                         color = palette.accent,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = if (isTablet) 12.sp else 7.sp,
-                        lineHeight = if (isTablet) 14.sp else 8.sp,
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Center,
-                        softWrap = false
+                        modifier = Modifier.fillMaxWidth()
                     )
 
                     Spacer(modifier = Modifier.height(10.dp))
@@ -247,24 +243,11 @@ fun DashboardScreen(
                         accent = palette.secondary,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Image(
-                                painter = painterResource(id = R.drawable.hindrax_logo),
-                                contentDescription = "Hindrax",
-                                modifier = Modifier.size(if (isTablet) 104.dp else 76.dp)
-                            )
-                            Spacer(modifier = Modifier.width(14.dp))
-                            Column {
-                                Text("+- HINDRAX NODE ONLINE -+", color = palette.accent, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = if (isTablet) 14.sp else 11.sp)
-                                Text("| MODE: DASHBOARD_ASCII", color = palette.secondary, fontFamily = FontFamily.Monospace, fontSize = if (isTablet) 12.sp else 10.sp)
-                                Text("| CORE: v$currentVersion", color = palette.warning, fontFamily = FontFamily.Monospace, fontSize = if (isTablet) 12.sp else 10.sp)
-                                Text("+------------------------+", color = palette.grid, fontFamily = FontFamily.Monospace, fontSize = if (isTablet) 12.sp else 10.sp)
-                            }
-                        }
+                        ResponsiveSystemSignal(
+                            currentVersion = currentVersion,
+                            isTablet = isTablet,
+                            modifier = Modifier.fillMaxWidth()
+                        )
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -372,6 +355,115 @@ fun DashboardScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
+    }
+}
+
+@Composable
+private fun ResponsiveAsciiBanner(
+    text: String,
+    smallestScreenWidthDp: Int,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    BoxWithConstraints(modifier = modifier) {
+        val availableWidth = maxWidth.value.toInt()
+        val fontSp = DashboardAsciiMetrics.bannerFontSp(
+            availableWidthDp = availableWidth,
+            smallestScreenWidthDp = smallestScreenWidthDp
+        )
+        Text(
+            text = text.trim('\n'),
+            color = color,
+            fontFamily = FontFamily.Monospace,
+            fontSize = fontSp.sp,
+            lineHeight = DashboardAsciiMetrics.bannerLineHeightSp(fontSp).sp,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center,
+            softWrap = false
+        )
+    }
+}
+
+@Composable
+private fun ResponsiveSystemSignal(
+    currentVersion: String,
+    isTablet: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val palette = dashboardPalette()
+    BoxWithConstraints(modifier = modifier) {
+        val availableWidth = maxWidth.value.toInt()
+        val logoSize = DashboardAsciiMetrics.nodeLogoSizeDp(availableWidth).dp
+        val textSize = DashboardAsciiMetrics.nodeTextSp(availableWidth, isTablet).sp
+        val metaTextSize = (DashboardAsciiMetrics.nodeTextSp(availableWidth, isTablet) - 1).coerceAtLeast(8).sp
+        val stack = DashboardAsciiMetrics.shouldStackSystemSignal(availableWidth)
+
+        if (stack) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.hindrax_logo),
+                    contentDescription = "Hindrax",
+                    modifier = Modifier.size(logoSize)
+                )
+                SystemSignalText(
+                    currentVersion = currentVersion,
+                    titleSize = textSize,
+                    metaSize = metaTextSize,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.Center
+                )
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.hindrax_logo),
+                    contentDescription = "Hindrax",
+                    modifier = Modifier.size(logoSize)
+                )
+                Spacer(modifier = Modifier.width(if (isTablet) 16.dp else 10.dp))
+                SystemSignalText(
+                    currentVersion = currentVersion,
+                    titleSize = textSize,
+                    metaSize = metaTextSize,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SystemSignalText(
+    currentVersion: String,
+    titleSize: androidx.compose.ui.unit.TextUnit,
+    metaSize: androidx.compose.ui.unit.TextUnit,
+    modifier: Modifier = Modifier,
+    textAlign: TextAlign = TextAlign.Start
+) {
+    val palette = dashboardPalette()
+    Column(modifier = modifier) {
+        Text(
+            "+- HINDRAX NODE ONLINE -+",
+            color = palette.accent,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Bold,
+            fontSize = titleSize,
+            maxLines = 1,
+            softWrap = false,
+            textAlign = textAlign,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text("| MODE: DASHBOARD_ASCII", color = palette.secondary, fontFamily = FontFamily.Monospace, fontSize = metaSize, maxLines = 1, softWrap = false, textAlign = textAlign, modifier = Modifier.fillMaxWidth())
+        Text("| CORE: v$currentVersion", color = palette.warning, fontFamily = FontFamily.Monospace, fontSize = metaSize, maxLines = 1, softWrap = false, textAlign = textAlign, modifier = Modifier.fillMaxWidth())
+        Text("+------------------------+", color = palette.grid, fontFamily = FontFamily.Monospace, fontSize = metaSize, maxLines = 1, softWrap = false, textAlign = textAlign, modifier = Modifier.fillMaxWidth())
     }
 }
 

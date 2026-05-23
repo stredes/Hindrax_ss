@@ -202,7 +202,6 @@ class ApiHindraxRemoteSyncRepository @Inject constructor(
         var applied = 0
         for (index in 0 until items.length()) {
             val json = items.optJSONObject(index) ?: continue
-            if (json.optString("deviceId") == myDeviceId) continue
             val title = json.optString("title").takeIf { it.isNotBlank() } ?: continue
             val incomingUpdatedAt = json.optLong("updatedAt", System.currentTimeMillis())
             val existing = taskDao.getByTitle(title) ?: taskDao.getByTitle("[REMOTE] $title")
@@ -237,7 +236,6 @@ class ApiHindraxRemoteSyncRepository @Inject constructor(
         var applied = 0
         for (index in 0 until items.length()) {
             val json = items.optJSONObject(index) ?: continue
-            if (json.optString("deviceId") == myDeviceId) continue
             val name = json.optString("name")
                 .takeIf { it.isNotBlank() }
                 ?.let(ProductNameNormalizer::displayName)
