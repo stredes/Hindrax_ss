@@ -3,6 +3,7 @@ package com.hindrax.ss.features.settings
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hindrax.ss.data.repository.OllamaEndpointDefaults
 import com.hindrax.ss.data.repository.OllamaRepository
 import com.hindrax.ss.domain.ai.OpenAiResponsesPayloadBuilder
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,7 +14,7 @@ data class SettingsUiState(
     val apiKeys: Map<String, String> = emptyMap(),
     val openAiModel: String = OpenAiResponsesPayloadBuilder.DEFAULT_MODEL,
     val ollamaFallbackEnabled: Boolean = false,
-    val ollamaBaseUrl: String = "http://10.0.2.2:11434",
+    val ollamaBaseUrl: String = OllamaEndpointDefaults.defaultBaseUrl(),
     val ollamaModel: String = "gemma3:1b",
     val ollamaPullStatus: String? = null,
     val isPullingOllamaModel: Boolean = false,
@@ -38,8 +39,8 @@ class SettingsViewModel(
             openAiModel = prefs.getString("openai_model", OpenAiResponsesPayloadBuilder.DEFAULT_MODEL)
                 ?: OpenAiResponsesPayloadBuilder.DEFAULT_MODEL,
             ollamaFallbackEnabled = prefs.getBoolean("ollama_fallback_enabled", false),
-            ollamaBaseUrl = prefs.getString("ollama_base_url", "http://10.0.2.2:11434")
-                ?: "http://10.0.2.2:11434",
+            ollamaBaseUrl = prefs.getString("ollama_base_url", OllamaEndpointDefaults.defaultBaseUrl())
+                ?: OllamaEndpointDefaults.defaultBaseUrl(),
             ollamaModel = prefs.getString("ollama_model", "gemma3:1b") ?: "gemma3:1b",
             ollamaPullStatus = _uiState.value.ollamaPullStatus,
             isPullingOllamaModel = _uiState.value.isPullingOllamaModel,
@@ -67,7 +68,7 @@ class SettingsViewModel(
     }
 
     fun updateOllamaBaseUrl(context: Context, value: String) {
-        val normalized = value.trim().ifBlank { "http://10.0.2.2:11434" }
+        val normalized = OllamaEndpointDefaults.normalizeBaseUrl(value)
         val prefs = context.getSharedPreferences("hindrax_prefs", Context.MODE_PRIVATE)
         prefs.edit().putString("ollama_base_url", normalized).apply()
         loadSettings(context)
@@ -90,6 +91,7 @@ class SettingsViewModel(
                 ollamaPullStatus = "PULLING ${state.ollamaModel}..."
             )
             val result = runCatching {
+                OllamaEndpointDefaults.validateReachableFromThisDevice(state.ollamaBaseUrl)
                 ollamaRepository.pullModel(
                     baseUrl = state.ollamaBaseUrl,
                     model = state.ollamaModel

@@ -137,6 +137,14 @@ fun SettingsScreen(
                     ),
                     shape = MaterialTheme.shapes.extraSmall
                 )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "Telefono fisico: usa http://IP_DEL_PC:11434. Emulador: http://10.0.2.2:11434.",
+                    color = if (uiState.ollamaBaseUrl.contains("10.0.2.2")) Color.Yellow else Color.Gray,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 10.sp,
+                    lineHeight = 13.sp
+                )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = uiState.ollamaModel,

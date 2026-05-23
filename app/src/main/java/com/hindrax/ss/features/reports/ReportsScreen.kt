@@ -59,25 +59,23 @@ fun ReportsScreen(
             )
         }
     ) { innerPadding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
-                .background(Color(0xFF050505))
+                .background(Color(0xFF050505)),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             if (sessions.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("NO_SESSIONS_FOUND", color = Color.Gray, fontFamily = FontFamily.Monospace)
+                item {
+                    Box(modifier = Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("NO_SESSIONS_FOUND", color = Color.Gray, fontFamily = FontFamily.Monospace)
+                    }
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(sessions) { session ->
-                        SessionItem(session = session, onClick = { onNavigateToSession(session.id) })
-                    }
+                items(sessions) { session ->
+                    SessionItem(session = session, onClick = { onNavigateToSession(session.id) })
                 }
             }
         }

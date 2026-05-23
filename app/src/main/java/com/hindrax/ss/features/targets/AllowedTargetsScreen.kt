@@ -65,25 +65,23 @@ fun AllowedTargetsScreen(
             }
         }
     ) { innerPadding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
-                .background(Color(0xFF050505))
+                .background(Color(0xFF050505)),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 88.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             if (targets.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("NO_AUTHORIZED_TARGETS_DEFINED", color = Color.Gray, fontFamily = FontFamily.Monospace)
+                item {
+                    Box(modifier = Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("NO_AUTHORIZED_TARGETS_DEFINED", color = Color.Gray, fontFamily = FontFamily.Monospace)
+                    }
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(targets) { target ->
-                        TargetItem(target = target, onDelete = { viewModel.removeTarget(target) })
-                    }
+                items(targets) { target ->
+                    TargetItem(target = target, onDelete = { viewModel.removeTarget(target) })
                 }
             }
         }

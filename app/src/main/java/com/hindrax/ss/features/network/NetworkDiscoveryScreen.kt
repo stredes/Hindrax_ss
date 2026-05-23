@@ -88,107 +88,111 @@ fun NetworkDiscoveryScreen(
             )
         }
     ) { innerPadding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
                 .background(Color(0xFF050505))
-                .padding(16.dp)
+                .padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Self Identity Panel
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF151515)),
-                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color.DarkGray),
-                shape = MaterialTheme.shapes.extraSmall
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Fingerprint, null, tint = Color.Cyan, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
+            item {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF151515)),
+                    modifier = Modifier.fillMaxWidth(),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.DarkGray),
+                    shape = MaterialTheme.shapes.extraSmall
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Fingerprint, null, tint = Color.Cyan, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "MY_HASH: ${uiState.myDeviceId}",
+                                color = Color.Cyan,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 12.sp
+                            )
+                        }
                         Text(
-                            text = "MY_HASH: ${uiState.myDeviceId}",
-                            color = Color.Cyan,
+                            text = "LOCAL_ADDR: ${uiState.localIp}",
+                            color = Color.Green.copy(0.7f),
                             fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp
+                            fontSize = 10.sp,
+                            modifier = Modifier.padding(top = 4.dp)
                         )
                     }
-                    Text(
-                        text = "LOCAL_ADDR: ${uiState.localIp}",
-                        color = Color.Green.copy(0.7f),
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 10.sp,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
                 }
             }
 
-            NetDiscSuggestionsPanel()
-
-            Spacer(modifier = Modifier.height(16.dp))
-
             // Discovery Actions
-            Button(
-                onClick = { launcher.launch(permissionsToRequest) },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !uiState.isScanning,
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Green, contentColor = Color.Black),
-                shape = MaterialTheme.shapes.extraSmall
-            ) {
-                if (uiState.isScanning) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.Black)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("SCANNING_AIR_AND_WIRE...", fontFamily = FontFamily.Monospace)
-                } else {
-                    Icon(Icons.Default.Radar, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("INIT_HYBRID_SCAN", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+            item {
+                Button(
+                    onClick = { launcher.launch(permissionsToRequest) },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !uiState.isScanning,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Green, contentColor = Color.Black),
+                    shape = MaterialTheme.shapes.extraSmall
+                ) {
+                    if (uiState.isScanning) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.Black)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("SCANNING_AIR_AND_WIRE...", fontFamily = FontFamily.Monospace)
+                    } else {
+                        Icon(Icons.Default.Radar, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("INIT_HYBRID_SCAN", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
 
             if (uiState.isScanning) {
-                Spacer(modifier = Modifier.height(8.dp))
-                LinearProgressIndicator(
-                    progress = { uiState.progress },
-                    modifier = Modifier.fillMaxWidth(),
-                    color = Color.Green,
-                    trackColor = Color.DarkGray
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text("--- ACTIVE_NODES ---", style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, color = Color.Cyan)
-
-            LazyColumn(
-                modifier = Modifier.weight(1f).fillMaxWidth().padding(vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(uiState.discoveredDevices) { device ->
-                    DeviceItemComponent(
-                        device = device,
-                        onConnectCyd = { 
-                            viewModel.connectCyd(device.ip ?: "0.0.0.0", device.cydName ?: "Bruce", onNavigateToCyd) 
-                        },
-                        onConnectHindrax = {
-                            viewModel.connectHindraxNode(device) {
-                                onNavigateToChat()
-                            }
-                        },
-                        onSync = {
-                            viewModel.syncFamilyData(device.deviceHash ?: "")
-                        }
+                item {
+                    LinearProgressIndicator(
+                        progress = { uiState.progress },
+                        modifier = Modifier.fillMaxWidth(),
+                        color = Color.Green,
+                        trackColor = Color.DarkGray
                     )
                 }
             }
 
+            item { NetDiscSuggestionsPanel() }
+
+            item {
+                Text("--- ACTIVE_NODES ---", style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, color = Color.Cyan)
+            }
+
+            items(uiState.discoveredDevices) { device ->
+                DeviceItemComponent(
+                    device = device,
+                    onConnectCyd = {
+                        viewModel.connectCyd(device.ip ?: "0.0.0.0", device.cydName ?: "Bruce", onNavigateToCyd)
+                    },
+                    onConnectHindrax = {
+                        viewModel.connectHindraxNode(device) {
+                            onNavigateToChat()
+                        }
+                    },
+                    onSync = {
+                        viewModel.syncFamilyData(device.deviceHash ?: "")
+                    }
+                )
+            }
+
             // System Console
-            Text("SYSTEM_OUTPUT:", style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, color = Color.Gray)
-            Box(
-                modifier = Modifier.fillMaxWidth().height(80.dp).background(Color(0xFF0A0A0A)).border(1.dp, Color.DarkGray).padding(8.dp)
-            ) {
-                Text(text = uiState.logs, color = Color.Green, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+            item {
+                Text("SYSTEM_OUTPUT:", style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, color = Color.Gray)
+            }
+            item {
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(80.dp).background(Color(0xFF0A0A0A)).border(1.dp, Color.DarkGray).padding(8.dp)
+                ) {
+                    Text(text = uiState.logs, color = Color.Green, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+                }
             }
         }
     }

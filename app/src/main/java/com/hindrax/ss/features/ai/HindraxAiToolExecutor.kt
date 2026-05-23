@@ -15,10 +15,15 @@ import com.hindrax.ss.data.entity.AuditSessionEntity
 import com.hindrax.ss.domain.ai.OpenAiFunctionCall
 import com.hindrax.ss.domain.ai.OpenAiResponseParser
 import com.hindrax.ss.domain.ai.OpenAiToolOutput
+import com.hindrax.ss.domain.tools.AndraxToolCatalog
 import com.hindrax.ss.domain.tools.NetworkToolSuggestions
+import com.hindrax.ss.domain.tools.ToolCatalogItem
+import com.hindrax.ss.domain.tools.ToolRiskLevel
+import com.hindrax.ss.termux.TermuxBridge
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.OkHttpClient
@@ -40,6 +45,7 @@ class HindraxAiToolExecutor(
         val output = when (call.name) {
             "list_hindrax_tools" -> listTools(call.arguments)
             "run_hindrax_tool" -> runTool(call.arguments)
+            "run_termux_catalog_command" -> runTermuxCatalogCommand(call.arguments)
             else -> """{"status":"BLOCKED","reason":"UNKNOWN_TOOL_FUNCTION"}"""
         }
         return OpenAiToolOutput(call.callId, output)
@@ -52,7 +58,7 @@ class HindraxAiToolExecutor(
             ?.uppercase()
             ?.takeIf { it != "ALL" }
 
-        val directTools = listOf(
+        val nativeTools = listOf(
             ToolSummary("ping", "Ping Recon", "NETWORK", true),
             ToolSummary("dns_lookup", "DNS Lookup", "NETWORK", true),
             ToolSummary("web_headers", "Web Analysis", "WEB", true),
@@ -61,14 +67,23 @@ class HindraxAiToolExecutor(
             ToolSummary("net_disc", "Network Discovery", "NETWORK", false)
         ).filter { category == null || it.category == category }
 
-        val toolsJson = directTools.joinToString(prefix = "[", postfix = "]") { tool ->
-            """{"id":"${tool.id}","name":"${tool.name}","category":"${tool.category}","directLaunch":${tool.directLaunch}}"""
+        val nativeToolsJson = nativeTools.joinToString(prefix = "[", postfix = "]") { tool ->
+            """{"id":"${tool.id}","name":"${tool.name}","category":"${tool.category}","directLaunch":${tool.directLaunch},"runner":"run_hindrax_tool"}"""
+        }
+        val catalogToolsJson = AndraxToolCatalog.categories
+            .filter { category == null || it.id.uppercase() == category || it.name.uppercase() == category }
+            .flatMap { toolCategory ->
+                toolCategory.tools.map { tool -> toolCategory to tool }
+            }
+            .distinctBy { it.second.command.lowercase() }
+            .joinToString(prefix = "[", postfix = "]") { (toolCategory, tool) ->
+                """{"id":"${safe(tool.command)}","name":"${safe(tool.displayName)}","category":"${safe(toolCategory.id)}","risk":"${tool.riskLevel.name}","executionMode":"${tool.executionMode.name}","runner":"run_termux_catalog_command","example":"${safe(tool.tutorial.commandExample)}","authorizedUse":"${safe(tool.tutorial.authorizedUse)}"}"""
         }
         val portProfilesJson = NetworkToolSuggestions.profiles.joinToString(prefix = "[", postfix = "]") { profile ->
             """{"id":"${profile.id}","label":"${profile.label}","ports":"${profile.ports.joinToString(",")}","description":"${safe(profile.description)}"}"""
         }
 
-        return """{"status":"OK","tools":$toolsJson,"netDiscSuggestions":{"recommendedTools":["ping","port_scan","banner_grab","dns_lookup","web_headers","hindrax_chat","live_location","cyd_console"],"portProfiles":$portProfilesJson},"note":"directLaunch=false tools are shown as app suggestions or workflow guidance."}"""
+        return """{"status":"OK","nativeTools":$nativeToolsJson,"termuxCatalogTools":$catalogToolsJson,"toolCount":${AndraxToolCatalog.allTools.size},"termuxInstalled":${TermuxBridge.isTermuxInstalled(context)},"netDiscSuggestions":{"recommendedTools":["ping","port_scan","banner_grab","dns_lookup","web_headers","hindrax_chat","live_location","cyd_console"],"portProfiles":$portProfilesJson},"note":"Use run_hindrax_tool for native app workflows and run_termux_catalog_command for allowlisted catalog commands installed in Termux."}"""
     }
 
     private suspend fun runTool(arguments: String): String {
@@ -96,6 +111,70 @@ class HindraxAiToolExecutor(
             "port_scan" -> enqueuePortScan(target.value, ports)
             "net_disc" -> netDiscGuidance(target.value)
             else -> """{"status":"BLOCKED","reason":"UNSUPPORTED_DIRECT_TOOL","tool_id":"$toolId"}"""
+        }
+    }
+
+    private suspend fun runTermuxCatalogCommand(arguments: String): String = withContext(Dispatchers.IO) {
+        val args = OpenAiResponseParser.parseArguments(arguments)
+        val commandId = args["command_id"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+        val targetValue = args["target"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+        val authorizationConfirmed = args["authorization_confirmed"]?.jsonPrimitive?.booleanOrNull == true
+        val commandArgs = parseCommandArguments(args["arguments"]?.jsonPrimitive?.contentOrNull.orEmpty())
+
+        if (commandId.isBlank()) {
+            return@withContext """{"status":"BLOCKED","reason":"MISSING_COMMAND_ID"}"""
+        }
+
+        val catalogTool = findCatalogTool(commandId)
+            ?: return@withContext """{"status":"BLOCKED","reason":"COMMAND_NOT_IN_HINDRAX_CATALOG","command_id":"${safe(commandId)}"}"""
+
+        if (!TermuxBridge.isTermuxInstalled(context)) {
+            return@withContext """{"status":"BLOCKED","reason":"TERMUX_NOT_INSTALLED","command_id":"${safe(catalogTool.command)}"}"""
+        }
+
+        val parsedTarget = targetValue.takeIf { it.isNotBlank() }?.let { TargetParser.parse(it) }
+        if (targetValue.isNotBlank() && parsedTarget == null) {
+            return@withContext """{"status":"BLOCKED","reason":"INVALID_TARGET"}"""
+        }
+        if (parsedTarget?.isPublic() == true && !authorizationConfirmed) {
+            return@withContext """{"status":"REQUIRES_AUTHORIZATION","reason":"PUBLIC_TARGET_REQUIRES_USER_CONFIRMATION"}"""
+        }
+        if (catalogTool.riskLevel == ToolRiskLevel.HIGH && !authorizationConfirmed) {
+            return@withContext """{"status":"REQUIRES_AUTHORIZATION","reason":"HIGH_RISK_TOOL_REQUIRES_EXPLICIT_CONFIRMATION","command_id":"${safe(catalogTool.command)}"}"""
+        }
+        if (commandArgs.any { !isSafeArgument(it) }) {
+            return@withContext """{"status":"BLOCKED","reason":"UNSAFE_ARGUMENTS","command_id":"${safe(catalogTool.command)}"}"""
+        }
+
+        val finalArgs = commandArgs.ifEmpty {
+            targetValue.takeIf { it.isNotBlank() }?.let { listOf(it) }.orEmpty()
+        }
+        val sessionId = auditRepository.startSession(
+            AuditSessionEntity(
+                title = "AI Termux: ${catalogTool.command}",
+                taskType = "TERMUX_${catalogTool.command.uppercase()}",
+                target = targetValue.ifBlank { "LOCAL_TERMUX" },
+                targetType = parsedTarget?.type?.javaClass?.simpleName ?: "LOCAL_COMMAND",
+                authorizationMode = if (authorizationConfirmed) "AI_USER_CONFIRMED" else "LOCAL_OR_LOW_RISK",
+                status = "SENT_TO_TERMUX",
+                startedAt = System.currentTimeMillis(),
+                summary = "Sent ${catalogTool.command} ${finalArgs.joinToString(" ")} to Termux via RUN_COMMAND."
+            )
+        )
+        val sent = TermuxBridge.executeCommand(context, catalogTool.command, finalArgs.toTypedArray())
+        if (sent) {
+            """{"status":"SENT_TO_TERMUX","sessionId":$sessionId,"command":"${safe(catalogTool.command)}","arguments":"${safe(finalArgs.joinToString(" "))}","risk":"${catalogTool.riskLevel.name}","note":"Command launched in Termux background. Review Termux or audit history for execution context."}"""
+        } else {
+            auditRepository.getSessionById(sessionId)?.let { session ->
+                auditRepository.updateSession(
+                    session.copy(
+                        status = "FAILED",
+                        finishedAt = System.currentTimeMillis(),
+                        summary = "Termux command launch failed."
+                    )
+                )
+            }
+            """{"status":"ERROR","sessionId":$sessionId,"reason":"TERMUX_RUN_COMMAND_FAILED","command":"${safe(catalogTool.command)}"}"""
         }
     }
 
@@ -234,6 +313,30 @@ class HindraxAiToolExecutor(
 
     private fun safe(value: String?): String {
         return value.orEmpty().replace("\\", "\\\\").replace("\"", "\\\"")
+    }
+
+    private fun findCatalogTool(commandId: String): ToolCatalogItem? {
+        return AndraxToolCatalog.allTools.firstOrNull {
+            it.command.equals(commandId, ignoreCase = true) ||
+                it.displayName.equals(commandId, ignoreCase = true)
+        }
+    }
+
+    private fun parseCommandArguments(raw: String): List<String> {
+        if (raw.isBlank()) return emptyList()
+        return Regex("""[^\s"]+|"([^"]*)"""")
+            .findAll(raw)
+            .map { match -> match.groups[1]?.value ?: match.value }
+            .filter { it.isNotBlank() }
+            .take(32)
+            .toList()
+    }
+
+    private fun isSafeArgument(argument: String): Boolean {
+        return argument.length <= 256 &&
+            !argument.contains('\u0000') &&
+            !argument.contains('\n') &&
+            !argument.contains('\r')
     }
 
     private data class ToolSummary(

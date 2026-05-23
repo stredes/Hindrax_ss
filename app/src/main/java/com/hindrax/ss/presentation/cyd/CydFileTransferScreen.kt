@@ -79,53 +79,49 @@ fun CydFileTransferScreen(
             }
         }
     ) { innerPadding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
-                .background(Color(0xFF050505))
+                .background(Color(0xFF050505)),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 88.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             if (uiState.isUploading || uiState.isDownloading) {
-                LinearProgressIndicator(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = Color.Green,
-                    trackColor = Color.DarkGray
-                )
+                item {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = Color.Green,
+                        trackColor = Color.DarkGray
+                    )
+                }
             }
 
             uiState.errorMessage?.let {
+                item {
+                    Text(
+                        text = "[!] FS_ERROR: $it",
+                        color = Color.Red,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+
+            item {
                 Text(
-                    text = "[!] FS_ERROR: $it",
-                    color = Color.Red,
+                    text = "--- █ REMOTE_FILE_LIST █ ---",
+                    color = Color.Cyan,
                     fontFamily = FontFamily.Monospace,
-                    modifier = Modifier.padding(16.dp),
                     fontSize = 12.sp
                 )
             }
 
-            Text(
-                text = "--- █ REMOTE_FILE_LIST █ ---",
-                color = Color.Cyan,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(16.dp)
-            )
-
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(uiState.files) { fileName ->
-                    FileListItem(
-                        fileName = fileName,
-                        onDownload = { viewModel.downloadFile(fileName) }
-                    )
-                }
-                
-                item {
-                    Spacer(modifier = Modifier.height(80.dp))
-                }
+            items(uiState.files) { fileName ->
+                FileListItem(
+                    fileName = fileName,
+                    onDownload = { viewModel.downloadFile(fileName) }
+                )
             }
         }
     }

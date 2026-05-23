@@ -109,8 +109,10 @@ You are Hindrax AI, an in-app operational assistant for a defensive, owner-autho
 Help the user operate Hindrax by explaining workflows, choosing safe modules, preparing checklists, interpreting local results, and drafting authorized lab commands.
 Do not claim that a target is authorized. Ask the user to verify ownership or written permission when needed.
 Use the provided Hindrax tools only for defensive, owner-authorized actions. If a user asks to run a tool, call a function instead of only describing the workflow.
+You can inspect the full Hindrax catalog and launch allowlisted Termux catalog commands when Termux is installed.
+For Termux commands, use only catalog command ids returned by list_hindrax_tools, pass exact argv in arguments, and never invent shell pipelines or hidden background behavior.
 Do not hide activity, bypass consent, steal credentials, clone access cards, or provide destructive instructions.
-Before invoking a tool against a public target, require the user to confirm ownership or written permission in the request.
+Before invoking a tool against a public target or any HIGH risk catalog tool, require the user to confirm ownership or written permission in the request.
 When working from net_disc results, suggest the next safe tool and a narrow port profile before scanning. Common profiles include WEB 80,443,8000,8080,8443; LAN 22,53,80,139,443,445,548,631,8080; IOT 23,80,443,554,1883,5683,8000,8080,8883; HINDRAX 80,443,8080,8443,9999; CYD 80,443,8080,8888.
 Keep output concise, practical, and formatted in terminal-friendly ASCII sections.
 Prefer defensive analysis, reporting, inventory, task planning, file analysis, APK review, and controlled lab diagnostics.
@@ -182,13 +184,13 @@ object HindraxAiToolSchemas {
         add(buildJsonObject {
             put("type", "function")
             put("name", "list_hindrax_tools")
-            put("description", "List enabled Hindrax app tools and which ones can be launched directly by the app.")
+            put("description", "List enabled Hindrax native tools and the full allowlisted Termux command catalog available to the assistant.")
             putJsonObject("parameters") {
                 put("type", "object")
                 putJsonObject("properties") {
                     putJsonObject("category") {
                         put("type", "string")
-                        put("description", "Optional category filter such as NETWORK, WEB, OSINT, FILES, APK, or ALL.")
+                        put("description", "Optional category filter such as NETWORK, WEB, OSINT, APK, network-recon, web-security, linux-utilities, or ALL.")
                     }
                 }
                 putJsonArray("required") { add(JsonPrimitive("category")) }
@@ -224,6 +226,40 @@ object HindraxAiToolSchemas {
                     add(JsonPrimitive("tool_id"))
                     add(JsonPrimitive("target"))
                     add(JsonPrimitive("ports"))
+                    add(JsonPrimitive("authorization_confirmed"))
+                }
+                put("additionalProperties", false)
+            }
+            put("strict", true)
+        })
+        add(buildJsonObject {
+            put("type", "function")
+            put("name", "run_termux_catalog_command")
+            put("description", "Launch an allowlisted Hindrax catalog command in Termux using RUN_COMMAND_PATH and argv, after required authorization checks.")
+            putJsonObject("parameters") {
+                put("type", "object")
+                putJsonObject("properties") {
+                    putJsonObject("command_id") {
+                        put("type", "string")
+                        put("description", "Exact command id from termuxCatalogTools, for example nmap, dig, whois, curl, apktool, jadx, binwalk, python, or bash.")
+                    }
+                    putJsonObject("target") {
+                        put("type", "string")
+                        put("description", "Authorized target, local file, APK path, or empty string for local-only commands.")
+                    }
+                    putJsonObject("arguments") {
+                        put("type", "string")
+                        put("description", "Full command argv as a string. Include the target in this argument string when the command needs it, for example '-sV 192.168.1.10'.")
+                    }
+                    putJsonObject("authorization_confirmed") {
+                        put("type", "boolean")
+                        put("description", "True only when the user explicitly confirms ownership or written permission for public targets or HIGH risk tools.")
+                    }
+                }
+                putJsonArray("required") {
+                    add(JsonPrimitive("command_id"))
+                    add(JsonPrimitive("target"))
+                    add(JsonPrimitive("arguments"))
                     add(JsonPrimitive("authorization_confirmed"))
                 }
                 put("additionalProperties", false)

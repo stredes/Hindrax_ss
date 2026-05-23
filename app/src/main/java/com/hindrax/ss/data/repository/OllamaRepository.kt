@@ -1,5 +1,6 @@
 package com.hindrax.ss.data.repository
 
+import android.os.Build
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -23,6 +24,47 @@ data class OllamaFallbackConfig(
         get() = enabled && baseUrl.isNotBlank() && model.isNotBlank()
 }
 
+object OllamaEndpointDefaults {
+    const val EMULATOR_BASE_URL = "http://10.0.2.2:11434"
+
+    fun defaultBaseUrl(): String {
+        return if (isProbablyEmulator()) EMULATOR_BASE_URL else ""
+    }
+
+    fun normalizeBaseUrl(value: String): String {
+        val trimmed = value.trim().trimEnd('/')
+        if (trimmed.isBlank()) return defaultBaseUrl()
+        return if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+            trimmed
+        } else {
+            "http://$trimmed"
+        }
+    }
+
+    fun validateReachableFromThisDevice(baseUrl: String) {
+        val normalized = baseUrl.trim()
+        if (!isProbablyEmulator() && normalized.contains("10.0.2.2")) {
+            error(
+                "OLLAMA_BASE_URL_EMULATOR_ONLY: 10.0.2.2 solo funciona en emulador. " +
+                    "En telefono fisico usa http://IP_DEL_PC:11434 y ejecuta Ollama escuchando en 0.0.0.0."
+            )
+        }
+    }
+
+    private fun isProbablyEmulator(): Boolean {
+        val fingerprint = Build.FINGERPRINT.lowercase()
+        val model = Build.MODEL.lowercase()
+        val product = Build.PRODUCT.lowercase()
+        val manufacturer = Build.MANUFACTURER.lowercase()
+        return fingerprint.contains("generic") ||
+            fingerprint.contains("emulator") ||
+            model.contains("emulator") ||
+            model.contains("android sdk built for") ||
+            product.contains("sdk") ||
+            manufacturer.contains("genymotion")
+    }
+}
+
 class OllamaRepository(
     private val httpClient: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -36,6 +78,7 @@ class OllamaRepository(
     ): String = withContext(Dispatchers.IO) {
         require(config.isUsable) { "OLLAMA_FALLBACK_NOT_CONFIGURED" }
         require(prompt.isNotBlank()) { "EMPTY_PROMPT" }
+        OllamaEndpointDefaults.validateReachableFromThisDevice(config.baseUrl)
 
         val fullPrompt = buildString {
             appendLine(HINDRAX_OLLAMA_INSTRUCTIONS)
@@ -66,6 +109,7 @@ class OllamaRepository(
     suspend fun pullModel(baseUrl: String, model: String): String = withContext(Dispatchers.IO) {
         require(baseUrl.isNotBlank()) { "OLLAMA_BASE_URL_REQUIRED" }
         require(model.isNotBlank()) { "OLLAMA_MODEL_REQUIRED" }
+        OllamaEndpointDefaults.validateReachableFromThisDevice(baseUrl)
 
         val body = buildJsonObject {
             put("model", model.trim())

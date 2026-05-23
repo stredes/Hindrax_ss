@@ -59,108 +59,113 @@ fun TermuxScriptsScreen(
             )
         }
     ) { innerPadding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
                 .background(Color(0xFF050505))
-                .padding(16.dp)
+                .padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             if (!uiState.isTermuxInstalled) {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF330000)),
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF330000)),
+                        modifier = Modifier.fillMaxWidth(),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.Red),
+                        shape = MaterialTheme.shapes.extraSmall
+                    ) {
+                        Text(
+                            text = "[!] TERMUX_NOT_DETECTED: Please install Termux and configure the bridge to enable this module.",
+                            modifier = Modifier.padding(16.dp),
+                            color = Color.Red,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+            }
+
+            item {
+                Text(
+                    text = "--- CONTROLLED_SCRIPT_EXECUTION ---",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontFamily = FontFamily.Monospace,
+                    color = Color.Cyan
+                )
+            }
+
+            item {
+                OutlinedTextField(
+                    value = targetHost,
+                    onValueChange = { targetHost = it },
+                    label = { Text("TARGET_HOST_IP", fontFamily = FontFamily.Monospace) },
                     modifier = Modifier.fillMaxWidth(),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.Red),
+                    singleLine = true,
+                    placeholder = { Text("192.168.1.1", color = Color.DarkGray) },
+                    textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = Color.Green),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = Color.DarkGray,
+                        focusedBorderColor = Color.Green,
+                        cursorColor = Color.Green
+                    ),
+                    shape = MaterialTheme.shapes.extraSmall
+                )
+            }
+
+            item {
+                Text(
+                    text = "AVAILABLE_SCRIPTS:",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontFamily = FontFamily.Monospace,
+                    color = Color.Gray
+                )
+            }
+
+            items(uiState.availableScripts) { script ->
+                ScriptListItem(
+                    script = script,
+                    isSelected = selectedScript == script,
+                    onClick = { selectedScript = script }
+                )
+            }
+
+            item {
+                Button(
+                    onClick = {
+                        selectedScript?.let { viewModel.executeScript(context, it.fileName, targetHost) }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = uiState.isTermuxInstalled && selectedScript != null && targetHost.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Green, contentColor = Color.Black),
                     shape = MaterialTheme.shapes.extraSmall
                 ) {
+                    Icon(Icons.Default.PlayArrow, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("RUN_IN_TERMUX", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            item {
+                Text("--- SYSTEM_LOGS ---", style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, color = Color.Cyan)
+            }
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp)
+                        .background(Color(0xFF0A0A0A))
+                        .border(1.dp, Color.DarkGray)
+                        .padding(8.dp)
+                ) {
                     Text(
-                        text = "[!] TERMUX_NOT_DETECTED: Please install Termux and configure the bridge to enable this module.",
-                        modifier = Modifier.padding(16.dp),
-                        color = Color.Red,
+                        text = uiState.logs,
+                        color = Color.Green,
                         fontFamily = FontFamily.Monospace,
-                        fontSize = 12.sp
+                        fontSize = 10.sp
                     )
                 }
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
-            Text(
-                text = "--- CONTROLLED_SCRIPT_EXECUTION ---", 
-                style = MaterialTheme.typography.labelSmall, 
-                fontFamily = FontFamily.Monospace, 
-                color = Color.Cyan
-            )
-            
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedTextField(
-                value = targetHost,
-                onValueChange = { targetHost = it },
-                label = { Text("TARGET_HOST_IP", fontFamily = FontFamily.Monospace) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                placeholder = { Text("192.168.1.1", color = Color.DarkGray) },
-                textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = Color.Green),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = Color.DarkGray,
-                    focusedBorderColor = Color.Green,
-                    cursorColor = Color.Green
-                ),
-                shape = MaterialTheme.shapes.extraSmall
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "AVAILABLE_SCRIPTS:", 
-                style = MaterialTheme.typography.labelSmall, 
-                fontFamily = FontFamily.Monospace, 
-                color = Color.Gray
-            )
-
-            LazyColumn(modifier = Modifier.weight(1f).padding(vertical = 8.dp)) {
-                items(uiState.availableScripts) { script ->
-                    ScriptListItem(
-                        script = script,
-                        isSelected = selectedScript == script,
-                        onClick = { selectedScript = script }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = { 
-                    selectedScript?.let { viewModel.executeScript(context, it.fileName, targetHost) }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = uiState.isTermuxInstalled && selectedScript != null && targetHost.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Green, contentColor = Color.Black),
-                shape = MaterialTheme.shapes.extraSmall
-            ) {
-                Icon(Icons.Default.PlayArrow, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("RUN_IN_TERMUX", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text("--- SYSTEM_LOGS ---", style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, color = Color.Cyan)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp)
-                    .background(Color(0xFF0A0A0A))
-                    .border(1.dp, Color.DarkGray)
-                    .padding(8.dp)
-            ) {
-                Text(
-                    text = uiState.logs,
-                    color = Color.Green,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 10.sp
-                )
             }
         }
     }

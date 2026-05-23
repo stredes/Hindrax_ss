@@ -56,115 +56,115 @@ fun WebScannerScreen(
             )
         }
     ) { innerPadding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
                 .background(Color(0xFF050505))
-                .padding(16.dp)
+                .padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            OutlinedTextField(
-                value = uiState.url,
-                onValueChange = { viewModel.onUrlChange(it) },
-                label = { Text("TARGET_URL", fontFamily = FontFamily.Monospace) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                enabled = !uiState.isRunning,
-                placeholder = { Text("https://example.com", color = Color.DarkGray) },
-                textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = Color.Green),
-                colors = OutlinedTextFieldDefaults.colors(
-                    unfocusedBorderColor = Color.DarkGray,
-                    focusedBorderColor = Color.Green,
-                    cursorColor = Color.Green
-                ),
-                shape = MaterialTheme.shapes.extraSmall
-            )
+            item {
+                OutlinedTextField(
+                    value = uiState.url,
+                    onValueChange = { viewModel.onUrlChange(it) },
+                    label = { Text("TARGET_URL", fontFamily = FontFamily.Monospace) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    enabled = !uiState.isRunning,
+                    placeholder = { Text("https://example.com", color = Color.DarkGray) },
+                    textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = Color.Green),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = Color.DarkGray,
+                        focusedBorderColor = Color.Green,
+                        cursorColor = Color.Green
+                    ),
+                    shape = MaterialTheme.shapes.extraSmall
+                )
+            }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = { viewModel.startScan() },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !uiState.isRunning && uiState.url.startsWith("http"),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Green, contentColor = Color.Black),
-                shape = MaterialTheme.shapes.extraSmall
-            ) {
-                if (uiState.isRunning) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.Black)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("SCANNING...", fontFamily = FontFamily.Monospace)
-                } else {
-                    Icon(Icons.Default.Search, contentDescription = null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("START_PATH_DISCOVERY", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+            item {
+                Button(
+                    onClick = { viewModel.startScan() },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !uiState.isRunning && uiState.url.startsWith("http"),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Green, contentColor = Color.Black),
+                    shape = MaterialTheme.shapes.extraSmall
+                ) {
+                    if (uiState.isRunning) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.Black)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("SCANNING...", fontFamily = FontFamily.Monospace)
+                    } else {
+                        Icon(Icons.Default.Search, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("START_PATH_DISCOVERY", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
 
             if (uiState.isRunning) {
-                Spacer(modifier = Modifier.height(8.dp))
-                LinearProgressIndicator(
-                    progress = { uiState.progress },
-                    modifier = Modifier.fillMaxWidth(),
-                    color = Color.Green,
-                    trackColor = Color.DarkGray
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = "--- SENSITIVE_PATHS_DETECTED (${uiState.findings.size}) ---",
-                style = MaterialTheme.typography.labelSmall,
-                fontFamily = FontFamily.Monospace,
-                color = Color.Cyan
-            )
-
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .padding(vertical = 8.dp)
-            ) {
-                items(uiState.findings) { finding ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(Color(0xFF0A0A0A))
-                            .padding(12.dp)
-                    ) {
-                        Icon(Icons.Default.Warning, contentDescription = null, tint = Color.Red, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = finding, 
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontFamily = FontFamily.Monospace,
-                            color = Color.White,
-                            fontSize = 13.sp
-                        )
-                    }
-                    HorizontalDivider(color = Color.DarkGray, thickness = 0.5.dp)
+                item {
+                    LinearProgressIndicator(
+                        progress = { uiState.progress },
+                        modifier = Modifier.fillMaxWidth(),
+                        color = Color.Green,
+                        trackColor = Color.DarkGray
+                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text("--- CONSOLE_LOGS ---", style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, color = Color.Cyan)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(100.dp)
-                    .background(Color(0xFF0A0A0A))
-                    .border(1.dp, Color.DarkGray)
-                    .padding(8.dp)
-            ) {
+            item {
                 Text(
-                    text = uiState.logs,
-                    color = Color.Green,
+                    text = "--- SENSITIVE_PATHS_DETECTED (${uiState.findings.size}) ---",
+                    style = MaterialTheme.typography.labelSmall,
                     fontFamily = FontFamily.Monospace,
-                    style = MaterialTheme.typography.bodySmall,
-                    fontSize = 10.sp
+                    color = Color.Cyan
                 )
+            }
+
+            items(uiState.findings) { finding ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF0A0A0A))
+                        .padding(12.dp)
+                ) {
+                    Icon(Icons.Default.Warning, contentDescription = null, tint = Color.Red, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = finding,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontFamily = FontFamily.Monospace,
+                        color = Color.White,
+                        fontSize = 13.sp
+                    )
+                }
+                HorizontalDivider(color = Color.DarkGray, thickness = 0.5.dp)
+            }
+
+            item {
+                Text("--- CONSOLE_LOGS ---", style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, color = Color.Cyan)
+            }
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp)
+                        .background(Color(0xFF0A0A0A))
+                        .border(1.dp, Color.DarkGray)
+                        .padding(8.dp)
+                ) {
+                    Text(
+                        text = uiState.logs,
+                        color = Color.Green,
+                        fontFamily = FontFamily.Monospace,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontSize = 10.sp
+                    )
+                }
             }
         }
     }

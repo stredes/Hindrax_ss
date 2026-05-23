@@ -63,28 +63,38 @@ fun InventoryScreen(
             }
         }
     ) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
-                .background(Color(0xFF0A0A0A))
+                .background(Color(0xFF0A0A0A)),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 88.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             // ASCII Banner
-            Text(
-                text = AsciiBanners.INVENTORY_HEADER,
-                color = Color.Cyan,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 8.sp,
-                lineHeight = 9.sp,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).fillMaxWidth()
-            )
+            item {
+                Text(
+                    text = AsciiBanners.INVENTORY_HEADER,
+                    color = Color.Cyan,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 8.sp,
+                    lineHeight = 9.sp,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
 
-            Box(modifier = Modifier.weight(1f)) {
-                if (uiState.isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = Color.Green)
-                } else if (uiState.items.isEmpty()) {
-                    Column(
-                        modifier = Modifier.align(Alignment.Center),
+            when {
+                uiState.isLoading -> {
+                    item {
+                        Box(modifier = Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = Color.Green)
+                        }
+                    }
+                }
+                uiState.items.isEmpty() -> {
+                    item {
+                        Column(
+                        modifier = Modifier.fillParentMaxSize(),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Icon(Icons.Default.Inventory, contentDescription = null, tint = Color.DarkGray, modifier = Modifier.size(64.dp))
@@ -95,28 +105,26 @@ fun InventoryScreen(
                             fontFamily = FontFamily.Monospace
                         )
                     }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(uiState.items) { item ->
-                            InventoryItemCard(
-                                item = item,
-                                onUpdateQty = { delta -> viewModel.updateQuantity(item.id, delta) },
-                                onDelete = { viewModel.deleteItem(item) }
-                            )
-                        }
                     }
                 }
+                else -> {
+                    items(uiState.items) { item ->
+                        InventoryItemCard(
+                            item = item,
+                            onUpdateQty = { delta -> viewModel.updateQuantity(item.id, delta) },
+                            onDelete = { viewModel.deleteItem(item) }
+                        )
+                    }
+                }
+            }
 
-                if (uiState.error != null) {
+            if (uiState.error != null) {
+                item {
                     Text(
                         text = "SYSTEM_ERROR: ${uiState.error}",
                         color = Color.Red,
                         fontFamily = FontFamily.Monospace,
-                        modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp)
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
             }

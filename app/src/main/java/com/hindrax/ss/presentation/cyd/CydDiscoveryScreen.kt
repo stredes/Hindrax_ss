@@ -56,46 +56,47 @@ fun CydDiscoveryScreen(
             )
         }
     ) { innerPadding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
-                .background(Color(0xFF050505))
+                .background(Color(0xFF050505)),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             if (uiState.isScanning) {
-                LinearProgressIndicator(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = Color.Green,
-                    trackColor = Color.DarkGray
-                )
+                item {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = Color.Green,
+                        trackColor = Color.DarkGray
+                    )
+                }
             }
 
             uiState.errorMessage?.let {
-                Text(
-                    text = "[!] ERROR: $it",
-                    color = Color.Red,
-                    fontFamily = FontFamily.Monospace,
-                    modifier = Modifier.padding(16.dp),
-                    fontSize = 12.sp
-                )
+                item {
+                    Text(
+                        text = "[!] ERROR: $it",
+                        color = Color.Red,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 12.sp
+                    )
+                }
             }
 
             if (uiState.devices.isEmpty() && !uiState.isScanning) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("NO_NODES_FOUND. TAP_REFRESH_TO_PROBE.", color = Color.Gray, fontFamily = FontFamily.Monospace)
+                item {
+                    Box(modifier = Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("NO_NODES_FOUND. TAP_REFRESH_TO_PROBE.", color = Color.Gray, fontFamily = FontFamily.Monospace)
+                    }
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(uiState.devices) { device ->
-                        CydDeviceItem(
-                            device = device,
-                            onClick = { viewModel.connectToDevice(device, onDeviceConnected) }
-                        )
-                    }
+                items(uiState.devices) { device ->
+                    CydDeviceItem(
+                        device = device,
+                        onClick = { viewModel.connectToDevice(device, onDeviceConnected) }
+                    )
                 }
             }
         }

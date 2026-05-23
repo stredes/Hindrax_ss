@@ -107,40 +107,42 @@ fun PeerList(
     scrollBehavior: TopAppBarScrollBehavior,
     onPeerClick: (PeerEntity) -> Unit
 ) {
-    Column {
-        Text(
-            text = "--- █ ACTIVE_IDENTITIES █ ---",
-            color = Color.Cyan,
-            fontFamily = FontFamily.Monospace,
-            fontSize = 12.sp,
-            modifier = Modifier.padding(16.dp)
-        )
+    LazyColumn(modifier = Modifier.fillMaxSize()) {
+        item {
+            Text(
+                text = "--- █ ACTIVE_IDENTITIES █ ---",
+                color = Color.Cyan,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(16.dp)
+            )
+        }
         if (peers.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("WAITING_FOR_PAIRING...", color = Color.Gray, fontFamily = FontFamily.Monospace)
+            item {
+                Box(modifier = Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("WAITING_FOR_PAIRING...", color = Color.Gray, fontFamily = FontFamily.Monospace)
+                }
             }
         } else {
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                items(peers) { peer ->
-                    ListItem(
-                        headlineContent = { Text(peer.id, color = Color.White, fontFamily = FontFamily.Monospace) },
-                        supportingContent = { 
-                            Text("LAST_IP: ${peer.lastKnownIp}", color = Color.Gray, fontFamily = FontFamily.Monospace, fontSize = 10.sp) 
-                        },
-                        trailingContent = {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .background(if (peer.isOnline) Color.Green else Color.Red)
-                            )
-                        },
-                        modifier = Modifier
-                            .clickable { onPeerClick(peer) }
-                            .background(Color(0xFF0A0A0A)),
-                        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
-                    )
-                    HorizontalDivider(color = Color.DarkGray, thickness = 0.5.dp)
-                }
+            items(peers) { peer ->
+                ListItem(
+                    headlineContent = { Text(peer.id, color = Color.White, fontFamily = FontFamily.Monospace) },
+                    supportingContent = {
+                        Text("LAST_IP: ${peer.lastKnownIp}", color = Color.Gray, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+                    },
+                    trailingContent = {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(if (peer.isOnline) Color.Green else Color.Red)
+                        )
+                    },
+                    modifier = Modifier
+                        .clickable { onPeerClick(peer) }
+                        .background(Color(0xFF0A0A0A)),
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+                )
+                HorizontalDivider(color = Color.DarkGray, thickness = 0.5.dp)
             }
         }
     }

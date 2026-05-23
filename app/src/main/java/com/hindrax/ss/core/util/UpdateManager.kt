@@ -29,6 +29,7 @@ class UpdateManager @Inject constructor(
     // Public GitHub release channel. release.sh pushes the tag; GitHub Actions attaches the APK.
     private val githubRepo = "stredes/Hindrax_ss"
     private val latestReleaseUrl = "https://api.github.com/repos/$githubRepo/releases/latest"
+    private val releasesUrl = "https://api.github.com/repos/$githubRepo/releases?per_page=10"
     private val latestReleaseWebUrl = "https://github.com/$githubRepo/releases/latest"
 
     suspend fun checkForUpdates(currentVersion: String): UpdateResult {
@@ -51,55 +52,91 @@ class UpdateManager @Inject constructor(
                         }
                         return@withContext UpdateResult.Error("GITHUB_HTTP_${response.code}")
                     }
-                    
+
                     val json = JSONObject(response.body?.string() ?: "")
-                    if (json.optBoolean("draft", false) || json.optBoolean("prerelease", false)) {
-                        clearCachedUpdate()
-                        return@withContext UpdateResult.NoUpdate("GITHUB_RELEASE_NOT_PUBLIC")
-                    }
+                    val update = updateInfoFromRelease(json, currentVersion)
+                        ?: findUpdateInRecentReleases(currentVersion)
 
-                    val latestTag = normalizeVersion(json.getString("tag_name"))
-                    val releasePageUrl = json.optString("html_url")
-                    val releaseName = json.optString("name", "Release v$latestTag")
-                    val publishedAt = json.optString("published_at")
-                    
-                    val apkAsset = json.getJSONArray("assets").let { assets ->
-                        for (i in 0 until assets.length()) {
-                            val asset = assets.getJSONObject(i)
-                            val name = asset.getString("name")
-                            if (name.endsWith(".apk", ignoreCase = true)) return@let asset
-                        }
-                        null
-                    }
-
-                    val downloadUrl = apkAsset?.getString("browser_download_url")
-
-                    if (isNewerVersion(currentVersion, latestTag) && downloadUrl != null) {
-                        UpdateResult.Available(
-                            info = UpdateInfo(
-                                version = latestTag,
-                                url = downloadUrl,
-                                releaseName = releaseName,
-                                releasePageUrl = releasePageUrl,
-                                publishedAt = publishedAt,
-                                assetName = apkAsset.optString("name", "hindrax-v$latestTag.apk")
-                            )
-                        ).also { cacheUpdate(it.info) }
+                    if (update != null) {
+                        UpdateResult.Available(update).also { cacheUpdate(it.info) }
                     } else {
                         clearCachedUpdate()
-                        if (downloadUrl == null) {
-                            UpdateResult.NoUpdate("GITHUB_RELEASE_WITHOUT_APK: latest=v$latestTag")
-                        } else {
-                            UpdateResult.NoUpdate(
-                                "LATEST_RELEASE_NOT_NEWER: current=v${normalizeVersion(currentVersion)} latest=v$latestTag asset=${apkAsset.optString("name", "apk")}"
-                            )
-                        }
+                        val latestTag = normalizeVersion(json.optString("tag_name", "0"))
+                        UpdateResult.NoUpdate(
+                            "NO_RELEASE_APK_NEWER_THAN_CURRENT: current=v${normalizeVersion(currentVersion)} latest=v$latestTag"
+                        )
                     }
                 }
             } catch (e: Exception) {
                 UpdateResult.Error(e.message ?: "Network error")
             }
         }
+    }
+
+    private fun findUpdateInRecentReleases(currentVersion: String): UpdateInfo? {
+        val request = Request.Builder()
+            .url(releasesUrl)
+            .header("Accept", "application/vnd.github.v3+json")
+            .header("Cache-Control", "no-cache")
+            .header("User-Agent", "Hindrax-SS-Updater")
+            .build()
+
+        return httpClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) return null
+            val releases = org.json.JSONArray(response.body?.string() ?: "[]")
+            for (i in 0 until releases.length()) {
+                val release = releases.getJSONObject(i)
+                val info = updateInfoFromRelease(release, currentVersion)
+                if (info != null) return info
+            }
+            null
+        }
+    }
+
+    private fun updateInfoFromRelease(release: JSONObject, currentVersion: String): UpdateInfo? {
+        if (release.optBoolean("draft", false) || release.optBoolean("prerelease", false)) return null
+
+        val latestTagRaw = release.optString("tag_name")
+        val latestVersion = normalizeVersion(latestTagRaw)
+        if (!isNewerVersion(currentVersion, latestVersion)) return null
+
+        val apkAsset = bestApkAsset(release, latestTagRaw) ?: return null
+        val downloadUrl = apkAsset.optString("browser_download_url").takeIf { it.isNotBlank() } ?: return null
+
+        return UpdateInfo(
+            version = latestVersion,
+            url = downloadUrl,
+            releaseName = release.optString("name", "Release v$latestVersion"),
+            releasePageUrl = release.optString("html_url"),
+            publishedAt = release.optString("published_at"),
+            assetName = apkAsset.optString("name", "hindrax-v$latestVersion.apk")
+        )
+    }
+
+    private fun bestApkAsset(release: JSONObject, tagName: String): JSONObject? {
+        val assets = release.optJSONArray("assets") ?: return null
+        var bestAsset: JSONObject? = null
+        var bestScore = Int.MIN_VALUE
+        val normalizedTag = tagName.ifBlank { "v${normalizeVersion(release.optString("tag_name"))}" }
+
+        for (i in 0 until assets.length()) {
+            val asset = assets.getJSONObject(i)
+            val name = asset.optString("name")
+            if (!name.endsWith(".apk", ignoreCase = true)) continue
+
+            var score = 10
+            if (name.contains("hindrax", ignoreCase = true)) score += 20
+            if (name.contains(normalizedTag, ignoreCase = true)) score += 20
+            if (!name.contains("debug", ignoreCase = true)) score += 10
+            if (name.equals("hindrax-$normalizedTag.apk", ignoreCase = true)) score += 30
+
+            if (score > bestScore) {
+                bestScore = score
+                bestAsset = asset
+            }
+        }
+
+        return bestAsset
     }
 
     private fun checkForUpdatesFromGithubWeb(currentVersion: String, reason: String): UpdateResult {
@@ -123,7 +160,7 @@ class UpdateManager @Inject constructor(
                     ?: return UpdateResult.NoUpdate("$reason; GITHUB_LATEST_TAG_NOT_RESOLVED")
 
                 val latestVersion = normalizeVersion(latestTagWithPrefix)
-                val assetName = "hindrax-$latestTagWithPrefix-debug.apk"
+                val assetName = "hindrax-$latestTagWithPrefix.apk"
                 val downloadUrl = "https://github.com/$githubRepo/releases/latest/download/$assetName"
 
                 if (isNewerVersion(currentVersion, latestVersion)) {

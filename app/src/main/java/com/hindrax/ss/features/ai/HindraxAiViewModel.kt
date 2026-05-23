@@ -3,6 +3,7 @@ package com.hindrax.ss.features.ai
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hindrax.ss.data.repository.OllamaEndpointDefaults
 import com.hindrax.ss.data.repository.OllamaFallbackConfig
 import com.hindrax.ss.data.repository.OpenAiRepository
 import com.hindrax.ss.domain.ai.OpenAiResponsesPayloadBuilder
@@ -56,7 +57,7 @@ class HindraxAiViewModel(
             ?: OpenAiResponsesPayloadBuilder.DEFAULT_MODEL
         val ollamaFallback = OllamaFallbackConfig(
             enabled = prefs.getBoolean("ollama_fallback_enabled", false),
-            baseUrl = prefs.getString("ollama_base_url", "http://10.0.2.2:11434").orEmpty(),
+            baseUrl = prefs.getString("ollama_base_url", OllamaEndpointDefaults.defaultBaseUrl()).orEmpty(),
             model = prefs.getString("ollama_model", "gemma3:1b") ?: "gemma3:1b"
         )
 

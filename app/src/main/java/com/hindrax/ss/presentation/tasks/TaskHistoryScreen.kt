@@ -51,50 +51,55 @@ fun TaskHistoryScreen(
             )
         }
     ) { padding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
-                .background(Color(0xFF0A0A0A))
+                .background(Color(0xFF0A0A0A)),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // ASCII Banner
-            Text(
-                text = AsciiBanners.HISTORY_HEADER,
-                color = Color.Yellow,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 8.sp,
-                lineHeight = 9.sp,
-                modifier = Modifier.padding(16.dp).fillMaxWidth()
-            )
+            item {
+                Text(
+                    text = AsciiBanners.HISTORY_HEADER,
+                    color = Color.Yellow,
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 8.sp,
+                    lineHeight = 9.sp,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
 
-            Box(modifier = Modifier.weight(1f)) {
-                if (uiState.isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = Color.Green)
-                } else if (uiState.history.isEmpty()) {
+            when {
+                uiState.isLoading -> {
+                    item {
+                        Box(modifier = Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = Color.Green)
+                        }
+                    }
+                }
+                uiState.history.isEmpty() -> {
+                    item {
                     Text(
                         text = "> [!] NO_LOG_ENTRIES_RECOVERED",
                         color = Color.Red,
-                        fontFamily = FontFamily.Monospace,
-                        modifier = Modifier.padding(16.dp)
+                        fontFamily = FontFamily.Monospace
                     )
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(uiState.history) { event ->
-                            HistoryLogItem(event = event)
-                        }
-                        item {
-                            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                                Text(
-                                    text = ">> [ EOF_LOG ] <<",
-                                    color = Color.Green,
-                                    fontFamily = FontFamily.Monospace,
-                                    modifier = Modifier.padding(vertical = 16.dp)
-                                )
-                            }
+                    }
+                }
+                else -> {
+                    items(uiState.history) { event ->
+                        HistoryLogItem(event = event)
+                    }
+                    item {
+                        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            Text(
+                                text = ">> [ EOF_LOG ] <<",
+                                color = Color.Green,
+                                fontFamily = FontFamily.Monospace,
+                                modifier = Modifier.padding(vertical = 16.dp)
+                            )
                         }
                     }
                 }

@@ -200,213 +200,210 @@ fun OfflineMusicScreen(onBack: () -> Unit) {
             )
         }
     ) { innerPadding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
                 .background(Color(0xFF050505))
-                .padding(16.dp)
+                .padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF101010)),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color.DarkGray),
-                shape = MaterialTheme.shapes.extraSmall,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.LibraryMusic, contentDescription = null, tint = Color.Cyan)
-                        Spacer(modifier = Modifier.width(8.dp))
+            item {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF101010)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.DarkGray),
+                    shape = MaterialTheme.shapes.extraSmall,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.LibraryMusic, contentDescription = null, tint = Color.Cyan)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "LOCAL_AUDIO_LIBRARY",
+                                color = Color.Cyan,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            "LOCAL_AUDIO_LIBRARY",
-                            color = Color.Cyan,
+                            text = "Importa archivos de audio locales que tengas derecho a usar. La app guarda permiso de lectura para escucharlos offline.",
+                            color = Color.Gray,
                             fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold
+                            fontSize = 11.sp
                         )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Importa archivos de audio locales que tengas derecho a usar. La app guarda permiso de lectura para escucharlos offline.",
-                        color = Color.Gray,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 11.sp
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Button(
-                        onClick = { importLauncher.launch(arrayOf("audio/*")) },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Green, contentColor = Color.Black),
-                        shape = MaterialTheme.shapes.extraSmall,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("IMPORT_LOCAL_AUDIO", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF101010)),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color.DarkGray),
-                shape = MaterialTheme.shapes.extraSmall,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.CloudDownload, contentDescription = null, tint = Color.Green)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            "SPOTDL_BRIDGE",
-                            color = Color.Green,
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Pega una URL de Spotify, YouTube o busqueda compatible con spotDL. Descarga solo contenido que tengas derecho a guardar offline.",
-                        color = Color.Gray,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 11.sp
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    OutlinedTextField(
-                        value = spotdlQuery,
-                        onValueChange = { spotdlQuery = it },
-                        label = { Text("SPOTDL_URL_OR_QUERY", fontFamily = FontFamily.Monospace) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                        textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, fontSize = 12.sp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = Color.Green,
-                            unfocusedBorderColor = Color.DarkGray,
-                            focusedLabelColor = Color.Green,
-                            unfocusedLabelColor = Color.Gray,
-                            cursorColor = Color.Green
-                        )
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Spacer(modifier = Modifier.height(12.dp))
                         Button(
-                            onClick = { startSpotdlDownload() },
+                            onClick = { importLauncher.launch(arrayOf("audio/*")) },
                             colors = ButtonDefaults.buttonColors(containerColor = Color.Green, contentColor = Color.Black),
                             shape = MaterialTheme.shapes.extraSmall,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(Icons.Default.CloudDownload, contentDescription = null)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("DOWNLOAD", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
-                        }
-                        OutlinedButton(
-                            onClick = { refreshSpotdlLibrary() },
-                            shape = MaterialTheme.shapes.extraSmall,
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Cyan)
-                        ) {
-                            Icon(Icons.Default.Refresh, contentDescription = null)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("SCAN", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                            Text("IMPORT_LOCAL_AUDIO", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                         }
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "OUTPUT: $spotdlOutputDir",
-                        color = Color.DarkGray,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 9.sp
-                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    enabled = tracks.isNotEmpty(),
-                    onClick = {
-                        val next = if (currentIndex <= 0) tracks.lastIndex else currentIndex - 1
-                        playAt(next)
-                    }
+            item {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF101010)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.DarkGray),
+                    shape = MaterialTheme.shapes.extraSmall,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(Icons.Default.SkipPrevious, contentDescription = "Previous", tint = if (tracks.isNotEmpty()) Color.Green else Color.DarkGray)
-                }
-                FilledIconButton(
-                    enabled = tracks.isNotEmpty(),
-                    onClick = { togglePlayback() },
-                    colors = IconButtonDefaults.filledIconButtonColors(containerColor = Color.Green, contentColor = Color.Black)
-                ) {
-                    Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, contentDescription = "Play")
-                }
-                IconButton(
-                    enabled = tracks.isNotEmpty(),
-                    onClick = {
-                        val next = if (currentIndex >= tracks.lastIndex) 0 else currentIndex + 1
-                        playAt(next)
-                    }
-                ) {
-                    Icon(Icons.Default.SkipNext, contentDescription = "Next", tint = if (tracks.isNotEmpty()) Color.Green else Color.DarkGray)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-            Text("STATUS: $status", color = Color.Green, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
-            Spacer(modifier = Modifier.height(12.dp))
-            Text("--- TRACKS [${tracks.size}] ---", color = Color.Cyan, fontFamily = FontFamily.Monospace, fontSize = 11.sp)
-            Spacer(modifier = Modifier.height(8.dp))
-
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .border(1.dp, Color.DarkGray)
-                    .background(Color(0xFF0A0A0A)),
-                contentPadding = PaddingValues(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                itemsIndexed(tracks) { index, track ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { playAt(index) }
-                            .padding(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.CloudDownload, contentDescription = null, tint = Color.Green)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "SPOTDL_BRIDGE",
+                                color = Color.Green,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = if (index == currentIndex) ">" else "${index + 1}.",
-                            color = if (index == currentIndex) Color.Yellow else Color.Green,
+                            text = "Pega una URL de Spotify, YouTube o busqueda compatible con spotDL. Descarga solo contenido que tengas derecho a guardar offline.",
+                            color = Color.Gray,
                             fontFamily = FontFamily.Monospace,
-                            modifier = Modifier.width(28.dp)
+                            fontSize = 11.sp
                         )
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = track.title,
-                                color = Color.White,
-                                fontFamily = FontFamily.Monospace,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp,
-                                maxLines = 1
+                        Spacer(modifier = Modifier.height(10.dp))
+                        OutlinedTextField(
+                            value = spotdlQuery,
+                            onValueChange = { spotdlQuery = it },
+                            label = { Text("SPOTDL_URL_OR_QUERY", fontFamily = FontFamily.Monospace) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, fontSize = 12.sp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedTextColor = Color.White,
+                                unfocusedTextColor = Color.White,
+                                focusedBorderColor = Color.Green,
+                                unfocusedBorderColor = Color.DarkGray,
+                                focusedLabelColor = Color.Green,
+                                unfocusedLabelColor = Color.Gray,
+                                cursorColor = Color.Green
                             )
-                            Text(
-                                text = Uri.parse(track.uri).scheme.orEmpty().uppercase(),
-                                color = Color.Gray,
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 9.sp
-                            )
-                        }
-                        IconButton(
-                            onClick = {
-                                if (index == currentIndex) stopPlayer()
-                                persist(tracks.filterIndexed { i, _ -> i != index })
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                onClick = { startSpotdlDownload() },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.Green, contentColor = Color.Black),
+                                shape = MaterialTheme.shapes.extraSmall,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.CloudDownload, contentDescription = null)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("DOWNLOAD", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                             }
-                        ) {
-                            Icon(Icons.Default.Delete, contentDescription = "Remove", tint = Color.Red)
+                            OutlinedButton(
+                                onClick = { refreshSpotdlLibrary() },
+                                shape = MaterialTheme.shapes.extraSmall,
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Cyan)
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = null)
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("SCAN", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                            }
                         }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "OUTPUT: $spotdlOutputDir",
+                            color = Color.DarkGray,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 9.sp
+                        )
+                    }
+                }
+            }
+
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        enabled = tracks.isNotEmpty(),
+                        onClick = {
+                            val next = if (currentIndex <= 0) tracks.lastIndex else currentIndex - 1
+                            playAt(next)
+                        }
+                    ) {
+                        Icon(Icons.Default.SkipPrevious, contentDescription = "Previous", tint = if (tracks.isNotEmpty()) Color.Green else Color.DarkGray)
+                    }
+                    FilledIconButton(
+                        enabled = tracks.isNotEmpty(),
+                        onClick = { togglePlayback() },
+                        colors = IconButtonDefaults.filledIconButtonColors(containerColor = Color.Green, contentColor = Color.Black)
+                    ) {
+                        Icon(if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow, contentDescription = "Play")
+                    }
+                    IconButton(
+                        enabled = tracks.isNotEmpty(),
+                        onClick = {
+                            val next = if (currentIndex >= tracks.lastIndex) 0 else currentIndex + 1
+                            playAt(next)
+                        }
+                    ) {
+                        Icon(Icons.Default.SkipNext, contentDescription = "Next", tint = if (tracks.isNotEmpty()) Color.Green else Color.DarkGray)
+                    }
+                }
+            }
+
+            item {
+                Text("STATUS: $status", color = Color.Green, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+            }
+            item {
+                Text("--- TRACKS [${tracks.size}] ---", color = Color.Cyan, fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+            }
+
+            itemsIndexed(tracks) { index, track ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, Color.DarkGray)
+                        .background(Color(0xFF0A0A0A))
+                        .clickable { playAt(index) }
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (index == currentIndex) ">" else "${index + 1}.",
+                        color = if (index == currentIndex) Color.Yellow else Color.Green,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.width(28.dp)
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = track.title,
+                            color = Color.White,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            maxLines = 1
+                        )
+                        Text(
+                            text = Uri.parse(track.uri).scheme.orEmpty().uppercase(),
+                            color = Color.Gray,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 9.sp
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            if (index == currentIndex) stopPlayer()
+                            persist(tracks.filterIndexed { i, _ -> i != index })
+                        }
+                    ) {
+                        Icon(Icons.Default.Delete, contentDescription = "Remove", tint = Color.Red)
                     }
                 }
             }

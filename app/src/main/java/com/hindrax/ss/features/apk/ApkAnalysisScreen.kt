@@ -64,78 +64,83 @@ fun ApkAnalysisScreen(
             )
         }
     ) { innerPadding ->
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .padding(innerPadding)
-                .padding(16.dp)
                 .fillMaxSize()
+                .background(Color(0xFF050505))
+                .padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Button(
-                onClick = { launcher.launch("application/vnd.android.package-archive") },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !uiState.isRunning,
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Green, contentColor = Color.Black),
-                shape = MaterialTheme.shapes.extraSmall
-            ) {
-                Text("SELECT_APK_FOR_ANALYSIS", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            uiState.apkInfo?.let { info ->
-                Card(
+            item {
+                Button(
+                    onClick = { launcher.launch("application/vnd.android.package-archive") },
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF151515)),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.DarkGray),
+                    enabled = !uiState.isRunning,
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Green, contentColor = Color.Black),
                     shape = MaterialTheme.shapes.extraSmall
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("PACKAGE:", fontWeight = FontWeight.Bold, color = Color.Gray, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
-                        Text(info.packageName, color = Color.White, fontFamily = FontFamily.Monospace)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("HASH_SHA256:", fontWeight = FontWeight.Bold, color = Color.Gray, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
-                        Text(info.sha256, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, color = Color.Cyan)
+                    Text("SELECT_APK_FOR_ANALYSIS", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            uiState.apkInfo?.let { info ->
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFF151515)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color.DarkGray),
+                        shape = MaterialTheme.shapes.extraSmall
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("PACKAGE:", fontWeight = FontWeight.Bold, color = Color.Gray, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                            Text(info.packageName, color = Color.White, fontFamily = FontFamily.Monospace)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("HASH_SHA256:", fontWeight = FontWeight.Bold, color = Color.Gray, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                            Text(info.sha256, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, color = Color.Cyan)
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                Text("--- REQUESTED_PERMISSIONS (${info.permissions.size}) ---", style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, color = Color.Cyan)
-                
-                LazyColumn(
-                    modifier = Modifier.weight(1f).fillMaxWidth()
-                ) {
-                    items(info.permissions) { permission ->
-                        val isSensitive = permission.contains("SMS") || permission.contains("LOCATION") || permission.contains("CAMERA") || permission.contains("RECORD_AUDIO")
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        ) {
-                            if (isSensitive) {
-                                Icon(Icons.Default.Warning, contentDescription = "Sensitive", tint = Color.Red, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(4.dp))
-                            }
-                            Text(
-                                text = permission.split(".").last(),
-                                style = MaterialTheme.typography.bodySmall,
-                                fontFamily = FontFamily.Monospace,
-                                color = if (isSensitive) Color.Red else Color.Green
-                            )
+                item {
+                    Text("--- REQUESTED_PERMISSIONS (${info.permissions.size}) ---", style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, color = Color.Cyan)
+                }
+
+                items(info.permissions) { permission ->
+                    val isSensitive = permission.contains("SMS") || permission.contains("LOCATION") || permission.contains("CAMERA") || permission.contains("RECORD_AUDIO")
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    ) {
+                        if (isSensitive) {
+                            Icon(Icons.Default.Warning, contentDescription = "Sensitive", tint = Color.Red, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
                         }
-                        HorizontalDivider(color = Color.DarkGray, thickness = 0.5.dp)
+                        Text(
+                            text = permission.split(".").last(),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontFamily = FontFamily.Monospace,
+                            color = if (isSensitive) Color.Red else Color.Green
+                        )
                     }
+                    HorizontalDivider(color = Color.DarkGray, thickness = 0.5.dp)
                 }
             }
 
             if (uiState.isRunning) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Color.Green)
+                item {
+                    Box(modifier = Modifier.fillParentMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Color.Green)
+                    }
                 }
             }
 
             if (uiState.apkInfo == null && !uiState.isRunning) {
-                Box(modifier = Modifier.fillMaxSize().background(Color(0xFF0A0A0A)).border(androidx.compose.foundation.BorderStroke(1.dp, Color.DarkGray)), contentAlignment = Alignment.Center) {
-                    Text("WAITING_FOR_PAYLOAD...", color = Color.Gray, fontFamily = FontFamily.Monospace)
+                item {
+                    Box(modifier = Modifier.fillParentMaxSize().background(Color(0xFF0A0A0A)).border(androidx.compose.foundation.BorderStroke(1.dp, Color.DarkGray)), contentAlignment = Alignment.Center) {
+                        Text("WAITING_FOR_PAYLOAD...", color = Color.Gray, fontFamily = FontFamily.Monospace)
+                    }
                 }
             }
         }

@@ -3,6 +3,8 @@ package com.hindrax.ss.features.profile
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -79,6 +81,7 @@ fun HindraxProfileScreen(onBack: () -> Unit) {
                 .padding(padding)
                 .fillMaxSize()
                 .background(Color(0xFF050505))
+                .verticalScroll(rememberScrollState())
                 .padding(18.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(14.dp)
