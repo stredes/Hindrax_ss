@@ -15,6 +15,29 @@ data class HindraxPaletteColor(
     val hex: String
 )
 
+data class HindraxThemeRolePalette(
+    val background: String,
+    val surface: String,
+    val text: String,
+    val accent: String,
+    val warning: String,
+    val danger: String
+) {
+    companion object {
+        fun fromPreset(preset: HindraxThemePreset): HindraxThemeRolePalette {
+            val defaults = HindraxThemePreset()
+            return HindraxThemeRolePalette(
+                background = HindraxThemePresetCodec.normalizeHex(preset.background, defaults.background),
+                surface = HindraxThemePresetCodec.normalizeHex(preset.surface, defaults.surface),
+                text = HindraxThemePresetCodec.normalizeHex(preset.text, defaults.text),
+                accent = HindraxThemePresetCodec.normalizeHex(preset.accent, defaults.accent),
+                warning = HindraxThemePresetCodec.normalizeHex(preset.warning, defaults.warning),
+                danger = HindraxThemePresetCodec.normalizeHex(preset.danger, defaults.danger)
+            )
+        }
+    }
+}
+
 object HindraxThemePalette {
     val all = listOf(
         HindraxPaletteColor("Matrix", "#00FF66"),

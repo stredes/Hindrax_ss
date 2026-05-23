@@ -37,15 +37,39 @@ import com.hindrax.ss.domain.tools.ToolCatalogItem
 import com.hindrax.ss.domain.tools.ToolRiskLevel
 import com.hindrax.ss.presentation.tasks.AsciiBanners
 
-private val NeonBg = Color(0xFF030604)
-private val NeonPanel = Color(0xFF07100B)
-private val NeonPanelHot = Color(0xFF101004)
-private val NeonGreen = Color(0xFF39FF14)
-private val NeonCyan = Color(0xFF00E5FF)
-private val NeonYellow = Color(0xFFFFEA00)
-private val NeonMagenta = Color(0xFFFF2BD6)
-private val NeonRed = Color(0xFFFF365E)
-private val NeonGrid = Color(0xFF173020)
+private data class DashboardPalette(
+    val background: Color,
+    val backgroundDeep: Color,
+    val panel: Color,
+    val panelHot: Color,
+    val accent: Color,
+    val secondary: Color,
+    val warning: Color,
+    val danger: Color,
+    val text: Color,
+    val muted: Color,
+    val grid: Color,
+    val onAccent: Color
+)
+
+@Composable
+private fun dashboardPalette(): DashboardPalette {
+    val scheme = MaterialTheme.colorScheme
+    return DashboardPalette(
+        background = scheme.background,
+        backgroundDeep = scheme.background.copy(alpha = 0.92f),
+        panel = scheme.surface,
+        panelHot = scheme.secondary.copy(alpha = 0.16f),
+        accent = scheme.primary,
+        secondary = scheme.secondary,
+        warning = scheme.secondary,
+        danger = scheme.error,
+        text = scheme.onSurface,
+        muted = scheme.onSurface.copy(alpha = 0.62f),
+        grid = scheme.primary.copy(alpha = 0.32f),
+        onAccent = scheme.onPrimary
+    )
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,6 +104,7 @@ fun DashboardScreen(
     onNavigateToNfcLab: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val palette = dashboardPalette()
     val context = LocalContext.current
     val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
     val currentVersion = packageInfo.versionName ?: "1.0.0"
@@ -110,7 +135,7 @@ fun DashboardScreen(
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    colors = listOf(NeonBg, Color(0xFF020202), Color(0xFF050805))
+                    colors = listOf(palette.background, palette.backgroundDeep, palette.background)
                 )
             ),
         topBar = if (!isFullScreen) {
@@ -122,34 +147,34 @@ fun DashboardScreen(
                             "[ HINDRAX_CORE :: NEON_ASCII ]",
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
-                            color = NeonGreen,
+                            color = palette.accent,
                             fontSize = 14.sp
                         )
                     },
                     actions = {
                         IconButton(onClick = { viewModel.refreshStatus(context, currentVersion) }) {
-                            Icon(imageVector = Icons.Default.Refresh, contentDescription = "Refresh Status", tint = NeonGreen)
+                            Icon(imageVector = Icons.Default.Refresh, contentDescription = "Refresh Status", tint = palette.accent)
                         }
 
                         IconButton(
                             enabled = uiState.updateAvailable,
                             onClick = { if (uiState.updateAvailable) viewModel.installUpdate() }
                         ) {
-                            Icon(Icons.Default.Update, contentDescription = "Install Update", tint = if (uiState.updateAvailable) NeonYellow else Color.DarkGray)
+                            Icon(Icons.Default.Update, contentDescription = "Install Update", tint = if (uiState.updateAvailable) palette.warning else palette.muted)
                         }
 
                         IconButton(onClick = { isFullScreenState.value = true }) {
-                            Icon(Icons.Default.Fullscreen, contentDescription = "Full screen", tint = NeonGreen)
+                            Icon(Icons.Default.Fullscreen, contentDescription = "Full screen", tint = palette.accent)
                         }
 
-                        IconButton(onClick = onNavigateToSettings) { Icon(Icons.Default.Settings, contentDescription = "Settings", tint = NeonGreen) }
-                        IconButton(onClick = onNavigateToProfile) { Icon(Icons.Default.Person, contentDescription = "Profile", tint = NeonCyan) }
-                        IconButton(onClick = onNavigateToTermuxSetup) { Icon(Icons.Default.Build, contentDescription = "Termux Setup", tint = NeonYellow) }
-                        IconButton(onClick = onNavigateToTargets) { Icon(Icons.Default.Lock, contentDescription = "Authorized Targets", tint = NeonMagenta) }
+                        IconButton(onClick = onNavigateToSettings) { Icon(Icons.Default.Settings, contentDescription = "Settings", tint = palette.accent) }
+                        IconButton(onClick = onNavigateToProfile) { Icon(Icons.Default.Person, contentDescription = "Profile", tint = palette.secondary) }
+                        IconButton(onClick = onNavigateToTermuxSetup) { Icon(Icons.Default.Build, contentDescription = "Termux Setup", tint = palette.warning) }
+                        IconButton(onClick = onNavigateToTargets) { Icon(Icons.Default.Lock, contentDescription = "Authorized Targets", tint = palette.danger) }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color(0xFF020302),
-                        titleContentColor = NeonGreen
+                        containerColor = palette.background,
+                        titleContentColor = palette.accent
                     ),
                     scrollBehavior = scrollBehavior
                 )
@@ -162,8 +187,8 @@ fun DashboardScreen(
                 Column {
                     FloatingActionButton(
                         onClick = { isFullScreenState.value = false },
-                        containerColor = Color.DarkGray,
-                        contentColor = Color.White,
+                        containerColor = palette.panel,
+                        contentColor = palette.text,
                         shape = MaterialTheme.shapes.small,
                         modifier = Modifier.padding(bottom = 8.dp)
                     ) {
@@ -172,8 +197,8 @@ fun DashboardScreen(
 
                     FloatingActionButton(
                         onClick = { viewModel.refreshStatus(context, currentVersion) },
-                        containerColor = Color.DarkGray,
-                        contentColor = NeonGreen,
+                        containerColor = palette.panel,
+                        contentColor = palette.accent,
                         shape = MaterialTheme.shapes.small,
                         modifier = Modifier.padding(bottom = 8.dp)
                     ) {
@@ -182,8 +207,8 @@ fun DashboardScreen(
 
                     FloatingActionButton(
                         onClick = { if (uiState.updateAvailable) viewModel.installUpdate() },
-                        containerColor = if (uiState.updateAvailable) NeonYellow else Color.DarkGray,
-                        contentColor = Color.Black,
+                        containerColor = if (uiState.updateAvailable) palette.warning else palette.panel,
+                        contentColor = palette.onAccent,
                         shape = MaterialTheme.shapes.small
                     ) {
                         Icon(Icons.Default.Update, contentDescription = "Install Update")
@@ -201,7 +226,7 @@ fun DashboardScreen(
                 .padding(innerPadding)
                 .padding(16.dp)
                 .fillMaxSize()
-                .background(NeonBg.copy(alpha = 0.35f))
+                .background(palette.background.copy(alpha = 0.35f))
                 .nestedScroll(scrollBehavior.nestedScrollConnection)
         ) {
             // Header spans all columns so it scrolls with the content
@@ -209,7 +234,7 @@ fun DashboardScreen(
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
                         text = AsciiBanners.HINDRAX_MAIN,
-                        color = NeonGreen,
+                        color = palette.accent,
                         fontFamily = FontFamily.Monospace,
                         fontSize = if (isTablet) 12.sp else 7.sp,
                         lineHeight = if (isTablet) 14.sp else 8.sp,
@@ -222,7 +247,7 @@ fun DashboardScreen(
 
                     NeonAsciiPanel(
                         title = "SYSTEM_SIGNAL",
-                        accent = NeonCyan,
+                        accent = palette.secondary,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -237,10 +262,10 @@ fun DashboardScreen(
                             )
                             Spacer(modifier = Modifier.width(14.dp))
                             Column {
-                                Text("+- HINDRAX NODE ONLINE -+", color = NeonGreen, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = if (isTablet) 14.sp else 11.sp)
-                                Text("| MODE: DASHBOARD_ASCII", color = NeonCyan, fontFamily = FontFamily.Monospace, fontSize = if (isTablet) 12.sp else 10.sp)
-                                Text("| CORE: v$currentVersion", color = NeonYellow, fontFamily = FontFamily.Monospace, fontSize = if (isTablet) 12.sp else 10.sp)
-                                Text("+------------------------+", color = NeonGrid, fontFamily = FontFamily.Monospace, fontSize = if (isTablet) 12.sp else 10.sp)
+                                Text("+- HINDRAX NODE ONLINE -+", color = palette.accent, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = if (isTablet) 14.sp else 11.sp)
+                                Text("| MODE: DASHBOARD_ASCII", color = palette.secondary, fontFamily = FontFamily.Monospace, fontSize = if (isTablet) 12.sp else 10.sp)
+                                Text("| CORE: v$currentVersion", color = palette.warning, fontFamily = FontFamily.Monospace, fontSize = if (isTablet) 12.sp else 10.sp)
+                                Text("+------------------------+", color = palette.grid, fontFamily = FontFamily.Monospace, fontSize = if (isTablet) 12.sp else 10.sp)
                             }
                         }
                     }
@@ -248,8 +273,8 @@ fun DashboardScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Card(
-                        colors = CardDefaults.cardColors(containerColor = if (uiState.updateAvailable) NeonPanelHot else NeonPanel),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, if (uiState.updateAvailable) NeonYellow else NeonGrid),
+                        colors = CardDefaults.cardColors(containerColor = if (uiState.updateAvailable) palette.panelHot else palette.panel),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, if (uiState.updateAvailable) palette.warning else palette.grid),
                         modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
                         shape = MaterialTheme.shapes.extraSmall
                     ) {
@@ -257,32 +282,32 @@ fun DashboardScreen(
                             modifier = Modifier.padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Update, contentDescription = null, tint = if (uiState.updateAvailable) NeonYellow else Color.DarkGray)
+                            Icon(Icons.Default.Update, contentDescription = null, tint = if (uiState.updateAvailable) palette.warning else palette.muted)
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
                                     if (uiState.updateAvailable) "!! UPDATE_AVAILABLE :: v${uiState.newVersion} !!" else "[ UPDATE_CHANNEL ]",
-                                    color = Color.White,
+                                    color = palette.text,
                                     fontFamily = FontFamily.Monospace,
                                     fontSize = if (isTablet) 14.sp else 12.sp,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
                                     uiState.updateInfo?.assetName ?: uiState.updateStatus,
-                                    color = if (uiState.updateAvailable) NeonYellow.copy(0.9f) else Color.Gray,
+                                    color = if (uiState.updateAvailable) palette.warning.copy(0.9f) else palette.muted,
                                     fontFamily = FontFamily.Monospace,
                                     fontSize = if (isTablet) 12.sp else 10.sp
                                 )
-                                Text("status> ${uiState.updateStatus}", color = Color.Gray, fontFamily = FontFamily.Monospace, fontSize = if (isTablet) 11.sp else 9.sp)
+                                Text("status> ${uiState.updateStatus}", color = palette.muted, fontFamily = FontFamily.Monospace, fontSize = if (isTablet) 11.sp else 9.sp)
                             }
                             Button(
                                 onClick = { viewModel.installUpdate() },
                                 enabled = uiState.updateAvailable,
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = NeonYellow,
-                                    contentColor = Color.Black,
-                                    disabledContainerColor = Color.DarkGray,
-                                    disabledContentColor = Color.Black
+                                    containerColor = palette.warning,
+                                    contentColor = palette.onAccent,
+                                    disabledContainerColor = palette.panel,
+                                    disabledContentColor = palette.muted
                                 ),
                                 shape = MaterialTheme.shapes.extraSmall,
                                 contentPadding = PaddingValues(horizontal = 12.dp)
@@ -296,7 +321,7 @@ fun DashboardScreen(
 
                     NeonAsciiPanel(
                         title = "NODE_STATUS",
-                        accent = NeonGreen,
+                        accent = palette.accent,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(12.dp)) {
@@ -305,9 +330,9 @@ fun DashboardScreen(
                                 label = "TERMUX",
                                 value = if (uiState.isTermuxInstalled) "READY" else "OFFLINE",
                                 icon = Icons.Default.Terminal,
-                                color = if (uiState.isTermuxInstalled) NeonGreen else NeonRed
+                                color = if (uiState.isTermuxInstalled) palette.accent else palette.danger
                             )
-                            StatusItem(label = "VERSION", value = "v$currentVersion", icon = Icons.Default.Fingerprint, color = NeonCyan)
+                            StatusItem(label = "VERSION", value = "v$currentVersion", icon = Icons.Default.Fingerprint, color = palette.secondary)
                         }
                     }
 
@@ -319,21 +344,21 @@ fun DashboardScreen(
                 }
             }
 
-            item { ModuleCard("Automation", Icons.Default.Bolt, onNavigateToAutomation, accentColor = NeonGreen) }
-            item { ModuleCard("AI_Assist", Icons.Default.Psychology, onNavigateToAiAssist, accentColor = NeonGreen) }
-            item { ModuleCard("Profile", Icons.Default.Person, onNavigateToProfile, accentColor = NeonGreen) }
-            item { ModuleCard("File_Analyzer", Icons.Default.FolderOpen, onNavigateToFileAnalyzer, accentColor = NeonCyan) }
-            item { ModuleCard("Missions", Icons.Default.Assignment, onNavigateToTasks, accentColor = NeonYellow) }
-            item { ModuleCard("Logistics", Icons.Default.Inventory, onNavigateToInventory, accentColor = NeonCyan) }
-            item { ModuleCard("CYD_Link", Icons.Default.DeveloperBoard, onNavigateToCydConnect, accentColor = NeonMagenta) }
-            item { ModuleCard("Mesh Chat", Icons.Default.Chat, onNavigateToChat, accentColor = Color.White) }
-            item { ModuleCard("Geo_Live", Icons.Default.MyLocation, onNavigateToLiveLocation, accentColor = NeonCyan) }
-            item { ModuleCard("Offline_Music", Icons.Default.LibraryMusic, onNavigateToOfflineMusic, accentColor = NeonYellow) }
-            item { ModuleCard("NFC_Lab", Icons.Default.Nfc, onNavigateToNfcLab, accentColor = NeonGreen) }
-            item { ModuleCard("Net_Disc", Icons.Default.CellTower, onNavigateToNetworkDiscovery, accentColor = NeonCyan) }
-            item { ModuleCard("Terminal", Icons.Default.Terminal, onNavigateToTermuxScripts, accentColor = NeonGreen) }
-            item { ModuleCard("Scanner", Icons.Default.Lan, onNavigateToPortScanner, accentColor = NeonYellow) }
-            item { ModuleCard("Web_Scan", Icons.Default.ManageSearch, onNavigateToWebScanner, accentColor = NeonMagenta) }
+            item { ModuleCard("Automation", Icons.Default.Bolt, onNavigateToAutomation, accentColor = palette.accent) }
+            item { ModuleCard("AI_Assist", Icons.Default.Psychology, onNavigateToAiAssist, accentColor = palette.accent) }
+            item { ModuleCard("Profile", Icons.Default.Person, onNavigateToProfile, accentColor = palette.accent) }
+            item { ModuleCard("File_Analyzer", Icons.Default.FolderOpen, onNavigateToFileAnalyzer, accentColor = palette.secondary) }
+            item { ModuleCard("Missions", Icons.Default.Assignment, onNavigateToTasks, accentColor = palette.warning) }
+            item { ModuleCard("Logistics", Icons.Default.Inventory, onNavigateToInventory, accentColor = palette.secondary) }
+            item { ModuleCard("CYD_Link", Icons.Default.DeveloperBoard, onNavigateToCydConnect, accentColor = palette.danger) }
+            item { ModuleCard("Mesh Chat", Icons.Default.Chat, onNavigateToChat, accentColor = palette.text) }
+            item { ModuleCard("Geo_Live", Icons.Default.MyLocation, onNavigateToLiveLocation, accentColor = palette.secondary) }
+            item { ModuleCard("Offline_Music", Icons.Default.LibraryMusic, onNavigateToOfflineMusic, accentColor = palette.warning) }
+            item { ModuleCard("NFC_Lab", Icons.Default.Nfc, onNavigateToNfcLab, accentColor = palette.accent) }
+            item { ModuleCard("Net_Disc", Icons.Default.CellTower, onNavigateToNetworkDiscovery, accentColor = palette.secondary) }
+            item { ModuleCard("Terminal", Icons.Default.Terminal, onNavigateToTermuxScripts, accentColor = palette.accent) }
+            item { ModuleCard("Scanner", Icons.Default.Lan, onNavigateToPortScanner, accentColor = palette.warning) }
+            item { ModuleCard("Web_Scan", Icons.Default.ManageSearch, onNavigateToWebScanner, accentColor = palette.danger) }
             item { ModuleCard("Logs", Icons.Default.History, onNavigateToReports) }
 
             item(span = { GridItemSpan(columns) }) {
@@ -385,9 +410,10 @@ private fun NeonAsciiPanel(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    val palette = dashboardPalette()
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = NeonPanel),
+        colors = CardDefaults.cardColors(containerColor = palette.panel),
         border = androidx.compose.foundation.BorderStroke(1.dp, accent.copy(alpha = 0.72f)),
         shape = MaterialTheme.shapes.extraSmall
     ) {
@@ -401,13 +427,13 @@ private fun NeonAsciiPanel(
                 maxLines = 1,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFF020402))
+                    .background(palette.background)
                     .padding(horizontal = 10.dp, vertical = 6.dp)
             )
             content()
             Text(
                 text = "+--------------------------------------------+",
-                color = NeonGrid,
+                color = palette.grid,
                 fontFamily = FontFamily.Monospace,
                 fontSize = 9.sp,
                 maxLines = 1,
@@ -419,19 +445,20 @@ private fun NeonAsciiPanel(
 
 @Composable
 private fun NeonSectionLabel(title: String, meta: String) {
+    val palette = dashboardPalette()
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = "+-- $title :: $meta --+",
             style = MaterialTheme.typography.labelSmall,
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Bold,
-            color = NeonCyan
+            color = palette.secondary
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
             text = ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>",
             fontFamily = FontFamily.Monospace,
-            color = NeonGrid,
+            color = palette.grid,
             fontSize = 9.sp,
             maxLines = 1
         )
@@ -440,23 +467,24 @@ private fun NeonSectionLabel(title: String, meta: String) {
 
 @Composable
 fun ToolCategoryHeader(title: String, count: Int, capabilities: String) {
+    val palette = dashboardPalette()
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF04120B)),
-        border = androidx.compose.foundation.BorderStroke(1.dp, NeonCyan.copy(alpha = 0.65f)),
+        colors = CardDefaults.cardColors(containerColor = palette.panel),
+        border = androidx.compose.foundation.BorderStroke(1.dp, palette.secondary.copy(alpha = 0.65f)),
         shape = MaterialTheme.shapes.extraSmall
     ) {
         Column(modifier = Modifier.padding(10.dp)) {
             Text(
                 text = "+-- ${title.uppercase()} [$count] --+",
-                color = NeonCyan,
+                color = palette.secondary,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
                 fontSize = 12.sp
             )
             Text(
                 text = capabilities,
-                color = NeonGreen.copy(alpha = 0.72f),
+                color = palette.accent.copy(alpha = 0.72f),
                 fontFamily = FontFamily.Monospace,
                 fontSize = 10.sp,
                 maxLines = 2
@@ -468,15 +496,16 @@ fun ToolCategoryHeader(title: String, count: Int, capabilities: String) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ToolHomeCard(tool: ToolCatalogItem, onClick: () -> Unit) {
+    val palette = dashboardPalette()
     val riskColor = when (tool.riskLevel) {
-        ToolRiskLevel.LOW -> NeonGreen
-        ToolRiskLevel.MEDIUM -> NeonYellow
-        ToolRiskLevel.HIGH -> NeonRed
+        ToolRiskLevel.LOW -> palette.accent
+        ToolRiskLevel.MEDIUM -> palette.warning
+        ToolRiskLevel.HIGH -> palette.danger
     }
     Card(
         onClick = onClick,
         modifier = Modifier.height(96.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF050806)),
+        colors = CardDefaults.cardColors(containerColor = palette.panel),
         border = androidx.compose.foundation.BorderStroke(1.dp, riskColor.copy(alpha = 0.55f)),
         shape = MaterialTheme.shapes.extraSmall
     ) {
@@ -488,7 +517,7 @@ fun ToolHomeCard(tool: ToolCatalogItem, onClick: () -> Unit) {
         ) {
             Text(
                 text = "[${tool.displayName.uppercase()}]",
-                color = Color.White,
+                color = palette.text,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,
                 fontSize = 11.sp,
@@ -496,7 +525,7 @@ fun ToolHomeCard(tool: ToolCatalogItem, onClick: () -> Unit) {
             )
             Text(
                 text = tool.tutorial.authorizedUse,
-                color = Color(0xFF9EA99F),
+                color = palette.muted,
                 fontFamily = FontFamily.Monospace,
                 fontSize = 9.sp,
                 lineHeight = 11.sp,
@@ -505,7 +534,7 @@ fun ToolHomeCard(tool: ToolCatalogItem, onClick: () -> Unit) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = "exec:${tool.executionMode.name}",
-                    color = NeonCyan,
+                    color = palette.secondary,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 9.sp,
                     modifier = Modifier.weight(1f)
@@ -561,14 +590,15 @@ private fun ToolCatalogItem.homeAction(
 }
 
 @Composable
-fun StatusItem(label: String, value: String, icon: ImageVector, color: Color = Color.Green) {
+fun StatusItem(label: String, value: String, icon: ImageVector, color: Color = MaterialTheme.colorScheme.primary) {
+    val palette = dashboardPalette()
     Row(
         modifier = Modifier.padding(vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(icon, contentDescription = null, modifier = Modifier.size(14.dp), tint = color)
         Spacer(modifier = Modifier.width(8.dp))
-        Text(text = "| $label: ", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, color = Color.Gray)
+        Text(text = "| $label: ", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace, color = palette.muted)
         Text(text = value, color = color, style = MaterialTheme.typography.bodySmall, fontFamily = FontFamily.Monospace)
     }
 }
@@ -579,12 +609,13 @@ fun ModuleCard(
     name: String, 
     icon: ImageVector, 
     onClick: () -> Unit,
-    accentColor: Color = Color.White
+    accentColor: Color = MaterialTheme.colorScheme.onSurface
 ) {
+    val palette = dashboardPalette()
     Card(
         onClick = onClick,
         modifier = Modifier.height(88.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF060A07)),
+        colors = CardDefaults.cardColors(containerColor = palette.panel),
         border = androidx.compose.foundation.BorderStroke(1.dp, accentColor.copy(alpha = 0.68f)),
         shape = MaterialTheme.shapes.extraSmall
     ) {
@@ -601,11 +632,11 @@ fun ModuleCard(
                 fontWeight = FontWeight.Bold, 
                 style = MaterialTheme.typography.labelSmall,
                 fontFamily = FontFamily.Monospace,
-                color = Color.White,
+                color = palette.text,
                 maxLines = 1,
                 textAlign = TextAlign.Center
             )
-            Text("+-run-+", color = NeonGrid, fontFamily = FontFamily.Monospace, fontSize = 8.sp, maxLines = 1)
+            Text("+-run-+", color = palette.grid, fontFamily = FontFamily.Monospace, fontSize = 8.sp, maxLines = 1)
         }
     }
 }
