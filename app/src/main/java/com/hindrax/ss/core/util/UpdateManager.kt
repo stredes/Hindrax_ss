@@ -99,49 +99,7 @@ class UpdateManager @Inject constructor(
     }
 
     private fun updateInfoFromRelease(release: JSONObject, currentVersion: String): UpdateInfo? {
-        if (release.optBoolean("draft", false) || release.optBoolean("prerelease", false)) return null
-
-        val latestTagRaw = release.optString("tag_name")
-        val latestVersion = normalizeVersion(latestTagRaw)
-        if (!isNewerVersion(currentVersion, latestVersion)) return null
-
-        val apkAsset = bestApkAsset(release, latestTagRaw) ?: return null
-        val downloadUrl = apkAsset.optString("browser_download_url").takeIf { it.isNotBlank() } ?: return null
-
-        return UpdateInfo(
-            version = latestVersion,
-            url = downloadUrl,
-            releaseName = release.optString("name", "Release v$latestVersion"),
-            releasePageUrl = release.optString("html_url"),
-            publishedAt = release.optString("published_at"),
-            assetName = apkAsset.optString("name", "hindrax-v$latestVersion.apk")
-        )
-    }
-
-    private fun bestApkAsset(release: JSONObject, tagName: String): JSONObject? {
-        val assets = release.optJSONArray("assets") ?: return null
-        var bestAsset: JSONObject? = null
-        var bestScore = Int.MIN_VALUE
-        val normalizedTag = tagName.ifBlank { "v${normalizeVersion(release.optString("tag_name"))}" }
-
-        for (i in 0 until assets.length()) {
-            val asset = assets.getJSONObject(i)
-            val name = asset.optString("name")
-            if (!name.endsWith(".apk", ignoreCase = true)) continue
-
-            var score = 10
-            if (name.contains("hindrax", ignoreCase = true)) score += 20
-            if (name.contains(normalizedTag, ignoreCase = true)) score += 20
-            if (!name.contains("debug", ignoreCase = true)) score += 10
-            if (name.equals("hindrax-$normalizedTag.apk", ignoreCase = true)) score += 30
-
-            if (score > bestScore) {
-                bestScore = score
-                bestAsset = asset
-            }
-        }
-
-        return bestAsset
+        return GithubReleaseUpdateParser.updateInfoFromRelease(release, currentVersion, githubRepo)
     }
 
     private fun checkForUpdatesFromGithubWeb(currentVersion: String, reason: String): UpdateResult {
@@ -422,6 +380,82 @@ class UpdateManager @Inject constructor(
         const val KEY_RELEASE_PAGE = "release_page_url"
         const val KEY_PUBLISHED_AT = "published_at"
         const val KEY_ASSET_NAME = "asset_name"
+    }
+}
+
+internal object GithubReleaseUpdateParser {
+    fun updateInfoFromRelease(release: JSONObject, currentVersion: String, githubRepo: String): UpdateInfo? {
+        if (release.optBoolean("draft", false) || release.optBoolean("prerelease", false)) return null
+
+        val latestTagRaw = release.optString("tag_name")
+        val latestVersion = normalizeVersion(latestTagRaw)
+        if (!isNewerVersion(currentVersion, latestVersion)) return null
+
+        val normalizedTag = latestTagRaw
+            .takeIf { it.isNotBlank() }
+            ?: "v$latestVersion"
+        val fallbackAssetName = "hindrax-$normalizedTag.apk"
+        val apkAsset = bestApkAsset(release, normalizedTag)
+        val assetName = apkAsset?.optString("name")?.takeIf { it.isNotBlank() } ?: fallbackAssetName
+        val downloadUrl = apkAsset
+            ?.optString("browser_download_url")
+            ?.takeIf { it.isNotBlank() }
+            ?: "https://github.com/$githubRepo/releases/download/$normalizedTag/$fallbackAssetName"
+
+        return UpdateInfo(
+            version = latestVersion,
+            url = downloadUrl,
+            releaseName = release.optString("name", "Release v$latestVersion"),
+            releasePageUrl = release.optString("html_url", "https://github.com/$githubRepo/releases/tag/$normalizedTag"),
+            publishedAt = release.optString("published_at"),
+            assetName = assetName
+        )
+    }
+
+    private fun bestApkAsset(release: JSONObject, normalizedTag: String): JSONObject? {
+        val assets = release.optJSONArray("assets") ?: return null
+        var bestAsset: JSONObject? = null
+        var bestScore = Int.MIN_VALUE
+
+        for (i in 0 until assets.length()) {
+            val asset = assets.getJSONObject(i)
+            val name = asset.optString("name")
+            if (!name.endsWith(".apk", ignoreCase = true)) continue
+
+            var score = 10
+            if (name.contains("hindrax", ignoreCase = true)) score += 20
+            if (name.contains(normalizedTag, ignoreCase = true)) score += 20
+            if (!name.contains("debug", ignoreCase = true)) score += 10
+            if (name.equals("hindrax-$normalizedTag.apk", ignoreCase = true)) score += 30
+
+            if (score > bestScore) {
+                bestScore = score
+                bestAsset = asset
+            }
+        }
+
+        return bestAsset
+    }
+
+    private fun isNewerVersion(current: String, latest: String): Boolean {
+        val currParts = normalizeVersion(current).split(".").map { it.toIntOrNull() ?: 0 }
+        val lateParts = normalizeVersion(latest).split(".").map { it.toIntOrNull() ?: 0 }
+        for (i in 0 until maxOf(currParts.size, lateParts.size)) {
+            val c = currParts.getOrElse(i) { 0 }
+            val l = lateParts.getOrElse(i) { 0 }
+            if (l > c) return true
+            if (c > l) return false
+        }
+        return false
+    }
+
+    private fun normalizeVersion(value: String): String {
+        return value.trim()
+            .removePrefix("v")
+            .removePrefix("V")
+            .substringBefore("-")
+            .filter { it.isDigit() || it == '.' }
+            .ifBlank { "0" }
     }
 }
 
