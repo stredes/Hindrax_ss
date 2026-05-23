@@ -15,6 +15,9 @@ interface ChatDao {
     @Query("SELECT * FROM peers WHERE id = :id LIMIT 1")
     suspend fun getPeerById(id: String): PeerEntity?
 
+    @Query("DELETE FROM peers WHERE id = :id")
+    suspend fun deletePeerById(id: String)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPeer(peer: PeerEntity)
 
@@ -41,6 +44,9 @@ interface ChatDao {
 
     @Insert
     suspend fun insertMessage(message: ChatMessageEntity): Long
+
+    @Query("UPDATE chat_messages SET peerId = :newPeerId WHERE peerId = :oldPeerId")
+    suspend fun migrateMessages(oldPeerId: String, newPeerId: String)
 
     @Query("DELETE FROM chat_messages WHERE peerId = :peerId")
     suspend fun deleteMessagesWithPeer(peerId: String)

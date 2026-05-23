@@ -19,6 +19,8 @@ import com.hindrax.ss.data.entity.ChatMessageEntity
 import com.hindrax.ss.data.entity.InventoryEntity
 import com.hindrax.ss.data.entity.PeerEntity
 import com.hindrax.ss.data.entity.TaskEntity
+import com.hindrax.ss.domain.devices.KnownPeerIdentity
+import com.hindrax.ss.domain.devices.PeerIdentityResolver
 import com.hindrax.ss.domain.inventory.InventorySyncItem
 import com.hindrax.ss.domain.inventory.InventorySyncResolver
 import com.hindrax.ss.domain.profile.HindraxProfileCodec
@@ -72,6 +74,13 @@ class ChatRepository @Inject constructor(
     fun observeMessages(peerId: String): Flow<List<ChatMessageEntity>> = chatDao.observeMessages(peerId)
     suspend fun getAllPeers(): List<PeerEntity> = chatDao.getAllPeersSync()
     suspend fun getPeerById(id: String): PeerEntity? = chatDao.getPeerById(id)
+    suspend fun deletePeer(peerId: String, deleteMessages: Boolean = false) {
+        if (deleteMessages) {
+            chatDao.deleteMessagesWithPeer(peerId)
+        }
+        chatDao.deletePeerById(peerId)
+    }
+
     suspend fun updatePeerNickname(peerId: String, nickname: String?) {
         val normalized = nickname?.trim()?.takeIf { it.isNotBlank() }
         chatDao.updatePeerNickname(peerId, normalized)
@@ -454,10 +463,26 @@ class ChatRepository @Inject constructor(
         if (!deviceId.startsWith("HNDX-")) return
         val existing = chatDao.getPeerById(deviceId)
         val normalizedNickname = nickname?.trim()?.takeIf { it.isNotBlank() }
+        val reusableIdentity = if (existing == null) {
+            PeerIdentityResolver.findReusableIdentity(
+                deviceId = deviceId,
+                address = ip,
+                knownPeers = chatDao.getAllPeersSync().map { peer ->
+                    KnownPeerIdentity(
+                        id = peer.id,
+                        nickname = peer.nickname,
+                        lastKnownAddress = peer.lastKnownIp
+                    )
+                }
+            )
+        } else {
+            null
+        }
+        val inheritedNickname = reusableIdentity?.nickname
         val peer = PeerEntity(
             id = deviceId,
             name = existing?.name ?: "Node_${deviceId.takeLast(4)}",
-            nickname = existing?.nickname ?: normalizedNickname,
+            nickname = existing?.nickname ?: normalizedNickname ?: inheritedNickname,
             lastKnownIp = ip,
             lastSeen = System.currentTimeMillis(),
             isOnline = true,
@@ -466,9 +491,14 @@ class ChatRepository @Inject constructor(
             locationAccuracy = existing?.locationAccuracy,
             locationUpdatedAt = existing?.locationUpdatedAt
         )
+        if (reusableIdentity != null) {
+            chatDao.migrateMessages(reusableIdentity.previousId, deviceId)
+            chatDao.deletePeerById(reusableIdentity.previousId)
+        }
         chatDao.insertPeer(peer)
         if (existing == null) {
-            notificationCenter.notifyPairing(peer.displayName, "IP: $ip")
+            val detail = reusableIdentity?.let { "HASH_UPDATED: ${it.previousId} -> $deviceId" } ?: "IP: $ip"
+            notificationCenter.notifyPairing(peer.displayName, detail)
         }
     }
 

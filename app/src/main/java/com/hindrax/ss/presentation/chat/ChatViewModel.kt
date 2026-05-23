@@ -73,6 +73,19 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    fun deletePeer(peer: PeerEntity, deleteMessages: Boolean = false) {
+        viewModelScope.launch {
+            repository.deletePeer(peer.id, deleteMessages)
+            _uiState.update { state ->
+                if (state.selectedPeer?.id == peer.id) {
+                    state.copy(selectedPeer = null, messages = emptyList(), nicknameDraft = "")
+                } else {
+                    state
+                }
+            }
+        }
+    }
+
     fun sendMessage() {
         val state = _uiState.value
         val peerId = state.selectedPeer?.id ?: return

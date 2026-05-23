@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -87,12 +88,21 @@ fun ChatScreen(
                 .background(Color(0xFF050505))
         ) {
             if (uiState.selectedPeer == null) {
-                PeerList(uiState.peers, scrollBehavior) { viewModel.selectPeer(it) }
+                PeerList(
+                    peers = uiState.peers,
+                    scrollBehavior = scrollBehavior,
+                    onPeerClick = { viewModel.selectPeer(it) },
+                    onDeletePeer = { viewModel.deletePeer(it, deleteMessages = false) }
+                )
             } else {
                 ChatWindow(
+                    peer = uiState.selectedPeer!!,
                     messages = uiState.messages,
                     currentMessage = uiState.currentMessage,
+                    nicknameDraft = uiState.nicknameDraft,
                     onMessageChange = viewModel::onMessageChange,
+                    onNicknameChange = viewModel::onNicknameChange,
+                    onSaveNickname = viewModel::saveNickname,
                     onSend = viewModel::sendMessage,
                     scrollBehavior = scrollBehavior
                 )
@@ -105,7 +115,8 @@ fun ChatScreen(
 fun PeerList(
     peers: List<PeerEntity>,
     scrollBehavior: TopAppBarScrollBehavior,
-    onPeerClick: (PeerEntity) -> Unit
+    onPeerClick: (PeerEntity) -> Unit,
+    onDeletePeer: (PeerEntity) -> Unit
 ) {
     LazyColumn(modifier = Modifier.fillMaxSize()) {
         item {
@@ -125,23 +136,62 @@ fun PeerList(
             }
         } else {
             items(peers) { peer ->
+                var confirmDelete by remember(peer.id) { mutableStateOf(false) }
                 ListItem(
-                    headlineContent = { Text(peer.id, color = Color.White, fontFamily = FontFamily.Monospace) },
+                    headlineContent = {
+                        Text(peer.displayName, color = Color.White, fontFamily = FontFamily.Monospace)
+                    },
                     supportingContent = {
-                        Text("LAST_IP: ${peer.lastKnownIp}", color = Color.Gray, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+                        Column {
+                            Text("HASH: ${peer.id}", color = Color.Gray, fontFamily = FontFamily.Monospace, fontSize = 9.sp)
+                            Text("LAST_ADDR: ${peer.lastKnownIp}", color = Color.Gray, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+                        }
                     },
                     trailingContent = {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .background(if (peer.isOnline) Color.Green else Color.Red)
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .background(if (peer.isOnline) Color.Green else Color.Red)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            IconButton(onClick = { confirmDelete = true }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Delete Device", tint = Color.Red)
+                            }
+                        }
                     },
                     modifier = Modifier
                         .clickable { onPeerClick(peer) }
                         .background(Color(0xFF0A0A0A)),
                     colors = ListItemDefaults.colors(containerColor = Color.Transparent)
                 )
+                if (confirmDelete) {
+                    AlertDialog(
+                        onDismissRequest = { confirmDelete = false },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                confirmDelete = false
+                                onDeletePeer(peer)
+                            }) {
+                                Text("DELETE", color = Color.Red, fontFamily = FontFamily.Monospace)
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { confirmDelete = false }) {
+                                Text("CANCEL", fontFamily = FontFamily.Monospace)
+                            }
+                        },
+                        title = {
+                            Text("DELETE_DEVICE", fontFamily = FontFamily.Monospace)
+                        },
+                        text = {
+                            Text(
+                                "Remove ${peer.displayName} from linked devices. Messages are kept unless the database is cleaned manually.",
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    )
+                }
                 HorizontalDivider(color = Color.DarkGray, thickness = 0.5.dp)
             }
         }
@@ -150,15 +200,25 @@ fun PeerList(
 
 @Composable
 fun ChatWindow(
+    peer: PeerEntity,
     messages: List<ChatMessageEntity>,
     currentMessage: String,
+    nicknameDraft: String,
     onMessageChange: (String) -> Unit,
+    onNicknameChange: (String) -> Unit,
+    onSaveNickname: () -> Unit,
     onSend: () -> Unit,
     scrollBehavior: TopAppBarScrollBehavior
 ) {
     val dateFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
 
     Column(modifier = Modifier.fillMaxSize()) {
+        DeviceIdentityEditor(
+            peer = peer,
+            nicknameDraft = nicknameDraft,
+            onNicknameChange = onNicknameChange,
+            onSaveNickname = onSaveNickname
+        )
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
@@ -221,6 +281,64 @@ fun ChatWindow(
                     contentDescription = "Send",
                     tint = Color.Green
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeviceIdentityEditor(
+    peer: PeerEntity,
+    nicknameDraft: String,
+    onNicknameChange: (String) -> Unit,
+    onSaveNickname: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFF090909))
+            .padding(12.dp)
+    ) {
+        Text(
+            text = "LINKED_DEVICE: ${peer.displayName}",
+            color = Color.Cyan,
+            fontFamily = FontFamily.Monospace,
+            fontSize = 11.sp
+        )
+        Text(
+            text = "HASH: ${peer.id}  |  LAST_ADDR: ${peer.lastKnownIp}",
+            color = Color.Gray,
+            fontFamily = FontFamily.Monospace,
+            fontSize = 9.sp,
+            modifier = Modifier.padding(top = 2.dp)
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = nicknameDraft,
+                onValueChange = onNicknameChange,
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                label = { Text("DEVICE_NAME", fontFamily = FontFamily.Monospace, fontSize = 10.sp) },
+                textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = Color.Green, fontSize = 12.sp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = Color.DarkGray,
+                    focusedBorderColor = Color.Green
+                ),
+                shape = MaterialTheme.shapes.extraSmall
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Button(
+                onClick = onSaveNickname,
+                shape = MaterialTheme.shapes.extraSmall,
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Green, contentColor = Color.Black),
+                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
+            ) {
+                Text("SAVE", fontFamily = FontFamily.Monospace, fontSize = 10.sp)
             }
         }
     }
