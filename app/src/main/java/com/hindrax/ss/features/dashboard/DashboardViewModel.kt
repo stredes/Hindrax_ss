@@ -92,7 +92,9 @@ class DashboardViewModel @Inject constructor(
     fun installUpdate() {
         val info = _uiState.value.updateInfo ?: return
         _uiState.value = _uiState.value.copy(updateStatus = "DOWNLOADING_UPDATE")
-        updateManager.downloadAndInstall(info)
+        updateManager.downloadAndInstall(info) { status ->
+            _uiState.value = _uiState.value.copy(updateStatus = status)
+        }
     }
 
     private fun getLocalIpAddress(): String? {

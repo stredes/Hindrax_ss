@@ -29,6 +29,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.hindrax.ss.data.entity.PeerEntity
 import com.hindrax.ss.domain.tasks.model.EventScheduleFormatter
 import com.hindrax.ss.domain.tasks.model.InventoryItem
+import com.hindrax.ss.domain.tasks.model.ShoppingChecklistSelector
 import com.hindrax.ss.domain.tasks.model.TaskStatus
 import com.hindrax.ss.domain.tasks.model.TaskType
 import java.util.Calendar
@@ -317,46 +318,137 @@ fun ChecklistEditor(
     var newItemText by remember { mutableStateOf("") }
     var newItemQty by remember { mutableStateOf("") }
     var newItemUnit by remember { mutableStateOf("unid") }
+    var inventoryAccordionOpen by remember { mutableStateOf(false) }
+    var selectedInventoryItem by remember(inventoryItems) { mutableStateOf<InventoryItem?>(null) }
+    var selectedInventoryQty by remember { mutableStateOf("") }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (inventoryItems.isNotEmpty()) {
-            Text(
-                text = "--- INVENTORY_RESOURCES ---",
-                color = Color.Yellow,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 11.sp
-            )
-            inventoryItems.forEach { inventory ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color(0xFF0B0B0B), MaterialTheme.shapes.extraSmall)
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = inventory.name.uppercase(),
-                            color = Color.White,
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 13.sp
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0F0F0F)),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (selectedInventoryItem != null) Color.Green else Color.DarkGray
+                ),
+                shape = MaterialTheme.shapes.extraSmall
+            ) {
+                Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "INVENTORY_RESOURCE",
+                                color = Color.Yellow,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 10.sp
+                            )
+                            Text(
+                                text = selectedInventoryItem?.let { "${it.name.uppercase()} :: ${it.currentQuantity} ${it.unit}" }
+                                    ?: "[ SELECT_PRODUCT_FROM_INVENTORY ]",
+                                color = if (selectedInventoryItem != null) Color.White else Color.Gray,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 12.sp
+                            )
+                        }
+                        IconButton(onClick = { inventoryAccordionOpen = !inventoryAccordionOpen }) {
+                            Icon(
+                                imageVector = if (inventoryAccordionOpen) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                                contentDescription = "Toggle inventory accordion",
+                                tint = Color.Cyan
+                            )
+                        }
+                    }
+
+                    if (inventoryAccordionOpen) {
+                        inventoryItems.forEach { inventory ->
+                            OutlinedButton(
+                                onClick = {
+                                    selectedInventoryItem = inventory
+                                    selectedInventoryQty = ""
+                                    inventoryAccordionOpen = false
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = MaterialTheme.shapes.extraSmall,
+                                colors = ButtonDefaults.outlinedButtonColors(
+                                    contentColor = if (selectedInventoryItem?.id == inventory.id) Color.Green else Color.White
+                                )
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = inventory.name.uppercase(),
+                                            fontFamily = FontFamily.Monospace,
+                                            fontSize = 12.sp
+                                        )
+                                        Text(
+                                            text = "STOCK: ${inventory.currentQuantity} ${inventory.unit}",
+                                            color = Color.Cyan,
+                                            fontFamily = FontFamily.Monospace,
+                                            fontSize = 10.sp
+                                        )
+                                    }
+                                    if (selectedInventoryItem?.id == inventory.id) {
+                                        Icon(Icons.Default.Check, contentDescription = null, tint = Color.Green)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = selectedInventoryQty,
+                            onValueChange = { selectedInventoryQty = it },
+                            modifier = Modifier.weight(1f),
+                            enabled = selectedInventoryItem != null,
+                            label = { Text("QTY_SELECTED", fontSize = 10.sp, fontFamily = FontFamily.Monospace) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            singleLine = true,
+                            textStyle = LocalTextStyle.current.copy(
+                                fontFamily = FontFamily.Monospace,
+                                color = Color.White,
+                                fontSize = 14.sp
+                            ),
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color.Cyan),
+                            shape = MaterialTheme.shapes.extraSmall
                         )
                         Text(
-                            text = "STOCK: ${inventory.currentQuantity} ${inventory.unit}",
+                            text = selectedInventoryItem?.unit ?: "unit",
                             color = Color.Cyan,
                             fontFamily = FontFamily.Monospace,
-                            fontSize = 10.sp
+                            fontSize = 11.sp,
+                            modifier = Modifier.widthIn(min = 42.dp)
                         )
-                    }
-                    IconButton(
-                        onClick = { onAddItem(inventory.name, 1.0, inventory.unit) },
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.AddCircle,
-                            contentDescription = "Add inventory item",
-                            tint = Color.Green
-                        )
+                        IconButton(
+                            onClick = {
+                                val inventory = selectedInventoryItem ?: return@IconButton
+                                val quantity = ShoppingChecklistSelector.parseQuantity(selectedInventoryQty) ?: return@IconButton
+                                onAddItem(inventory.name, quantity, inventory.unit)
+                                selectedInventoryItem = null
+                                selectedInventoryQty = ""
+                            },
+                            enabled = selectedInventoryItem != null &&
+                                ShoppingChecklistSelector.parseQuantity(selectedInventoryQty) != null,
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.AddCircle,
+                                contentDescription = "Add selected inventory item",
+                                tint = if (
+                                    selectedInventoryItem != null &&
+                                    ShoppingChecklistSelector.parseQuantity(selectedInventoryQty) != null
+                                ) Color.Green else Color.DarkGray
+                            )
+                        }
                     }
                 }
             }

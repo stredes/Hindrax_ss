@@ -380,6 +380,7 @@ class NetworkDiscoveryViewModel @Inject constructor(
                 chatRepository.addManualPeer(hash!!, ip ?: device.macAddress ?: "0.0.0.0", nickname)
                 markPairedReady(hash!!, nickname)
                 _uiState.update { it.copy(logs = it.logs + "[LINKED] ${nickname ?: hash} listo para tareas+inventario.\n") }
+                syncFamilyData(hash!!)
                 withContext(Dispatchers.Main) { onConnected() }
             } else {
                 device.deviceHash?.let { markSyncState(it, NodeSyncState.ERROR) }

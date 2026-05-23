@@ -68,6 +68,15 @@ data class InventoryItem(
     val updatedAt: Long
 )
 
+object ShoppingChecklistSelector {
+    fun parseQuantity(value: String): Double? {
+        return value.trim()
+            .replace(",", ".")
+            .toDoubleOrNull()
+            ?.takeIf { it > 0.0 }
+    }
+}
+
 object EventScheduleFormatter {
     fun format(timestamp: Long?, timeZone: TimeZone = TimeZone.getDefault()): String {
         if (timestamp == null) return "EVENT_DATE_PENDING"

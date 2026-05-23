@@ -24,6 +24,7 @@ import com.hindrax.ss.domain.devices.PeerIdentityResolver
 import com.hindrax.ss.domain.inventory.InventorySyncItem
 import com.hindrax.ss.domain.inventory.InventorySyncResolver
 import com.hindrax.ss.domain.profile.HindraxProfileCodec
+import com.hindrax.ss.domain.sync.AutoSyncPolicy
 import com.hindrax.ss.domain.tasks.model.ChecklistItem
 import com.hindrax.ss.domain.tasks.model.TaskStatus
 import com.hindrax.ss.domain.tasks.model.TaskType
@@ -89,6 +90,7 @@ class ChatRepository @Inject constructor(
     init {
         acquireMulticastLock()
         scope.launch { startServer() }
+        scope.launch { startAutomaticFamilySync() }
     }
 
     private fun acquireMulticastLock() {
@@ -329,6 +331,24 @@ class ChatRepository @Inject constructor(
         peers.forEach { peer -> syncAllWithPeer(peer.id) }
     }
 
+    private suspend fun startAutomaticFamilySync() {
+        delay(AutoSyncPolicy.REFRESH_INTERVAL_MILLIS)
+        while (scope.isActive) {
+            runCatching {
+                syncAllDevicesSilently()
+            }.onFailure { it.printStackTrace() }
+            delay(AutoSyncPolicy.REFRESH_INTERVAL_MILLIS)
+        }
+    }
+
+    private suspend fun syncAllDevicesSilently() {
+        val peers = chatDao.getAllPeersSync()
+        peers.forEach { peer ->
+            syncTasksWithPeer(peer.id, recordMessages = false)
+            syncInventoryWithPeer(peer.id, recordMessages = false)
+        }
+    }
+
     suspend fun shareMyLocation(peerId: String): Result<Unit> = runCatching {
         val peer = chatDao.getPeerById(peerId) ?: error("Peer not found")
         val location = getOwnLocation()
@@ -384,7 +404,17 @@ class ChatRepository @Inject constructor(
         peers.forEach { p -> shareInventoryItem(p.id, item) }
     }
 
-    suspend fun shareTask(peerId: String, task: TaskEntity) {
+    private suspend fun syncTasksWithPeer(peerId: String, recordMessages: Boolean) {
+        val tasks = taskDao.getAllTasksSync()
+        tasks.forEach { shareTask(peerId, it, recordMessage = recordMessages) }
+    }
+
+    private suspend fun syncInventoryWithPeer(peerId: String, recordMessages: Boolean) {
+        val inventory = inventoryDao.getAllInventorySync()
+        inventory.forEach { shareInventoryItem(peerId, it, recordMessage = recordMessages) }
+    }
+
+    suspend fun shareTask(peerId: String, task: TaskEntity, recordMessage: Boolean = true) {
         val peer = chatDao.getPeerById(peerId) ?: return
         
         val taskJson = JSONObject().apply {
@@ -414,16 +444,18 @@ class ChatRepository @Inject constructor(
         }
 
         sendToPeer(peer, "TASK", taskJson.toString())
-        
-        chatDao.insertMessage(ChatMessageEntity(
-            peerId = peerId,
-            message = "📤 MISSION_SYNCED: ${task.title}",
-            timestamp = System.currentTimeMillis(),
-            isFromMe = true
-        ))
+
+        if (recordMessage) {
+            chatDao.insertMessage(ChatMessageEntity(
+                peerId = peerId,
+                message = "📤 MISSION_SYNCED: ${task.title}",
+                timestamp = System.currentTimeMillis(),
+                isFromMe = true
+            ))
+        }
     }
 
-    suspend fun shareInventoryItem(peerId: String, item: InventoryEntity) {
+    suspend fun shareInventoryItem(peerId: String, item: InventoryEntity, recordMessage: Boolean = true) {
         val peer = chatDao.getPeerById(peerId) ?: return
         
         val json = JSONObject().apply {
@@ -437,12 +469,14 @@ class ChatRepository @Inject constructor(
 
         sendToPeer(peer, "INVENTORY", json.toString())
 
-        chatDao.insertMessage(ChatMessageEntity(
-            peerId = peerId,
-            message = "📤 INVENTORY_SHARED: ${item.name}",
-            timestamp = System.currentTimeMillis(),
-            isFromMe = true
-        ))
+        if (recordMessage) {
+            chatDao.insertMessage(ChatMessageEntity(
+                peerId = peerId,
+                message = "📤 INVENTORY_SHARED: ${item.name}",
+                timestamp = System.currentTimeMillis(),
+                isFromMe = true
+            ))
+        }
     }
 
     private fun sendToPeer(peer: PeerEntity, header: String, content: String) {

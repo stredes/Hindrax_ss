@@ -5,6 +5,9 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageInfo
+import android.content.pm.PackageManager
+import android.content.pm.Signature
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -17,6 +20,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
 import java.io.File
+import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -249,7 +253,7 @@ class UpdateManager @Inject constructor(
             .ifBlank { "0" }
     }
 
-    fun downloadAndInstall(info: UpdateInfo) {
+    fun downloadAndInstall(info: UpdateInfo, onStatus: (String) -> Unit = {}) {
         val destination = File(
             context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS),
             info.assetName.ifBlank { "hindrax-update-v${info.version}.apk" }
@@ -267,13 +271,21 @@ class UpdateManager @Inject constructor(
 
         val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
         val downloadId = downloadManager.enqueue(request)
+        onStatus("DOWNLOAD_QUEUED: ${info.assetName}")
 
         context.registerReceiver(object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 val id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1)
                 if (id == downloadId) {
                     if (isDownloadSuccessful(downloadManager, downloadId) && destination.exists()) {
-                        installApk(destination)
+                        val preflight = validateDownloadedApk(destination)
+                        if (preflight != "APK_PREFLIGHT_OK") {
+                            onStatus(preflight)
+                        } else {
+                            onStatus(installApk(destination))
+                        }
+                    } else {
+                        onStatus(downloadFailureStatus(downloadManager, downloadId))
                     }
                     context.unregisterReceiver(this)
                 }
@@ -289,6 +301,17 @@ class UpdateManager @Inject constructor(
         }
     }
 
+    private fun downloadFailureStatus(downloadManager: DownloadManager, downloadId: Long): String {
+        return downloadManager.query(DownloadManager.Query().setFilterById(downloadId)).use { cursor ->
+            if (cursor != null && cursor.moveToFirst()) {
+                val reason = cursor.getInt(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_REASON))
+                "DOWNLOAD_FAILED_REASON_$reason"
+            } else {
+                "DOWNLOAD_FAILED_NO_CURSOR"
+            }
+        }
+    }
+
     private fun receiverFlag(): Int {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             Context.RECEIVER_EXPORTED
@@ -297,7 +320,76 @@ class UpdateManager @Inject constructor(
         }
     }
 
-    private fun installApk(file: File) {
+    private fun validateDownloadedApk(file: File): String {
+        val archiveInfo = archivePackageInfo(file)
+            ?: return "APK_PREFLIGHT_ERROR: PACKAGE_INFO_UNREADABLE"
+        if (archiveInfo.packageName != context.packageName) {
+            return "APK_PREFLIGHT_ERROR: PACKAGE_MISMATCH ${archiveInfo.packageName} != ${context.packageName}"
+        }
+
+        val installedInfo = packageInfo(context.packageName)
+            ?: return "APK_PREFLIGHT_ERROR: INSTALLED_PACKAGE_UNREADABLE"
+        if (versionCodeOf(archiveInfo) <= versionCodeOf(installedInfo)) {
+            return "APK_PREFLIGHT_ERROR: VERSION_NOT_NEWER apk=${versionCodeOf(archiveInfo)} installed=${versionCodeOf(installedInfo)}"
+        }
+
+        val installedDigests = signatureDigests(installedInfo)
+        val archiveDigests = signatureDigests(archiveInfo)
+        if (installedDigests.isNotEmpty() && archiveDigests.isNotEmpty() && installedDigests != archiveDigests) {
+            return "APK_PREFLIGHT_ERROR: SIGNATURE_MISMATCH uninstall_debug_build_then_install_release"
+        }
+
+        return "APK_PREFLIGHT_OK"
+    }
+
+    private fun archivePackageInfo(file: File): PackageInfo? {
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            PackageManager.GET_SIGNING_CERTIFICATES
+        } else {
+            @Suppress("DEPRECATION")
+            PackageManager.GET_SIGNATURES
+        }
+        return context.packageManager.getPackageArchiveInfo(file.absolutePath, flags)
+    }
+
+    private fun packageInfo(packageName: String): PackageInfo? {
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            PackageManager.GET_SIGNING_CERTIFICATES
+        } else {
+            @Suppress("DEPRECATION")
+            PackageManager.GET_SIGNATURES
+        }
+        return runCatching {
+            @Suppress("DEPRECATION")
+            context.packageManager.getPackageInfo(packageName, flags)
+        }.getOrNull()
+    }
+
+    private fun versionCodeOf(info: PackageInfo): Long {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            info.longVersionCode
+        } else {
+            @Suppress("DEPRECATION")
+            info.versionCode.toLong()
+        }
+    }
+
+    private fun signatureDigests(info: PackageInfo): Set<String> {
+        val signatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            info.signingInfo?.apkContentsSigners.orEmpty()
+        } else {
+            @Suppress("DEPRECATION")
+            info.signatures.orEmpty()
+        }
+        return signatures.map(::signatureDigest).toSet()
+    }
+
+    private fun signatureDigest(signature: Signature): String {
+        val digest = MessageDigest.getInstance("SHA-256").digest(signature.toByteArray())
+        return digest.joinToString("") { "%02x".format(it) }
+    }
+
+    private fun installApk(file: File): String {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
             !context.packageManager.canRequestPackageInstalls()
         ) {
@@ -308,7 +400,7 @@ class UpdateManager @Inject constructor(
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             context.startActivity(settingsIntent)
-            return
+            return "INSTALL_PERMISSION_REQUIRED: enable_unknown_sources_for_hindrax_and_retry"
         }
 
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
@@ -320,6 +412,7 @@ class UpdateManager @Inject constructor(
             putExtra(Intent.EXTRA_NOT_UNKNOWN_SOURCE, true)
         }
         context.startActivity(intent)
+        return "INSTALLER_LAUNCHED"
     }
 
     private companion object {
