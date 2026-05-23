@@ -324,6 +324,16 @@ fun DashboardScreen(
                         Column(modifier = Modifier.padding(12.dp)) {
                             StatusItem(label = "NET_ADDR", value = uiState.localIp, icon = Icons.Default.Info)
                             StatusItem(
+                                label = "API_HINDRAX",
+                                value = uiState.apiHindraxStatus,
+                                icon = Icons.Default.CloudSync,
+                                color = when (uiState.apiHindraxStatus) {
+                                    "ONLINE" -> palette.accent
+                                    "CONFIG_PENDING" -> palette.warning
+                                    else -> palette.muted
+                                }
+                            )
+                            StatusItem(
                                 label = "TERMUX",
                                 value = if (uiState.isTermuxInstalled) "READY" else "OFFLINE",
                                 icon = Icons.Default.Terminal,

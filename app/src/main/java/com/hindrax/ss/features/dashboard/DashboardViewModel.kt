@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.hindrax.ss.core.util.UpdateInfo
 import com.hindrax.ss.core.util.UpdateManager
 import com.hindrax.ss.core.util.UpdateResult
+import com.hindrax.ss.data.remote.ApiHindraxConfigStore
+import com.hindrax.ss.domain.sync.ApiHindraxStatusLabel
 import com.hindrax.ss.termux.TermuxBridge
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,12 +26,15 @@ data class DashboardUiState(
     val newVersion: String? = null,
     val updateInfo: UpdateInfo? = null,
     val updateStatus: String = "UPDATE_IDLE",
-    val isCheckingUpdates: Boolean = false
+    val isCheckingUpdates: Boolean = false,
+    val apiHindraxStatus: String = "DISABLED",
+    val isApiHindraxOnline: Boolean = false
 )
 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
-    private val updateManager: UpdateManager
+    private val updateManager: UpdateManager,
+    private val apiHindraxConfigStore: ApiHindraxConfigStore
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
@@ -38,10 +43,18 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch {
             val ip = getLocalIpAddress() ?: "Disconnected"
             val termux = TermuxBridge.isTermuxInstalled(context)
+            val apiConfig = apiHindraxConfigStore.load()
+            val apiStatus = ApiHindraxStatusLabel.status(
+                enabled = apiConfig.enabled,
+                baseUrl = apiConfig.baseUrl,
+                token = apiConfig.token
+            )
             
             _uiState.value = _uiState.value.copy(
                 localIp = ip,
-                isTermuxInstalled = termux
+                isTermuxInstalled = termux,
+                apiHindraxStatus = apiStatus,
+                isApiHindraxOnline = apiStatus == "ONLINE"
             )
 
             updateManager.getCachedUpdate(currentVersion)?.let { cached ->
