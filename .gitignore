@@ -19,3 +19,7 @@ github.token
 # Local secrets
 github.token
 app/src/main/new.toml
+keystore/
+*.jks
+*.keystore
+*.p12

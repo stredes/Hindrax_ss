@@ -33,7 +33,86 @@ require_command git
 require_command sed
 require_command awk
 require_command gh
+require_command keytool
 require_command sha256sum
+
+KEYSTORE_DIR="${KEYSTORE_DIR:-keystore}"
+KEYSTORE_FILE="${HINDRAX_KEYSTORE_PATH:-$KEYSTORE_DIR/hindrax-release.jks}"
+KEYSTORE_PROPS="${KEYSTORE_PROPS:-$KEYSTORE_DIR/hindrax-release.properties}"
+
+random_secret() {
+    local seed
+    seed="$(date +%s%N)-$RANDOM-$(hostname)"
+    printf '%s' "$seed" | sha256sum | awk '{print $1}'
+}
+
+read_property() {
+    local key="$1"
+    if [ -f "$KEYSTORE_PROPS" ]; then
+        grep "^$key=" "$KEYSTORE_PROPS" | tail -1 | cut -d= -f2-
+    fi
+}
+
+prepare_release_signing() {
+    if [ -n "${HINDRAX_KEYSTORE_PATH:-}" ] || [ -n "${HINDRAX_KEYSTORE_PASSWORD:-}" ] || [ -n "${HINDRAX_KEY_ALIAS:-}" ] || [ -n "${HINDRAX_KEY_PASSWORD:-}" ]; then
+        if [ -z "${HINDRAX_KEYSTORE_PATH:-}" ] || [ -z "${HINDRAX_KEYSTORE_PASSWORD:-}" ] || [ -z "${HINDRAX_KEY_ALIAS:-}" ] || [ -z "${HINDRAX_KEY_PASSWORD:-}" ]; then
+            echo "ERROR: incomplete signing env. Set HINDRAX_KEYSTORE_PATH, HINDRAX_KEYSTORE_PASSWORD, HINDRAX_KEY_ALIAS and HINDRAX_KEY_PASSWORD."
+            exit 1
+        fi
+        if [ ! -f "$HINDRAX_KEYSTORE_PATH" ]; then
+            echo "ERROR: HINDRAX_KEYSTORE_PATH does not exist: $HINDRAX_KEYSTORE_PATH"
+            exit 1
+        fi
+        echo "[signing] Using release keystore from env: $HINDRAX_KEYSTORE_PATH"
+        return
+    fi
+
+    mkdir -p "$KEYSTORE_DIR"
+    if [ ! -f "$KEYSTORE_PROPS" ]; then
+        local store_password key_password key_alias
+        store_password="$(random_secret)"
+        key_password="$store_password"
+        key_alias="hindrax_release"
+        cat > "$KEYSTORE_PROPS" <<EOF
+storeFile=$KEYSTORE_FILE
+storePassword=$store_password
+keyAlias=$key_alias
+keyPassword=$key_password
+EOF
+        chmod 600 "$KEYSTORE_PROPS"
+    fi
+
+    export HINDRAX_KEYSTORE_PATH
+    export HINDRAX_KEYSTORE_PASSWORD
+    export HINDRAX_KEY_ALIAS
+    export HINDRAX_KEY_PASSWORD
+    HINDRAX_KEYSTORE_PATH="$(read_property storeFile)"
+    HINDRAX_KEYSTORE_PASSWORD="$(read_property storePassword)"
+    HINDRAX_KEY_ALIAS="$(read_property keyAlias)"
+    HINDRAX_KEY_PASSWORD="$(read_property keyPassword)"
+
+    if [ -z "$HINDRAX_KEYSTORE_PATH" ] || [ -z "$HINDRAX_KEYSTORE_PASSWORD" ] || [ -z "$HINDRAX_KEY_ALIAS" ] || [ -z "$HINDRAX_KEY_PASSWORD" ]; then
+        echo "ERROR: invalid keystore properties at $KEYSTORE_PROPS"
+        exit 1
+    fi
+
+    if [ ! -f "$HINDRAX_KEYSTORE_PATH" ]; then
+        echo "[signing] Creating persistent local release keystore: $HINDRAX_KEYSTORE_PATH"
+        keytool -genkeypair \
+            -v \
+            -keystore "$HINDRAX_KEYSTORE_PATH" \
+            -storepass "$HINDRAX_KEYSTORE_PASSWORD" \
+            -keypass "$HINDRAX_KEY_PASSWORD" \
+            -alias "$HINDRAX_KEY_ALIAS" \
+            -keyalg RSA \
+            -keysize 4096 \
+            -validity 10000 \
+            -dname "CN=Hindrax SS, OU=Hindrax, O=Hindrax, L=Santiago, ST=RM, C=CL"
+        chmod 600 "$HINDRAX_KEYSTORE_PATH"
+    else
+        echo "[signing] Using persistent local release keystore: $HINDRAX_KEYSTORE_PATH"
+    fi
+}
 
 if [ ! -f "$TOKEN_FILE" ]; then
     echo "ERROR: $TOKEN_FILE not found."
@@ -92,6 +171,8 @@ fi
 echo "[2/8] Bumping v$OLD_NAME ($OLD_CODE) -> $TAG ($NEW_CODE)..."
 sed -i "s/versionCode = $OLD_CODE/versionCode = $NEW_CODE/" "$GRADLE_FILE"
 sed -i "s/versionName = \"$OLD_NAME\"/versionName = \"$NEW_NAME\"/" "$GRADLE_FILE"
+
+prepare_release_signing
 
 echo "[3/8] Running local verification/build: $VERIFY_MODE..."
 case "$VERIFY_MODE" in

@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -13,6 +15,21 @@ java {
     }
 }
 
+val releaseKeystorePropertiesFile = rootProject.file("keystore/hindrax-release.properties")
+val releaseKeystoreProperties = Properties().apply {
+    if (releaseKeystorePropertiesFile.exists()) {
+        releaseKeystorePropertiesFile.inputStream().use { load(it) }
+    }
+}
+
+fun signingValue(envKey: String, propertyKey: String): String? {
+    return System.getenv(envKey)
+        ?: releaseKeystoreProperties.getProperty(propertyKey)?.takeIf { it.isNotBlank() }
+}
+
+val releaseKeystorePath = signingValue("HINDRAX_KEYSTORE_PATH", "storeFile")
+val hasReleaseKeystore = !releaseKeystorePath.isNullOrBlank()
+
 android {
     namespace = "com.hindrax.ss"
     compileSdk = 36
@@ -21,20 +38,19 @@ android {
         applicationId = "com.hindrax.ss"
         minSdk = 24
         targetSdk = 36
-        versionCode = 19
-        versionName = "1.18"
+        versionCode = 20
+        versionName = "1.19"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
         create("release") {
-            val keystorePath = System.getenv("HINDRAX_KEYSTORE_PATH")
-            if (!keystorePath.isNullOrBlank()) {
-                storeFile = file(keystorePath)
-                storePassword = System.getenv("HINDRAX_KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("HINDRAX_KEY_ALIAS")
-                keyPassword = System.getenv("HINDRAX_KEY_PASSWORD")
+            if (hasReleaseKeystore) {
+                storeFile = rootProject.file(releaseKeystorePath!!)
+                storePassword = signingValue("HINDRAX_KEYSTORE_PASSWORD", "storePassword")
+                keyAlias = signingValue("HINDRAX_KEY_ALIAS", "keyAlias")
+                keyPassword = signingValue("HINDRAX_KEY_PASSWORD", "keyPassword")
             }
         }
     }
@@ -42,7 +58,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = if (!System.getenv("HINDRAX_KEYSTORE_PATH").isNullOrBlank()) {
+            signingConfig = if (hasReleaseKeystore) {
                 signingConfigs.getByName("release")
             } else {
                 signingConfigs.getByName("debug")
