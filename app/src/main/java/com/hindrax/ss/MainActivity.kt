@@ -7,7 +7,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -50,6 +54,8 @@ import com.hindrax.ss.presentation.tasks.TaskHistoryScreen
 import com.hindrax.ss.presentation.tasks.TaskListScreen
 import com.hindrax.ss.presentation.inventory.InventoryScreen
 import com.hindrax.ss.presentation.chat.ChatScreen
+import com.hindrax.ss.domain.theme.HindraxThemePreset
+import com.hindrax.ss.domain.theme.HindraxThemePresetCodec
 import com.hindrax.ss.ui.theme.HindraxTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -59,11 +65,30 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            HindraxTheme {
+            val prefs = remember { getSharedPreferences("hindrax_prefs", Context.MODE_PRIVATE) }
+            var themePreset by remember {
+                mutableStateOf(
+                    prefs.getString("theme_preset", null)
+                        ?.let { runCatching { HindraxThemePresetCodec.decode(it) }.getOrNull() }
+                        ?: HindraxThemePreset()
+                )
+            }
+            DisposableEffect(prefs) {
+                val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { sharedPrefs, key ->
+                    if (key == "theme_preset") {
+                        themePreset = sharedPrefs.getString("theme_preset", null)
+                            ?.let { runCatching { HindraxThemePresetCodec.decode(it) }.getOrNull() }
+                            ?: HindraxThemePreset()
+                    }
+                }
+                prefs.registerOnSharedPreferenceChangeListener(listener)
+                onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+            }
+
+            HindraxTheme(preset = themePreset) {
                 val navController = rememberNavController()
                 val hasOpenAiKey = remember {
-                    getSharedPreferences("hindrax_prefs", Context.MODE_PRIVATE)
-                        .getString("api_key_openai", "")
+                    prefs.getString("api_key_openai", "")
                         .orEmpty()
                         .isNotBlank()
                 }

@@ -7,7 +7,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,7 +17,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -28,6 +32,7 @@ fun SettingsScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
     val viewModel: SettingsViewModel = viewModel()
     val uiState by viewModel.uiState.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -47,8 +52,8 @@ fun SettingsScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF050505),
-                    titleContentColor = Color.Green
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.primary
                 ),
                 scrollBehavior = scrollBehavior
             )
@@ -58,10 +63,22 @@ fun SettingsScreen(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
-                .background(Color(0xFF050505))
+                .background(MaterialTheme.colorScheme.background)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            item {
+                ThemeEditorPanel(
+                    state = uiState,
+                    onNameChange = { viewModel.updateThemeName(context, it) },
+                    onColorChange = { key, value -> viewModel.updateThemeColor(context, key, value) },
+                    onReset = { viewModel.resetTheme(context) },
+                    onCopy = { clipboardManager.setText(AnnotatedString(uiState.themeExport)) },
+                    onImportDraftChange = viewModel::updateThemeImportDraft,
+                    onImport = { viewModel.importTheme(context) }
+                )
+            }
+
             item {
                 Text(
                     text = "--- AI_CONFIGURATION (OPENAI) ---",
@@ -266,6 +283,125 @@ fun SettingsScreen(
             }
         }
     }
+}
+
+@Composable
+private fun ThemeEditorPanel(
+    state: SettingsUiState,
+    onNameChange: (String) -> Unit,
+    onColorChange: (String, String) -> Unit,
+    onReset: () -> Unit,
+    onCopy: () -> Unit,
+    onImportDraftChange: (String) -> Unit,
+    onImport: () -> Unit
+) {
+    val preset = state.themePreset
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth(),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)),
+        shape = MaterialTheme.shapes.extraSmall
+    ) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Palette, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "--- GUI_THEME_CONTROL ---",
+                    color = MaterialTheme.colorScheme.primary,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
+            }
+            OutlinedTextField(
+                value = preset.name,
+                onValueChange = onNameChange,
+                label = { Text("THEME_NAME", fontFamily = FontFamily.Monospace) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurface),
+                shape = MaterialTheme.shapes.extraSmall
+            )
+            ThemeColorInput("BG", "background", preset.background, onColorChange)
+            ThemeColorInput("SURFACE", "surface", preset.surface, onColorChange)
+            ThemeColorInput("TEXT", "text", preset.text, onColorChange)
+            ThemeColorInput("ACCENT", "accent", preset.accent, onColorChange)
+            ThemeColorInput("WARNING", "warning", preset.warning, onColorChange)
+            ThemeColorInput("DANGER", "danger", preset.danger, onColorChange)
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                Button(
+                    onClick = onCopy,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = Color.Black),
+                    shape = MaterialTheme.shapes.extraSmall
+                ) {
+                    Icon(Icons.Default.ContentCopy, contentDescription = null)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("COPY_THEME", fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+                }
+                OutlinedButton(
+                    onClick = onReset,
+                    modifier = Modifier.weight(1f),
+                    shape = MaterialTheme.shapes.extraSmall
+                ) {
+                    Text("RESET", fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+                }
+            }
+            OutlinedTextField(
+                value = state.themeImportDraft,
+                onValueChange = onImportDraftChange,
+                label = { Text("IMPORT_SHARED_THEME", fontFamily = FontFamily.Monospace) },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 2,
+                textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurface),
+                shape = MaterialTheme.shapes.extraSmall
+            )
+            Button(
+                onClick = onImport,
+                enabled = state.themeImportDraft.isNotBlank(),
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary, contentColor = Color.Black),
+                shape = MaterialTheme.shapes.extraSmall
+            ) {
+                Text("APPLY_IMPORTED_THEME", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+            }
+            state.themeStatus?.let {
+                Text(it, color = MaterialTheme.colorScheme.primary, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThemeColorInput(
+    label: String,
+    key: String,
+    value: String,
+    onColorChange: (String, String) -> Unit
+) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .background(value.toPreviewColor(), MaterialTheme.shapes.extraSmall)
+        )
+        OutlinedTextField(
+            value = value,
+            onValueChange = { onColorChange(key, it) },
+            label = { Text(label, fontFamily = FontFamily.Monospace, fontSize = 10.sp) },
+            modifier = Modifier.weight(1f),
+            singleLine = true,
+            textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = MaterialTheme.colorScheme.onSurface),
+            shape = MaterialTheme.shapes.extraSmall
+        )
+    }
+}
+
+private fun String.toPreviewColor(): Color {
+    return runCatching { Color(android.graphics.Color.parseColor(this)) }
+        .getOrDefault(Color.DarkGray)
 }
 
 @Composable
