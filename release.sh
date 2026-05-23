@@ -12,6 +12,8 @@ TOKEN_FILE="${TOKEN_FILE:-github.token}"
 GRADLE_FILE="${GRADLE_FILE:-app/build.gradle.kts}"
 MESSAGE="${1:-Update Hindrax core and release APK}"
 VERIFY_MODE="${VERIFY_MODE:-unit}" # unit | full | skip
+API_HINDRAX_ENV_FILE="${API_HINDRAX_ENV_FILE:-/home/gian/Escritorio/API_HINDRAX/.env}"
+API_HINDRAX_RELEASE_BASE_URL="${API_HINDRAX_RELEASE_BASE_URL:-https://api-hindrax.vercel.app}"
 
 require_command() {
     if ! command -v "$1" >/dev/null 2>&1; then
@@ -50,6 +52,31 @@ read_property() {
     local key="$1"
     if [ -f "$KEYSTORE_PROPS" ]; then
         grep "^$key=" "$KEYSTORE_PROPS" | tail -1 | cut -d= -f2-
+    fi
+}
+
+read_env_property() {
+    local file="$1"
+    local key="$2"
+    if [ -f "$file" ]; then
+        grep "^$key=" "$file" | tail -1 | cut -d= -f2-
+    fi
+}
+
+prepare_api_hindrax_release_config() {
+    local api_token_from_env_file
+    api_token_from_env_file="$(read_env_property "$API_HINDRAX_ENV_FILE" "API_TOKEN")"
+
+    export API_HINDRAX_BASE_URL="${API_HINDRAX_BASE_URL:-$API_HINDRAX_RELEASE_BASE_URL}"
+    export API_HINDRAX_TOKEN="${API_HINDRAX_TOKEN:-$api_token_from_env_file}"
+
+    if [ -n "$API_HINDRAX_TOKEN" ]; then
+        export API_HINDRAX_ENABLED="${API_HINDRAX_ENABLED:-true}"
+        echo "[api] API_HINDRAX enabled for release: $API_HINDRAX_BASE_URL"
+    else
+        export API_HINDRAX_ENABLED="${API_HINDRAX_ENABLED:-false}"
+        echo "[api] WARNING: API_HINDRAX_TOKEN missing. Release APK will not auto-connect to API_HINDRAX."
+        echo "[api] Expected token in env API_HINDRAX_TOKEN or $API_HINDRAX_ENV_FILE as API_TOKEN."
     fi
 }
 
@@ -173,6 +200,7 @@ sed -i "s/versionCode = $OLD_CODE/versionCode = $NEW_CODE/" "$GRADLE_FILE"
 sed -i "s/versionName = \"$OLD_NAME\"/versionName = \"$NEW_NAME\"/" "$GRADLE_FILE"
 
 prepare_release_signing
+prepare_api_hindrax_release_config
 
 echo "[3/8] Running local verification/build: $VERIFY_MODE..."
 case "$VERIFY_MODE" in

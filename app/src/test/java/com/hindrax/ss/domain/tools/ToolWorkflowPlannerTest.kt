@@ -17,4 +17,11 @@ class ToolWorkflowPlannerTest {
         assertEquals(listOf("nmap", "dig"), workflow.map { it.command })
         assertEquals(workflow, ToolWorkflowPlanner.addTool(workflow, dig))
     }
+
+    @Test
+    fun presetBuildsWorkflowFromCatalogCommands() {
+        val preset = ToolWorkflowPresetLibrary.presets.first { it.id == "red_basica" }
+
+        assertEquals(listOf("nmap", "traceroute", "dig"), preset.tools.map { it.command.lowercase() })
+    }
 }

@@ -6,6 +6,7 @@ data class HindraxThemePreset(
     val surface: String = "#101010",
     val text: String = "#E8FFF2",
     val accent: String = "#00FF66",
+    val info: String = "#00E5FF",
     val warning: String = "#FFD54F",
     val danger: String = "#FF5252"
 )
@@ -20,6 +21,7 @@ data class HindraxThemeRolePalette(
     val surface: String,
     val text: String,
     val accent: String,
+    val info: String,
     val warning: String,
     val danger: String
 ) {
@@ -31,6 +33,7 @@ data class HindraxThemeRolePalette(
                 surface = HindraxThemePresetCodec.normalizeHex(preset.surface, defaults.surface),
                 text = HindraxThemePresetCodec.normalizeHex(preset.text, defaults.text),
                 accent = HindraxThemePresetCodec.normalizeHex(preset.accent, defaults.accent),
+                info = HindraxThemePresetCodec.normalizeHex(preset.info, defaults.info),
                 warning = HindraxThemePresetCodec.normalizeHex(preset.warning, defaults.warning),
                 danger = HindraxThemePresetCodec.normalizeHex(preset.danger, defaults.danger)
             )
@@ -67,6 +70,7 @@ object HindraxThemePresetCodec {
             normalizeHex(preset.surface, defaults.surface),
             normalizeHex(preset.text, defaults.text),
             normalizeHex(preset.accent, defaults.accent),
+            normalizeHex(preset.info, defaults.info),
             normalizeHex(preset.warning, defaults.warning),
             normalizeHex(preset.danger, defaults.danger)
         ).joinToString("|")
@@ -82,8 +86,9 @@ object HindraxThemePresetCodec {
             surface = normalizeHex(parts.getOrNull(3).orEmpty(), defaults.surface),
             text = normalizeHex(parts.getOrNull(4).orEmpty(), defaults.text),
             accent = normalizeHex(parts.getOrNull(5).orEmpty(), defaults.accent),
-            warning = normalizeHex(parts.getOrNull(6).orEmpty(), defaults.warning),
-            danger = normalizeHex(parts.getOrNull(7).orEmpty(), defaults.danger)
+            info = if (parts.size >= 9) normalizeHex(parts.getOrNull(6).orEmpty(), defaults.info) else defaults.info,
+            warning = normalizeHex(parts.getOrNull(if (parts.size >= 9) 7 else 6).orEmpty(), defaults.warning),
+            danger = normalizeHex(parts.getOrNull(if (parts.size >= 9) 8 else 7).orEmpty(), defaults.danger)
         )
     }
 

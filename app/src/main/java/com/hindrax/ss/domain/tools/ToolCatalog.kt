@@ -49,6 +49,56 @@ object ToolWorkflowPlanner {
     }
 }
 
+data class ToolWorkflowPreset(
+    val id: String,
+    val nombre: String,
+    val descripcion: String,
+    val tools: List<ToolCatalogItem>
+)
+
+object ToolWorkflowPresetLibrary {
+    val presets: List<ToolWorkflowPreset> by lazy {
+        listOf(
+            preset(
+                id = "red_basica",
+                nombre = "Escaneo de red básico",
+                descripcion = "Descubre servicios, ruta y DNS del objetivo autorizado.",
+                commands = listOf("nmap", "traceroute", "dig")
+            ),
+            preset(
+                id = "web_basico",
+                nombre = "Revisión web básica",
+                descripcion = "Identifica tecnologías y cabeceras antes de pruebas más profundas.",
+                commands = listOf("whatweb", "nikto", "curl")
+            ),
+            preset(
+                id = "dominio_osint",
+                nombre = "OSINT de dominio",
+                descripcion = "Consulta DNS, whois y subdominios públicos del dominio autorizado.",
+                commands = listOf("dig", "whois", "sublist3r")
+            ),
+            preset(
+                id = "apk_laboratorio",
+                nombre = "APK de laboratorio",
+                descripcion = "Extrae metadatos, permisos y código de un APK propio.",
+                commands = listOf("aapt", "apktool", "jadx")
+            )
+        )
+    }
+
+    private fun preset(
+        id: String,
+        nombre: String,
+        descripcion: String,
+        commands: List<String>
+    ): ToolWorkflowPreset {
+        val tools = commands.mapNotNull { command ->
+            AndraxToolCatalog.allTools.firstOrNull { it.command.equals(command, ignoreCase = true) }
+        }
+        return ToolWorkflowPreset(id, nombre, descripcion, tools)
+    }
+}
+
 data class EnvironmentGuideSection(
     val title: String,
     val steps: List<String>

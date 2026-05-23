@@ -58,7 +58,7 @@ private fun dashboardPalette(): DashboardPalette {
         panel = scheme.surface,
         panelHot = scheme.secondary.copy(alpha = 0.16f),
         accent = scheme.primary,
-        secondary = scheme.secondary,
+        secondary = scheme.tertiary,
         warning = scheme.secondary,
         danger = scheme.error,
         text = scheme.onSurface,

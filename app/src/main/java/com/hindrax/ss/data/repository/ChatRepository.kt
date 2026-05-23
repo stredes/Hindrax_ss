@@ -19,6 +19,7 @@ import com.hindrax.ss.data.entity.ChatMessageEntity
 import com.hindrax.ss.data.entity.InventoryEntity
 import com.hindrax.ss.data.entity.PeerEntity
 import com.hindrax.ss.data.entity.TaskEntity
+import com.hindrax.ss.data.remote.ApiHindraxRemoteSyncRepository
 import com.hindrax.ss.domain.devices.KnownPeerIdentity
 import com.hindrax.ss.domain.devices.PeerIdentityResolver
 import com.hindrax.ss.domain.inventory.InventorySyncItem
@@ -60,7 +61,8 @@ class ChatRepository @Inject constructor(
     private val taskDao: TaskDao,
     private val inventoryDao: InventoryDao,
     private val deviceIdManager: DeviceIdManager,
-    private val notificationCenter: HindraxNotificationCenter
+    private val notificationCenter: HindraxNotificationCenter,
+    private val remoteSyncRepository: ApiHindraxRemoteSyncRepository
 ) {
     private val wifiManager = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
     private val locationManager = context.applicationContext.getSystemService(Context.LOCATION_SERVICE) as LocationManager
@@ -302,8 +304,14 @@ class ChatRepository @Inject constructor(
     }
 
     suspend fun syncAllWithPeer(peerId: String) {
-        syncTasksWithPeer(peerId)
-        syncInventoryWithPeer(peerId)
+        coroutineScope {
+            val peerTasks = async { syncTasksWithPeer(peerId) }
+            val peerInventory = async { syncInventoryWithPeer(peerId) }
+            val remote = async { remoteSyncRepository.syncAll() }
+            peerTasks.await()
+            peerInventory.await()
+            remote.await()
+        }
 
         chatDao.insertMessage(ChatMessageEntity(
             peerId = peerId,
@@ -335,7 +343,12 @@ class ChatRepository @Inject constructor(
         delay(AutoSyncPolicy.REFRESH_INTERVAL_MILLIS)
         while (scope.isActive) {
             runCatching {
-                syncAllDevicesSilently()
+                coroutineScope {
+                    val localSync = async { syncAllDevicesSilently() }
+                    val remoteSync = async { remoteSyncRepository.syncAll() }
+                    localSync.await()
+                    remoteSync.await()
+                }
             }.onFailure { it.printStackTrace() }
             delay(AutoSyncPolicy.REFRESH_INTERVAL_MILLIS)
         }
@@ -395,13 +408,23 @@ class ChatRepository @Inject constructor(
     // Broadcast a task to all known peers
     suspend fun broadcastTask(task: TaskEntity) {
         val peers = chatDao.getAllPeersSync()
-        peers.forEach { p -> shareTask(p.id, task) }
+        coroutineScope {
+            val local = async { peers.forEach { p -> shareTask(p.id, task) } }
+            val remote = async { remoteSyncRepository.pushTask(task) }
+            local.await()
+            remote.await()
+        }
     }
 
     // Broadcast an inventory update to all known peers
     suspend fun broadcastInventory(item: InventoryEntity) {
         val peers = chatDao.getAllPeersSync()
-        peers.forEach { p -> shareInventoryItem(p.id, item) }
+        coroutineScope {
+            val local = async { peers.forEach { p -> shareInventoryItem(p.id, item) } }
+            val remote = async { remoteSyncRepository.pushInventory(item) }
+            local.await()
+            remote.await()
+        }
     }
 
     private suspend fun syncTasksWithPeer(peerId: String, recordMessages: Boolean) {

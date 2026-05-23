@@ -319,7 +319,7 @@ private fun ThemeProfileCard(
             }
 
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(listOf(preset.background, preset.surface, preset.text, preset.accent, preset.warning, preset.danger)) { color ->
+                items(listOf(preset.background, preset.surface, preset.text, preset.accent, preset.info, preset.warning, preset.danger)) { color ->
                     Box(
                         modifier = Modifier
                             .size(30.dp)

@@ -63,6 +63,7 @@ object HindraxThemeStore {
             surface = HindraxThemePresetCodec.normalizeHex(preset.surface, defaults.surface),
             text = HindraxThemePresetCodec.normalizeHex(preset.text, defaults.text),
             accent = HindraxThemePresetCodec.normalizeHex(preset.accent, defaults.accent),
+            info = HindraxThemePresetCodec.normalizeHex(preset.info, defaults.info),
             warning = HindraxThemePresetCodec.normalizeHex(preset.warning, defaults.warning),
             danger = HindraxThemePresetCodec.normalizeHex(preset.danger, defaults.danger)
         )

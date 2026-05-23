@@ -10,6 +10,8 @@ import com.hindrax.ss.domain.tools.ToolCatalogItem
 import com.hindrax.ss.domain.tools.ToolCategory
 import com.hindrax.ss.domain.tools.ToolRiskLevel
 import com.hindrax.ss.domain.tools.ToolWorkflowPlanner
+import com.hindrax.ss.domain.tools.ToolWorkflowPreset
+import com.hindrax.ss.domain.tools.ToolWorkflowPresetLibrary
 import com.hindrax.ss.termux.TermuxBridge
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,6 +27,7 @@ data class TermuxScriptsUiState(
     val customArguments: String = "",
     val authorizationConfirmed: Boolean = false,
     val categories: List<ToolCategory> = AndraxToolCatalog.categories,
+    val presets: List<ToolWorkflowPreset> = ToolWorkflowPresetLibrary.presets,
     val visibleTools: List<ToolCatalogItem> = AndraxToolCatalog.categoryById("network-recon").tools,
     val selectedTool: ToolCatalogItem? = AndraxToolCatalog.categoryById("network-recon").tools.firstOrNull(),
     val commandPreview: String = "",
@@ -141,6 +144,17 @@ class TermuxScriptsViewModel(
 
     fun clearWorkflow() {
         _uiState.value = _uiState.value.copy(workflowTools = emptyList())
+        recalculate()
+    }
+
+    fun applyWorkflowPreset(presetId: String) {
+        val preset = ToolWorkflowPresetLibrary.presets.firstOrNull { it.id == presetId } ?: return
+        _uiState.value = _uiState.value.copy(
+            workflowTools = preset.tools,
+            selectedToolCommand = preset.tools.firstOrNull()?.command,
+            customArguments = "",
+            authorizationConfirmed = false
+        )
         recalculate()
     }
 

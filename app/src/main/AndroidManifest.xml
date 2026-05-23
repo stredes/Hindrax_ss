@@ -25,6 +25,7 @@
     <!-- USB OTG Features -->
     <uses-feature android:name="android.hardware.usb.host" />
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
+    <uses-feature android:name="android.hardware.nfc.hce" android:required="false" />
 
     <queries>
         <package android:name="com.termux" />
@@ -83,6 +84,18 @@
                 <action android:name="com.hindrax.ss.RESULT" />
             </intent-filter>
         </receiver>
+
+        <service
+            android:name=".features.nfc.NfcLabHostApduService"
+            android:exported="true"
+            android:permission="android.permission.BIND_NFC_SERVICE">
+            <intent-filter>
+                <action android:name="android.nfc.cardemulation.action.HOST_APDU_SERVICE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.nfc.cardemulation.host_apdu_service"
+                android:resource="@xml/nfc_lab_hce_apduservice" />
+        </service>
 
     </application>
 

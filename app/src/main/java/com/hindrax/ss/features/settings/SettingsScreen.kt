@@ -232,6 +232,15 @@ fun SettingsScreen(
             }
 
             item {
+                ApiHindraxPanel(
+                    state = uiState,
+                    onEnabledChange = { viewModel.toggleApiHindrax(context, it) },
+                    onBaseUrlChange = { viewModel.updateApiHindraxBaseUrl(context, it) },
+                    onTokenChange = { viewModel.updateApiHindraxToken(context, it) }
+                )
+            }
+
+            item {
                 Text(
                     text = "--- API_CONFIGURATIONS (OSINT) ---", 
                     style = MaterialTheme.typography.labelSmall, 
@@ -295,6 +304,102 @@ fun SettingsScreen(
 }
 
 @Composable
+private fun ApiHindraxPanel(
+    state: SettingsUiState,
+    onEnabledChange: (Boolean) -> Unit,
+    onBaseUrlChange: (String) -> Unit,
+    onTokenChange: (String) -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = Modifier.fillMaxWidth(),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.45f)),
+        shape = MaterialTheme.shapes.extraSmall
+    ) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "--- API_HINDRAX_REMOTE_SYNC ---",
+                        color = MaterialTheme.colorScheme.tertiary,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
+                    )
+                    Text(
+                        text = "Sincroniza tareas e inventario con Vercel cuando hay internet.",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.68f),
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 10.sp,
+                        lineHeight = 13.sp
+                    )
+                }
+                Switch(
+                    checked = state.apiHindraxEnabled,
+                    onCheckedChange = onEnabledChange,
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = MaterialTheme.colorScheme.tertiary,
+                        checkedTrackColor = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.45f)
+                    )
+                )
+            }
+            OutlinedTextField(
+                value = state.apiHindraxBaseUrl,
+                onValueChange = onBaseUrlChange,
+                label = { Text("API_HINDRAX_BASE_URL", fontFamily = FontFamily.Monospace) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                textStyle = LocalTextStyle.current.copy(
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.tertiary
+                ),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = Color.DarkGray,
+                    focusedBorderColor = MaterialTheme.colorScheme.tertiary,
+                    cursorColor = MaterialTheme.colorScheme.tertiary
+                ),
+                shape = MaterialTheme.shapes.extraSmall
+            )
+            OutlinedTextField(
+                value = state.apiHindraxToken,
+                onValueChange = onTokenChange,
+                label = { Text("API_HINDRAX_TOKEN", fontFamily = FontFamily.Monospace) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                textStyle = LocalTextStyle.current.copy(
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.primary
+                ),
+                visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    unfocusedBorderColor = Color.DarkGray,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    cursorColor = MaterialTheme.colorScheme.primary
+                ),
+                shape = MaterialTheme.shapes.extraSmall
+            )
+            val ready = state.apiHindraxEnabled &&
+                state.apiHindraxBaseUrl.startsWith("http") &&
+                state.apiHindraxToken.isNotBlank()
+            Text(
+                text = if (ready) "REMOTE_SYNC_READY: tareas + inventario + dispositivo" else "REMOTE_SYNC_WAITING_CONFIG",
+                color = if (ready) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.warningOrFallback(),
+                fontFamily = FontFamily.Monospace,
+                fontSize = 10.sp
+            )
+        }
+    }
+}
+
+private fun ColorScheme.warningOrFallback(): Color {
+    return error.copy(alpha = 0.85f)
+}
+
+@Composable
 private fun ThemeEditorPanel(
     state: SettingsUiState,
     onNameChange: (String) -> Unit,
@@ -338,6 +443,7 @@ private fun ThemeEditorPanel(
             ThemeColorInput("SURFACE", "surface", preset.surface, onColorChange)
             ThemeColorInput("TEXT", "text", preset.text, onColorChange)
             ThemeColorInput("ACCENT", "accent", preset.accent, onColorChange)
+            ThemeColorInput("CYAN/INFO", "info", preset.info, onColorChange)
             ThemeColorInput("WARNING", "warning", preset.warning, onColorChange)
             ThemeColorInput("DANGER", "danger", preset.danger, onColorChange)
 
@@ -419,6 +525,7 @@ private fun ThemeLivePreview(preset: HindraxThemePreset) {
     val surface = preset.surface.toPreviewColor()
     val text = preset.text.toPreviewColor()
     val accent = preset.accent.toPreviewColor()
+    val info = preset.info.toPreviewColor()
     val warning = preset.warning.toPreviewColor()
     val danger = preset.danger.toPreviewColor()
 
@@ -478,6 +585,12 @@ private fun ThemeLivePreview(preset: HindraxThemePreset) {
                 fontSize = 11.sp
             )
             Text(
+                text = "| INFO_TEXT: celeste neon distinguible",
+                color = info,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp
+            )
+            Text(
                 text = "| DANGER_TEXT: conflicto detectado",
                 color = danger,
                 fontFamily = FontFamily.Monospace,
@@ -494,6 +607,15 @@ private fun ThemeLivePreview(preset: HindraxThemePreset) {
                 contentAlignment = Alignment.Center
             ) {
                 Text("ACTION", color = Color.Black, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+            }
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(36.dp)
+                    .border(1.dp, info, MaterialTheme.shapes.extraSmall),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("INFO", color = info, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
             }
             Box(
                 modifier = Modifier

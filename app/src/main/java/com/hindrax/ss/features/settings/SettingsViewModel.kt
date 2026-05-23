@@ -3,10 +3,14 @@ package com.hindrax.ss.features.settings
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hindrax.ss.BuildConfig
 import com.hindrax.ss.core.util.HindraxThemeStore
 import com.hindrax.ss.data.repository.OllamaEndpointDefaults
 import com.hindrax.ss.data.repository.OllamaRepository
+import com.hindrax.ss.data.remote.ApiHindraxConfigStore
 import com.hindrax.ss.domain.ai.OpenAiResponsesPayloadBuilder
+import com.hindrax.ss.domain.sync.ApiHindraxEndpoint
+import com.hindrax.ss.domain.sync.ApiHindraxReleaseDefaults
 import com.hindrax.ss.domain.theme.HindraxThemePreset
 import com.hindrax.ss.domain.theme.HindraxThemePresetCodec
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +25,9 @@ data class SettingsUiState(
     val ollamaModel: String = "gemma3:1b",
     val ollamaPullStatus: String? = null,
     val isPullingOllamaModel: Boolean = false,
+    val apiHindraxEnabled: Boolean = false,
+    val apiHindraxBaseUrl: String = ApiHindraxEndpoint.DEFAULT_BASE_URL,
+    val apiHindraxToken: String = "",
     val isDarkTheme: Boolean = true,
     val saveReportsAutomatically: Boolean = false,
     val themePreset: HindraxThemePreset = HindraxThemePreset(),
@@ -39,6 +46,11 @@ class SettingsViewModel(
     fun loadSettings(context: Context) {
         val prefs = context.getSharedPreferences("hindrax_prefs", Context.MODE_PRIVATE)
         val activeTheme = HindraxThemeStore.loadActiveTheme(context)
+        val apiDefaults = ApiHindraxReleaseDefaults(
+            enabled = BuildConfig.API_HINDRAX_DEFAULT_ENABLED,
+            baseUrl = BuildConfig.API_HINDRAX_DEFAULT_BASE_URL,
+            token = BuildConfig.API_HINDRAX_DEFAULT_TOKEN
+        )
         _uiState.value = SettingsUiState(
             themePreset = activeTheme,
             savedThemes = HindraxThemeStore.loadLibrary(context),
@@ -55,6 +67,18 @@ class SettingsViewModel(
             ollamaModel = prefs.getString("ollama_model", "gemma3:1b") ?: "gemma3:1b",
             ollamaPullStatus = _uiState.value.ollamaPullStatus,
             isPullingOllamaModel = _uiState.value.isPullingOllamaModel,
+            apiHindraxEnabled = prefs.getBoolean(
+                ApiHindraxConfigStore.KEY_ENABLED,
+                apiDefaults.isReady
+            ),
+            apiHindraxBaseUrl = prefs.getString(
+                ApiHindraxConfigStore.KEY_BASE_URL,
+                apiDefaults.normalizedBaseUrl
+            ) ?: apiDefaults.normalizedBaseUrl,
+            apiHindraxToken = prefs.getString(
+                ApiHindraxConfigStore.KEY_TOKEN,
+                apiDefaults.token
+            ) ?: apiDefaults.token,
             isDarkTheme = prefs.getBoolean("dark_theme", true),
             saveReportsAutomatically = prefs.getBoolean("auto_save", false),
             themeImportDraft = _uiState.value.themeImportDraft,
@@ -129,6 +153,25 @@ class SettingsViewModel(
         loadSettings(context)
     }
 
+    fun toggleApiHindrax(context: Context, enabled: Boolean) {
+        val prefs = context.getSharedPreferences("hindrax_prefs", Context.MODE_PRIVATE)
+        prefs.edit().putBoolean(ApiHindraxConfigStore.KEY_ENABLED, enabled).apply()
+        loadSettings(context)
+    }
+
+    fun updateApiHindraxBaseUrl(context: Context, value: String) {
+        val normalized = ApiHindraxEndpoint.normalizeBaseUrl(value)
+        val prefs = context.getSharedPreferences("hindrax_prefs", Context.MODE_PRIVATE)
+        prefs.edit().putString(ApiHindraxConfigStore.KEY_BASE_URL, normalized).apply()
+        loadSettings(context)
+    }
+
+    fun updateApiHindraxToken(context: Context, value: String) {
+        val prefs = context.getSharedPreferences("hindrax_prefs", Context.MODE_PRIVATE)
+        prefs.edit().putString(ApiHindraxConfigStore.KEY_TOKEN, value.trim()).apply()
+        loadSettings(context)
+    }
+
     fun updateThemeName(context: Context, value: String) {
         saveTheme(context, _uiState.value.themePreset.copy(name = value.ifBlank { "Hindrax Custom" }))
     }
@@ -140,6 +183,7 @@ class SettingsViewModel(
             "surface" -> current.copy(surface = value)
             "text" -> current.copy(text = value)
             "accent" -> current.copy(accent = value)
+            "info" -> current.copy(info = value)
             "warning" -> current.copy(warning = value)
             "danger" -> current.copy(danger = value)
             else -> current

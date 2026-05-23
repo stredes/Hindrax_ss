@@ -13,6 +13,7 @@ class HindraxThemePresetCodecTest {
             surface = "#101010",
             text = "#E8FFF2",
             accent = "#00E5FF",
+            info = "#00D8FF",
             warning = "#FFD54F",
             danger = "#FF5252"
         )

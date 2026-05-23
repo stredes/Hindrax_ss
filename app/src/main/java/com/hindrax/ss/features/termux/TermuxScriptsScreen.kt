@@ -27,6 +27,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hindrax.ss.HindraxApplication
 import com.hindrax.ss.domain.tools.ToolCatalogItem
 import com.hindrax.ss.domain.tools.ToolRiskLevel
+import com.hindrax.ss.domain.tools.ToolWorkflowPreset
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,7 +50,7 @@ fun TermuxScriptsScreen(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             TopAppBar(
-                title = { Text("TERMUX_SCRIPTS_ENGINE", fontFamily = FontFamily.Monospace) },
+                title = { Text("Terminal y herramientas", fontFamily = FontFamily.Monospace) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.Green)
@@ -81,7 +82,7 @@ fun TermuxScriptsScreen(
                         shape = MaterialTheme.shapes.extraSmall
                     ) {
                         Text(
-                            text = "[!] TERMUX_NOT_DETECTED: Please install Termux and configure the bridge to enable this module.",
+                            text = "[!] Termux no detectado. Instala Termux y configura el puente para ejecutar herramientas.",
                             modifier = Modifier.padding(16.dp),
                             color = Color.Red,
                             fontFamily = FontFamily.Monospace,
@@ -93,7 +94,7 @@ fun TermuxScriptsScreen(
 
             item {
                 Text(
-                    text = "--- TOOL_CATALOG_EXECUTION ---",
+                    text = "--- Flujo guiado de herramientas ---",
                     style = MaterialTheme.typography.labelSmall,
                     fontFamily = FontFamily.Monospace,
                     color = Color.Cyan
@@ -101,13 +102,17 @@ fun TermuxScriptsScreen(
             }
 
             item {
+                TerminalGuidePanel(isTermuxInstalled = uiState.isTermuxInstalled)
+            }
+
+            item {
                 OutlinedTextField(
                     value = uiState.query,
                     onValueChange = viewModel::onQueryChange,
-                    label = { Text("SEARCH_TOOL", fontFamily = FontFamily.Monospace) },
+                    label = { Text("Buscar herramienta", fontFamily = FontFamily.Monospace) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    placeholder = { Text("nmap, apktool, binwalk, curl...", color = Color.DarkGray) },
+                    placeholder = { Text("Ej: nmap, apktool, binwalk, curl...", color = Color.DarkGray) },
                     textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = Color.Green),
                     colors = OutlinedTextFieldDefaults.colors(
                         unfocusedBorderColor = Color.DarkGray,
@@ -119,6 +124,20 @@ fun TermuxScriptsScreen(
             }
 
             item {
+                PresetWorkflowSelector(
+                    presets = uiState.presets,
+                    onPresetSelected = { viewModel.applyWorkflowPreset(it.id) }
+                )
+            }
+
+            item {
+                Text(
+                    text = "Categorías",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontFamily = FontFamily.Monospace,
+                    color = Color.Cyan
+                )
+                Spacer(modifier = Modifier.height(8.dp))
                 LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(uiState.categories) { category ->
                         FilterChip(
@@ -147,10 +166,10 @@ fun TermuxScriptsScreen(
                 OutlinedTextField(
                     value = uiState.target,
                     onValueChange = viewModel::onTargetChange,
-                    label = { Text("TARGET_OR_FILE", fontFamily = FontFamily.Monospace) },
+                    label = { Text("Objetivo autorizado o archivo", fontFamily = FontFamily.Monospace) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    placeholder = { Text("192.168.1.1 / dominio / archivo local", color = Color.DarkGray) },
+                    placeholder = { Text("Ej: 192.168.1.1 / dominio.com / archivo.apk", color = Color.DarkGray) },
                     textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = Color.Green),
                     colors = OutlinedTextFieldDefaults.colors(
                         unfocusedBorderColor = Color.DarkGray,
@@ -165,11 +184,11 @@ fun TermuxScriptsScreen(
                 OutlinedTextField(
                     value = uiState.customArguments,
                     onValueChange = viewModel::onCustomArgumentsChange,
-                    label = { Text("ARGS_OVERRIDE", fontFamily = FontFamily.Monospace) },
+                    label = { Text("Argumentos manuales para herramienta individual", fontFamily = FontFamily.Monospace) },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2,
                     maxLines = 4,
-                    placeholder = { Text("-sV 192.168.1.10", color = Color.DarkGray) },
+                    placeholder = { Text("Opcional. Ej: -sV 192.168.1.10", color = Color.DarkGray) },
                     textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = Color.Cyan, fontSize = 12.sp),
                     colors = OutlinedTextFieldDefaults.colors(
                         unfocusedBorderColor = Color.DarkGray,
@@ -182,7 +201,7 @@ fun TermuxScriptsScreen(
 
             item {
                 Text(
-                    text = "TOOLS_VISIBLE: ${uiState.visibleTools.size}",
+                    text = "Herramientas visibles: ${uiState.visibleTools.size}",
                     style = MaterialTheme.typography.labelSmall,
                     fontFamily = FontFamily.Monospace,
                     color = Color.Gray
@@ -234,12 +253,12 @@ fun TermuxScriptsScreen(
                 ) {
                     Icon(Icons.Default.PlayArrow, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("RUN_SELECTED_TOOL", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                    Text("Ejecutar herramienta seleccionada", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                 }
             }
 
             item {
-                Text("--- SYSTEM_LOGS ---", style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, color = Color.Cyan)
+                Text("--- Registro del sistema ---", style = MaterialTheme.typography.labelSmall, fontFamily = FontFamily.Monospace, color = Color.Cyan)
             }
             item {
                 Box(
@@ -257,6 +276,69 @@ fun TermuxScriptsScreen(
                         fontSize = 10.sp
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TerminalGuidePanel(isTermuxInstalled: Boolean) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF0A0A0A)),
+        border = androidx.compose.foundation.BorderStroke(1.dp, if (isTermuxInstalled) Color.Green else Color.Yellow),
+        shape = MaterialTheme.shapes.extraSmall
+    ) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                text = if (isTermuxInstalled) "Termux listo para ejecutar" else "Termux pendiente",
+                color = if (isTermuxInstalled) Color.Green else Color.Yellow,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp
+            )
+            Text(
+                text = "1. Escribe el objetivo autorizado. 2. Elige un flujo recomendado o una herramienta. 3. Revisa la vista previa. 4. Ejecuta una herramienta o la cadena completa.",
+                color = Color.Gray,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp,
+                lineHeight = 14.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun PresetWorkflowSelector(
+    presets: List<ToolWorkflowPreset>,
+    onPresetSelected: (ToolWorkflowPreset) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = "Flujos recomendados",
+            color = Color.Cyan,
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Bold,
+            fontSize = 12.sp
+        )
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(presets) { preset ->
+                AssistChip(
+                    onClick = { onPresetSelected(preset) },
+                    label = {
+                        Column {
+                            Text(preset.nombre, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+                            Text("${preset.tools.size} pasos", fontFamily = FontFamily.Monospace, fontSize = 9.sp)
+                        }
+                    },
+                    colors = AssistChipDefaults.assistChipColors(
+                        labelColor = Color.Green,
+                        containerColor = Color(0xFF0A0A0A)
+                    ),
+                    border = AssistChipDefaults.assistChipBorder(
+                        enabled = true,
+                        borderColor = Color.Green.copy(alpha = 0.45f)
+                    )
+                )
             }
         }
     }
@@ -307,7 +389,7 @@ fun ToolCatalogListItem(tool: ToolCatalogItem, isSelected: Boolean, onClick: () 
                 color = Color.Gray
             )
             Text(
-                text = "MODE: ${tool.executionMode}  CMD: ${tool.command}",
+                text = "Modo: ${tool.executionMode}  Comando: ${tool.command}",
                 style = MaterialTheme.typography.labelSmall,
                 color = Color.Cyan,
                 fontFamily = FontFamily.Monospace
@@ -339,7 +421,7 @@ private fun ToolExecutionPanel(
         shape = MaterialTheme.shapes.extraSmall
     ) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("--- COMMAND_PREVIEW ---", color = riskColor, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            Text("--- Vista previa del comando ---", color = riskColor, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 12.sp)
             Text(commandPreview, color = Color.White, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
             OutlinedButton(
                 onClick = onAddToWorkflow,
@@ -349,11 +431,11 @@ private fun ToolExecutionPanel(
             ) {
                 Icon(Icons.Default.Add, contentDescription = null, tint = Color.Green)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("ADD_TO_WORKFLOW_CHAIN", color = Color.Green, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                Text("Agregar a la cadena", color = Color.Green, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
             }
             tool.termuxPackage?.let { packageName ->
                 Text(
-                    "TERMUX_PACKAGE: $packageName",
+                    "Paquete Termux: $packageName",
                     color = Color.Cyan,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 10.sp
@@ -365,7 +447,7 @@ private fun ToolExecutionPanel(
                     border = androidx.compose.foundation.BorderStroke(1.dp, Color.Cyan),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("INSTALL_TOOL_PACKAGE", color = Color.Cyan, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                    Text("Instalar paquete de la herramienta", color = Color.Cyan, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
                 }
             }
             Text(tool.tutorial.notes.joinToString("  "), color = Color.Gray, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
@@ -377,7 +459,7 @@ private fun ToolExecutionPanel(
                         colors = CheckboxDefaults.colors(checkedColor = Color.Red)
                     )
                     Text(
-                        "CONFIRMO_AUTORIZACION_EXPLICITA",
+                        "Confirmo que tengo autorización explícita",
                         color = Color.Red,
                         fontFamily = FontFamily.Monospace,
                         fontSize = 11.sp,
@@ -407,7 +489,7 @@ private fun ToolWorkflowPanel(
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "--- WORKFLOW_CHAIN ---",
+                    text = "--- Cadena de trabajo ---",
                     color = Color.Cyan,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Bold,
@@ -421,7 +503,7 @@ private fun ToolWorkflowPanel(
 
             if (tools.isEmpty()) {
                 Text(
-                    text = "Selecciona tools del catalogo y usa ADD_TO_WORKFLOW_CHAIN para entrelazarlas.",
+                    text = "Selecciona herramientas del catálogo o toca un flujo recomendado para crear una cadena.",
                     color = Color.Gray,
                     fontFamily = FontFamily.Monospace,
                     fontSize = 10.sp
@@ -458,7 +540,7 @@ private fun ToolWorkflowPanel(
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("RUN_WORKFLOW_CHAIN", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                Text("Ejecutar cadena completa", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
             }
         }
     }

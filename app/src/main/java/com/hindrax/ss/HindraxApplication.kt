@@ -8,12 +8,14 @@ import com.hindrax.ss.core.util.HindraxNotificationCenter
 import com.hindrax.ss.core.work.UpdateWorker
 import com.hindrax.ss.data.db.HindraxDatabase
 import com.hindrax.ss.data.entity.ToolTaskEntity
+import com.hindrax.ss.data.remote.ApiHindraxRemoteSyncRepository
 import com.hindrax.ss.data.repository.AuditRepository
 import com.hindrax.ss.data.repository.TargetRepository
 import com.hindrax.ss.data.repository.ToolRepository
 import com.hindrax.ss.domain.tools.AndraxToolCatalog
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import androidx.work.WorkManager
@@ -26,10 +28,11 @@ import javax.inject.Inject
 
 @HiltAndroidApp
 class HindraxApplication : Application(), Configuration.Provider {
-    private val applicationScope = CoroutineScope(SupervisorJob())
+    private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     @Inject lateinit var workerFactory: HiltWorkerFactory
     @Inject lateinit var notificationCenter: HindraxNotificationCenter
+    @Inject lateinit var remoteSyncRepository: ApiHindraxRemoteSyncRepository
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -57,7 +60,18 @@ class HindraxApplication : Application(), Configuration.Provider {
 
         notificationCenter.createChannels()
         prepopulateTasks()
+        syncRemoteOnStartup()
         scheduleUpdateChecks()
+    }
+
+    private fun syncRemoteOnStartup() {
+        applicationScope.launch {
+            runCatching {
+                remoteSyncRepository.syncAll()
+            }.onFailure { error ->
+                android.util.Log.w("HindraxApplication", "API_HINDRAX startup sync failed", error)
+            }
+        }
     }
 
     private fun scheduleUpdateChecks() {

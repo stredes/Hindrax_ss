@@ -38,6 +38,7 @@ fun HindraxTheme(
         darkColorScheme(
             primary = preset.accent.toComposeColor(PrimaryBlue),
             secondary = preset.warning.toComposeColor(SecondaryBlue),
+            tertiary = preset.info.toComposeColor(RiskInfo),
             background = preset.background.toComposeColor(DarkGray),
             surface = preset.surface.toComposeColor(SurfaceGray),
             onPrimary = Color.Black,
@@ -49,6 +50,7 @@ fun HindraxTheme(
         lightColorScheme(
             primary = preset.accent.toComposeColor(PrimaryBlue),
             secondary = preset.warning.toComposeColor(SecondaryBlue),
+            tertiary = preset.info.toComposeColor(RiskInfo),
             background = preset.background.toComposeColor(Color.White),
             surface = preset.surface.toComposeColor(Color(0xFFF5F5F5)),
             onPrimary = Color.Black,

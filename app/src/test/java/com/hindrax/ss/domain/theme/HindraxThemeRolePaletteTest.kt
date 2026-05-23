@@ -12,6 +12,7 @@ class HindraxThemeRolePaletteTest {
                 surface = "#222222",
                 text = "#EEEEEE",
                 accent = "#00AA00",
+                info = "#00D8FF",
                 warning = "bad",
                 danger = "#AA0000"
             )
@@ -21,6 +22,7 @@ class HindraxThemeRolePaletteTest {
         assertEquals("#222222", palette.surface)
         assertEquals("#EEEEEE", palette.text)
         assertEquals("#00AA00", palette.accent)
+        assertEquals("#00D8FF", palette.info)
         assertEquals(HindraxThemePreset().warning, palette.warning)
         assertEquals("#AA0000", palette.danger)
     }

@@ -21,10 +21,29 @@ val releaseKeystoreProperties = Properties().apply {
         releaseKeystorePropertiesFile.inputStream().use { load(it) }
     }
 }
+val localPropertiesFile = rootProject.file("local.properties")
+val localProperties = Properties().apply {
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use { load(it) }
+    }
+}
 
 fun signingValue(envKey: String, propertyKey: String): String? {
     return System.getenv(envKey)
         ?: releaseKeystoreProperties.getProperty(propertyKey)?.takeIf { it.isNotBlank() }
+}
+
+fun localConfigValue(envKey: String, propertyKey: String, fallback: String): String {
+    return System.getenv(envKey)
+        ?: localProperties.getProperty(propertyKey)?.takeIf { it.isNotBlank() }
+        ?: fallback
+}
+
+fun buildConfigString(value: String): String {
+    val escaped = value
+        .replace("\\", "\\\\")
+        .replace("\"", "\\\"")
+    return "\"$escaped\""
 }
 
 val releaseKeystorePath = signingValue("HINDRAX_KEYSTORE_PATH", "storeFile")
@@ -38,10 +57,26 @@ android {
         applicationId = "com.hindrax.ss"
         minSdk = 24
         targetSdk = 36
-        versionCode = 30
-        versionName = "1.29"
+        versionCode = 32
+        versionName = "1.31"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField(
+            "String",
+            "API_HINDRAX_DEFAULT_BASE_URL",
+            buildConfigString(localConfigValue("API_HINDRAX_BASE_URL", "apiHindrax.baseUrl", "https://api-hindrax.vercel.app"))
+        )
+        buildConfigField(
+            "String",
+            "API_HINDRAX_DEFAULT_TOKEN",
+            buildConfigString(localConfigValue("API_HINDRAX_TOKEN", "apiHindrax.token", ""))
+        )
+        buildConfigField(
+            "boolean",
+            "API_HINDRAX_DEFAULT_ENABLED",
+            localConfigValue("API_HINDRAX_ENABLED", "apiHindrax.enabled", "false").toBooleanStrictOrNull()?.toString() ?: "false"
+        )
     }
 
     signingConfigs {
@@ -78,6 +113,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
