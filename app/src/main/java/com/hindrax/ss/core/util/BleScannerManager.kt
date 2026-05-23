@@ -1,13 +1,17 @@
 package com.hindrax.ss.core.util
 
 import android.annotation.SuppressLint
+import android.Manifest
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.ParcelUuid
+import androidx.core.content.ContextCompat
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -29,7 +33,11 @@ class BleScannerManager @Inject constructor(
     @SuppressLint("MissingPermission")
     fun scanForHindraxNodes(): Flow<BleDiscoveredNode> = callbackFlow {
         if (bleScanner == null) {
-            close()
+            close(IllegalStateException("BLE_SCANNER_UNAVAILABLE"))
+            return@callbackFlow
+        }
+        if (!hasScanPermission()) {
+            close(SecurityException("BLE_SCAN_PERMISSION_DENIED"))
             return@callbackFlow
         }
 
@@ -53,6 +61,10 @@ class BleScannerManager @Inject constructor(
                     trySend(BleDiscoveredNode(finalHash, result.device.address))
                 }
             }
+
+            override fun onScanFailed(errorCode: Int) {
+                close(IllegalStateException("BLE_SCAN_FAILED_$errorCode"))
+            }
         }
 
         val filter = ScanFilter.Builder()
@@ -74,6 +86,14 @@ class BleScannerManager @Inject constructor(
             try {
                 bleScanner.stopScan(scanCallback)
             } catch (e: Exception) {}
+        }
+    }
+
+    private fun hasScanPermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN) == PackageManager.PERMISSION_GRANTED
+        } else {
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
         }
     }
 }

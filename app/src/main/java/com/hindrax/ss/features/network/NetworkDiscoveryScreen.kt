@@ -51,7 +51,14 @@ fun NetworkDiscoveryScreen(
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        if (permissions.values.all { it }) {
+        val locationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        val bluetoothGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            permissions[Manifest.permission.BLUETOOTH_SCAN] == true &&
+                permissions[Manifest.permission.BLUETOOTH_CONNECT] == true
+        } else {
+            true
+        }
+        if (locationGranted || bluetoothGranted) {
             viewModel.startDiscovery()
         }
     }

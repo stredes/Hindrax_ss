@@ -39,7 +39,8 @@ data class DiscoveryUiState(
     val localIp: String = "Unknown",
     val myDeviceId: String = "",
     val updateAvailable: Boolean = false,
-    val latestVersion: String? = null
+    val latestVersion: String? = null,
+    val lastScanTotalHosts: Int = 0
 )
 
 data class DiscoveredDevice(
@@ -101,18 +102,27 @@ class NetworkDiscoveryViewModel @Inject constructor(
 
     fun startDiscovery() {
         val localIp = _uiState.value.localIp
-        val subnet = localIp.substringBeforeLast(".")
+        val hosts = NetworkUtils.getLocalSubnetHosts()
 
         scanJob?.cancel()
         bleScanJob?.cancel()
         
-        bleIdentityManager.startAdvertising()
+        runCatching { bleIdentityManager.startAdvertising() }
         
         _uiState.update {
             it.copy(
                 isScanning = true, 
+                progress = 0f,
                 discoveredDevices = emptyList(),
-                logs = "[*] Iniciando escaneo híbrido...\n[*] Tu ID: ${it.myDeviceId}\n"
+                lastScanTotalHosts = hosts.size,
+                logs = buildString {
+                    append("[*] Iniciando escaneo híbrido...\n")
+                    append("[*] Tu ID: ${it.myDeviceId}\n")
+                    append("[*] LAN_ADDR: $localIp\n")
+                    append("[*] LAN_HOSTS: ${hosts.size}\n")
+                    append("[*] BLE_SCAN: starting\n")
+                    if (hosts.isEmpty()) append("[!] LAN_SCAN: no se pudo resolver la subred local.\n")
+                }
             )
         }
 
@@ -127,29 +137,42 @@ class NetworkDiscoveryViewModel @Inject constructor(
                     discoveryMethod = "BLE"
                 ))
             }
+            .catch { error ->
+                _uiState.update { it.copy(logs = it.logs + "[!] BLE_SCAN_ERROR: ${error.message ?: "unknown"}\n") }
+            }
             .launchIn(viewModelScope)
 
         scanJob = viewModelScope.launch(Dispatchers.IO) {
             val semaphore = Semaphore(20)
-            val jobs = (1..254).map { i ->
+            if (hosts.isEmpty()) {
+                withContext(Dispatchers.Main) {
+                    _uiState.update { it.copy(isScanning = false, progress = 1f, logs = it.logs + "[!] LAN_SCAN_ABORTED\n") }
+                }
+                return@launch
+            }
+
+            val jobs = hosts.mapIndexed { index, host ->
                 async {
                     semaphore.withPermit {
-                        val host = "$subnet.$i"
-                        if (host == localIp) return@async
-                        
                         val device = checkDevice(host)
                         if (device != null) {
                             addOrUpdateDevice(device)
                         }
                         
-                        _uiState.update { it.copy(progress = i / 254f) }
+                        _uiState.update { it.copy(progress = (index + 1).toFloat() / hosts.size.toFloat()) }
                     }
                 }
             }
             
             jobs.awaitAll()
             withContext(Dispatchers.Main) {
-                _uiState.update { it.copy(isScanning = false, progress = 1f, logs = it.logs + "[+] Escaneo finalizado.\n") }
+                _uiState.update {
+                    it.copy(
+                        isScanning = false,
+                        progress = 1f,
+                        logs = it.logs + "[+] LAN_SCAN_DONE: ${hosts.size} hosts revisados.\n[+] BLE_SCAN: continua en segundo plano mientras la pantalla esté abierta.\n"
+                    )
+                }
             }
         }
     }
