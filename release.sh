@@ -80,6 +80,14 @@ prepare_api_hindrax_release_config() {
     fi
 }
 
+run_gradle_release_step() {
+    JAVA_HOME="${JAVA_HOME:-/usr/lib/jvm/java-17-openjdk-amd64}" \
+    GRADLE_OPTS="${GRADLE_OPTS:--Xmx4096m -XX:+UseG1GC -Dfile.encoding=UTF-8}" \
+        ./gradlew --no-daemon --no-build-cache --max-workers=1 \
+        -Dkotlin.compiler.execution.strategy=in-process \
+        "$@"
+}
+
 prepare_release_signing() {
     if [ -n "${HINDRAX_KEYSTORE_PATH:-}" ] || [ -n "${HINDRAX_KEYSTORE_PASSWORD:-}" ] || [ -n "${HINDRAX_KEY_ALIAS:-}" ] || [ -n "${HINDRAX_KEY_PASSWORD:-}" ]; then
         if [ -z "${HINDRAX_KEYSTORE_PATH:-}" ] || [ -z "${HINDRAX_KEYSTORE_PASSWORD:-}" ] || [ -z "${HINDRAX_KEY_ALIAS:-}" ] || [ -z "${HINDRAX_KEY_PASSWORD:-}" ]; then
@@ -205,13 +213,15 @@ prepare_api_hindrax_release_config
 echo "[3/8] Running local verification/build: $VERIFY_MODE..."
 case "$VERIFY_MODE" in
     unit)
-        JAVA_HOME="${JAVA_HOME:-/usr/lib/jvm/java-17-openjdk-amd64}" ./gradlew --build-cache --parallel testDebugUnitTest assembleRelease
+        run_gradle_release_step testDebugUnitTest
+        run_gradle_release_step assembleRelease
         ;;
     full)
-        JAVA_HOME="${JAVA_HOME:-/usr/lib/jvm/java-17-openjdk-amd64}" ./gradlew --build-cache --parallel check assembleRelease
+        run_gradle_release_step check
+        run_gradle_release_step assembleRelease
         ;;
     skip)
-        JAVA_HOME="${JAVA_HOME:-/usr/lib/jvm/java-17-openjdk-amd64}" ./gradlew --build-cache --parallel assembleRelease
+        run_gradle_release_step assembleRelease
         ;;
     *)
         echo "ERROR: VERIFY_MODE must be one of: unit, full, skip"

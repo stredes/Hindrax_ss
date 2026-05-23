@@ -57,8 +57,8 @@ android {
         applicationId = "com.hindrax.ss"
         minSdk = 24
         targetSdk = 36
-        versionCode = 34
-        versionName = "1.33"
+        versionCode = 37
+        versionName = "1.36"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

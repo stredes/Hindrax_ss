@@ -5,8 +5,8 @@ import org.junit.Test
 
 class AutoSyncPolicyTest {
     @Test
-    fun refreshIntervalIsOneHundredThirtySeconds() {
-        assertEquals(130L, AutoSyncPolicy.REFRESH_INTERVAL_SECONDS)
-        assertEquals(130_000L, AutoSyncPolicy.REFRESH_INTERVAL_MILLIS)
+    fun refreshIntervalIsThirtySeconds() {
+        assertEquals(30L, AutoSyncPolicy.REFRESH_INTERVAL_SECONDS)
+        assertEquals(30_000L, AutoSyncPolicy.REFRESH_INTERVAL_MILLIS)
     }
 }

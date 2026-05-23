@@ -410,7 +410,10 @@ class ChatRepository @Inject constructor(
         val peers = chatDao.getAllPeersSync()
         coroutineScope {
             val local = async { peers.forEach { p -> shareTask(p.id, task) } }
-            val remote = async { remoteSyncRepository.pushTask(task) }
+            val remote = async {
+                remoteSyncRepository.pushTask(task)
+                remoteSyncRepository.syncAll()
+            }
             local.await()
             remote.await()
         }
@@ -421,7 +424,10 @@ class ChatRepository @Inject constructor(
         val peers = chatDao.getAllPeersSync()
         coroutineScope {
             val local = async { peers.forEach { p -> shareInventoryItem(p.id, item) } }
-            val remote = async { remoteSyncRepository.pushInventory(item) }
+            val remote = async {
+                remoteSyncRepository.pushInventory(item)
+                remoteSyncRepository.syncAll()
+            }
             local.await()
             remote.await()
         }
@@ -560,7 +566,9 @@ class ChatRepository @Inject constructor(
     }
 
     suspend fun sendMessage(peerId: String, text: String) {
-        chatDao.insertMessage(ChatMessageEntity(peerId = peerId, message = text, timestamp = System.currentTimeMillis(), isFromMe = true))
+        val message = ChatMessageEntity(peerId = peerId, message = text, timestamp = System.currentTimeMillis(), isFromMe = true)
+        val id = chatDao.insertMessage(message)
+        remoteSyncRepository.pushChatMessage(message.copy(id = id))
         val peer = chatDao.getPeerById(peerId) ?: return
         sendToPeer(peer, "MESSAGE", text)
     }

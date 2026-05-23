@@ -2,12 +2,14 @@ package com.hindrax.ss.presentation.tasks
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hindrax.ss.data.remote.ApiHindraxRemoteSyncRepository
 import com.hindrax.ss.data.repository.ChatRepository
 import com.hindrax.ss.domain.tasks.model.Task
 import com.hindrax.ss.domain.tasks.model.TaskStatus
 import com.hindrax.ss.domain.tasks.usecase.ObserveTasksUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class TaskListUiState(
@@ -22,7 +24,8 @@ data class TaskListUiState(
 @HiltViewModel
 class TaskListViewModel @Inject constructor(
     private val observeTasksUseCase: ObserveTasksUseCase,
-    private val chatRepository: ChatRepository
+    private val chatRepository: ChatRepository,
+    private val remoteSyncRepository: ApiHindraxRemoteSyncRepository
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
@@ -53,11 +56,21 @@ class TaskListViewModel @Inject constructor(
         initialValue = TaskListUiState(isLoading = true)
     )
 
+    init {
+        refreshRemote()
+    }
+
     fun onSearchQueryChange(query: String) {
         _searchQuery.value = query
     }
 
     fun onStatusFilterChange(status: TaskStatus?) {
         _selectedStatus.value = status
+    }
+
+    fun refreshRemote() {
+        viewModelScope.launch {
+            runCatching { remoteSyncRepository.syncAll() }
+        }
     }
 }

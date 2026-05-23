@@ -2,9 +2,13 @@ package com.hindrax.ss.data.remote
 
 import android.content.Context
 import com.hindrax.ss.core.util.DeviceIdManager
+import com.hindrax.ss.data.db.ChatDao
 import com.hindrax.ss.data.db.InventoryDao
 import com.hindrax.ss.data.db.TaskDao
+import com.hindrax.ss.data.entity.ChatMessageEntity
 import com.hindrax.ss.data.entity.InventoryEntity
+import com.hindrax.ss.data.entity.MessageStatus
+import com.hindrax.ss.data.entity.PeerEntity
 import com.hindrax.ss.data.entity.TaskEntity
 import com.hindrax.ss.domain.tasks.model.ChecklistItem
 import com.hindrax.ss.domain.tasks.model.TaskStatus
@@ -25,6 +29,8 @@ data class ApiHindraxRemoteSyncResult(
     val pulledTasks: Int = 0,
     val pushedInventory: Int = 0,
     val pulledInventory: Int = 0,
+    val pushedChat: Int = 0,
+    val pulledChat: Int = 0,
     val heartbeatSent: Boolean = false
 )
 
@@ -37,6 +43,7 @@ private data class RemoteCollectionSyncResult(
 @Singleton
 class ApiHindraxRemoteSyncRepository @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val chatDao: ChatDao,
     private val taskDao: TaskDao,
     private val inventoryDao: InventoryDao,
     private val deviceIdManager: DeviceIdManager,
@@ -53,6 +60,7 @@ class ApiHindraxRemoteSyncRepository @Inject constructor(
         return coroutineScope {
             val tasksJob = async { syncTasks() }
             val inventoryJob = async { syncInventory() }
+            val chatJob = async { syncChat() }
             val heartbeatJob = async {
                 client.heartbeat(
                     deviceId = myDeviceId,
@@ -62,7 +70,8 @@ class ApiHindraxRemoteSyncRepository @Inject constructor(
             }
             val tasks = tasksJob.await()
             val inventory = inventoryJob.await()
-            val bootstrapUploaded = bootstrapPending && tasks.success && inventory.success
+            val chat = chatJob.await()
+            val bootstrapUploaded = bootstrapPending && tasks.success && inventory.success && chat.success
             if (bootstrapUploaded) {
                 configStore.markBootstrapComplete(config.baseUrl)
             }
@@ -73,6 +82,8 @@ class ApiHindraxRemoteSyncRepository @Inject constructor(
                 pulledTasks = tasks.pulled,
                 pushedInventory = inventory.pushed,
                 pulledInventory = inventory.pulled,
+                pushedChat = chat.pushed,
+                pulledChat = chat.pulled,
                 heartbeatSent = heartbeatJob.await()
             )
         }
@@ -86,6 +97,11 @@ class ApiHindraxRemoteSyncRepository @Inject constructor(
     suspend fun pushInventory(item: InventoryEntity) {
         if (!configStore.load().isReady) return
         client.syncInventory(JSONArray().put(item.toApiJson()))
+    }
+
+    suspend fun pushChatMessage(message: ChatMessageEntity) {
+        if (!configStore.load().isReady) return
+        client.syncChat(JSONArray().put(message.toApiJson()))
     }
 
     private suspend fun syncTasks(): RemoteCollectionSyncResult {
@@ -105,6 +121,16 @@ class ApiHindraxRemoteSyncRepository @Inject constructor(
         }) ?: return RemoteCollectionSyncResult(success = false, pushed = local.size)
         val remoteItems = client.listInventory()?.items ?: JSONArray()
         val applied = applyRemoteInventory(remoteItems)
+        return RemoteCollectionSyncResult(success = true, pushed = local.size, pulled = applied)
+    }
+
+    private suspend fun syncChat(): RemoteCollectionSyncResult {
+        val local = chatDao.getAllMessagesSync()
+        client.syncChat(JSONArray().also { array ->
+            local.forEach { array.put(it.toApiJson()) }
+        }) ?: return RemoteCollectionSyncResult(success = false, pushed = local.size)
+        val remoteItems = client.listChat()?.items ?: JSONArray()
+        val applied = applyRemoteChat(remoteItems)
         return RemoteCollectionSyncResult(success = true, pushed = local.size, pulled = applied)
     }
 
@@ -168,6 +194,50 @@ class ApiHindraxRemoteSyncRepository @Inject constructor(
         return applied
     }
 
+    private suspend fun applyRemoteChat(items: JSONArray): Int {
+        var applied = 0
+        for (index in 0 until items.length()) {
+            val json = items.optJSONObject(index) ?: continue
+            val remoteDeviceId = json.optString("deviceId").takeIf { it.isNotBlank() } ?: continue
+            if (remoteDeviceId == myDeviceId) continue
+            val text = json.optString("message")
+            val timestamp = json.optLong("timestamp", json.optLong("updatedAt", System.currentTimeMillis()))
+            val peerId = remoteDeviceId
+            if (chatDao.findMessage(peerId, text, timestamp, false) != null) continue
+
+            ensureRemotePeer(peerId, json.optString("nickname", "").takeIf { it.isNotBlank() })
+            chatDao.insertMessage(
+                ChatMessageEntity(
+                    peerId = peerId,
+                    message = text,
+                    timestamp = timestamp,
+                    isFromMe = false,
+                    status = MessageStatus.DELIVERED
+                )
+            )
+            applied++
+        }
+        return applied
+    }
+
+    private suspend fun ensureRemotePeer(peerId: String, nickname: String?) {
+        val existing = chatDao.getPeerById(peerId)
+        chatDao.insertPeer(
+            PeerEntity(
+                id = peerId,
+                name = existing?.name ?: "Node_${peerId.takeLast(4)}",
+                nickname = existing?.nickname ?: nickname,
+                lastKnownIp = existing?.lastKnownIp ?: "API_HINDRAX",
+                lastSeen = System.currentTimeMillis(),
+                isOnline = existing?.isOnline ?: false,
+                latitude = existing?.latitude,
+                longitude = existing?.longitude,
+                locationAccuracy = existing?.locationAccuracy,
+                locationUpdatedAt = existing?.locationUpdatedAt
+            )
+        )
+    }
+
     private fun TaskEntity.toApiJson(): JSONObject {
         return JSONObject().apply {
             put("id", "$myDeviceId-task-$id")
@@ -210,6 +280,19 @@ class ApiHindraxRemoteSyncRepository @Inject constructor(
             put("minQuantity", minQuantity)
             put("unit", unit)
             put("updatedAt", updatedAt)
+        }
+    }
+
+    private fun ChatMessageEntity.toApiJson(): JSONObject {
+        return JSONObject().apply {
+            put("id", "$myDeviceId-chat-$id-$timestamp")
+            put("deviceId", myDeviceId)
+            put("peerId", peerId)
+            put("message", message)
+            put("isFromMe", isFromMe)
+            put("status", status.name)
+            put("timestamp", timestamp)
+            put("updatedAt", timestamp)
         }
     }
 

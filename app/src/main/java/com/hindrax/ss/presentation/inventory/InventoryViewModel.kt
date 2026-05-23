@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hindrax.ss.data.db.InventoryDao
 import com.hindrax.ss.data.entity.InventoryEntity
+import com.hindrax.ss.data.remote.ApiHindraxRemoteSyncRepository
 import com.hindrax.ss.data.repository.ChatRepository
 import com.hindrax.ss.domain.tasks.model.InventoryItem
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,7 +21,8 @@ data class InventoryUiState(
 @HiltViewModel
 class InventoryViewModel @Inject constructor(
     private val inventoryDao: InventoryDao,
-    private val chatRepository: ChatRepository
+    private val chatRepository: ChatRepository,
+    private val remoteSyncRepository: ApiHindraxRemoteSyncRepository
 ) : ViewModel() {
 
     val uiState: StateFlow<InventoryUiState> = inventoryDao.observeInventory()
@@ -29,6 +31,10 @@ class InventoryViewModel @Inject constructor(
         }
         .catch { e -> emit(InventoryUiState(error = e.message)) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), InventoryUiState(isLoading = true))
+
+    init {
+        refreshRemote()
+    }
 
     fun addItem(name: String, category: String, minQty: Double, unit: String) {
         viewModelScope.launch {
@@ -42,6 +48,7 @@ class InventoryViewModel @Inject constructor(
             )
             val id = inventoryDao.insert(item)
             inventoryDao.getById(id)?.let { chatRepository.broadcastInventory(it) }
+            refreshRemote()
         }
     }
 
@@ -50,12 +57,20 @@ class InventoryViewModel @Inject constructor(
             val item = inventoryDao.getById(id) ?: return@launch
             inventoryDao.updateQuantity(id, item.currentQuantity + delta, System.currentTimeMillis())
             inventoryDao.getById(id)?.let { chatRepository.broadcastInventory(it) }
+            refreshRemote()
         }
     }
 
     fun deleteItem(item: InventoryItem) {
         viewModelScope.launch {
             inventoryDao.delete(item.toEntity())
+            refreshRemote()
+        }
+    }
+
+    fun refreshRemote() {
+        viewModelScope.launch {
+            runCatching { remoteSyncRepository.syncAll() }
         }
     }
 }

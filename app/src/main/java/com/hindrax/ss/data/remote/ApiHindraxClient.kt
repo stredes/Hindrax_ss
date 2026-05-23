@@ -31,12 +31,20 @@ class ApiHindraxClient @Inject constructor(
         return postSync("/api/v1/inventory/sync", items)
     }
 
+    suspend fun syncChat(items: JSONArray): ApiHindraxSyncResponse? {
+        return postSync("/api/v1/chat/sync", items)
+    }
+
     suspend fun listTasks(): ApiHindraxSyncResponse? {
         return getItems("/api/v1/tasks")
     }
 
     suspend fun listInventory(): ApiHindraxSyncResponse? {
         return getItems("/api/v1/inventory")
+    }
+
+    suspend fun listChat(): ApiHindraxSyncResponse? {
+        return getItems("/api/v1/chat")
     }
 
     suspend fun heartbeat(deviceId: String, nickname: String?, appVersion: String?): Boolean {

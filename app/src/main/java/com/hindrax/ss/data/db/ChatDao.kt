@@ -42,6 +42,20 @@ interface ChatDao {
     @Query("SELECT * FROM chat_messages WHERE peerId = :peerId ORDER BY timestamp ASC")
     fun observeMessages(peerId: String): Flow<List<ChatMessageEntity>>
 
+    @Query("SELECT * FROM chat_messages ORDER BY timestamp ASC")
+    suspend fun getAllMessagesSync(): List<ChatMessageEntity>
+
+    @Query(
+        "SELECT * FROM chat_messages WHERE peerId = :peerId AND message = :message " +
+            "AND timestamp = :timestamp AND isFromMe = :isFromMe LIMIT 1"
+    )
+    suspend fun findMessage(
+        peerId: String,
+        message: String,
+        timestamp: Long,
+        isFromMe: Boolean
+    ): ChatMessageEntity?
+
     @Insert
     suspend fun insertMessage(message: ChatMessageEntity): Long
 
