@@ -1,5 +1,11 @@
 package com.hindrax.ss.presentation.tasks
 
+import android.app.DatePickerDialog
+import android.app.TimePickerDialog
+import android.content.Context
+import android.content.Intent
+import android.provider.CalendarContract
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -14,15 +20,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.hindrax.ss.data.entity.PeerEntity
+import com.hindrax.ss.domain.tasks.model.EventScheduleFormatter
 import com.hindrax.ss.domain.tasks.model.InventoryItem
 import com.hindrax.ss.domain.tasks.model.TaskStatus
 import com.hindrax.ss.domain.tasks.model.TaskType
+import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,6 +42,7 @@ fun TaskFormScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val context = LocalContext.current
 
     LaunchedEffect(taskId) {
         viewModel.loadTask(taskId)
@@ -128,6 +138,25 @@ fun TaskFormScreen(
                     onTypeSelected = viewModel::onTypeChange
                 )
 
+                if (uiState.type == TaskType.EVENT) {
+                    EventSchedulePanel(
+                        scheduledTime = uiState.scheduledTime,
+                        title = uiState.title,
+                        description = uiState.description,
+                        locationName = uiState.locationName,
+                        onScheduledTimeChange = viewModel::onScheduledTimeChange,
+                        onSyncCalendar = {
+                            openCalendarInsert(
+                                context = context,
+                                title = uiState.title,
+                                description = uiState.description,
+                                locationName = uiState.locationName,
+                                scheduledTime = uiState.scheduledTime
+                            )
+                        }
+                    )
+                }
+
                 Text(
                     text = "--- DESIGNATED_DEVICE ---",
                     color = Color.Cyan,
@@ -190,6 +219,7 @@ fun TaskFormScreen(
                     
                     ChecklistEditor(
                         items = uiState.checklist,
+                        inventoryItems = uiState.availableInventory,
                         onAddItem = { text, qty, unit -> viewModel.addChecklistItem(text, qty, unit) },
                         onRemoveItem = viewModel::removeChecklistItem,
                         onToggleItem = viewModel::toggleChecklistItem,
@@ -278,6 +308,7 @@ fun TaskFormScreen(
 @Composable
 fun ChecklistEditor(
     items: List<com.hindrax.ss.domain.tasks.model.ChecklistItem>,
+    inventoryItems: List<InventoryItem> = emptyList(),
     onAddItem: (String, Double?, String?) -> Unit,
     onRemoveItem: (String) -> Unit,
     onToggleItem: (String) -> Unit,
@@ -288,6 +319,49 @@ fun ChecklistEditor(
     var newItemUnit by remember { mutableStateOf("unid") }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (inventoryItems.isNotEmpty()) {
+            Text(
+                text = "--- INVENTORY_RESOURCES ---",
+                color = Color.Yellow,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 11.sp
+            )
+            inventoryItems.forEach { inventory ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF0B0B0B), MaterialTheme.shapes.extraSmall)
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = inventory.name.uppercase(),
+                            color = Color.White,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 13.sp
+                        )
+                        Text(
+                            text = "STOCK: ${inventory.currentQuantity} ${inventory.unit}",
+                            color = Color.Cyan,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 10.sp
+                        )
+                    }
+                    IconButton(
+                        onClick = { onAddItem(inventory.name, 1.0, inventory.unit) },
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.AddCircle,
+                            contentDescription = "Add inventory item",
+                            tint = Color.Green
+                        )
+                    }
+                }
+            }
+        }
+
         // Add Header
         Card(
             colors = CardDefaults.cardColors(containerColor = Color(0xFF0F0F0F)),
@@ -514,6 +588,146 @@ fun AssignedDeviceSelector(
                 }
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EventSchedulePanel(
+    scheduledTime: Long?,
+    title: String,
+    description: String,
+    locationName: String?,
+    onScheduledTimeChange: (Long?) -> Unit,
+    onSyncCalendar: () -> Unit
+) {
+    val context = LocalContext.current
+    val calendar = remember(scheduledTime) {
+        Calendar.getInstance().apply {
+            timeInMillis = scheduledTime ?: System.currentTimeMillis()
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = "--- EVENT_DATE ---",
+            color = Color.Cyan,
+            fontFamily = FontFamily.Monospace,
+            fontSize = 12.sp
+        )
+        OutlinedTextField(
+            value = EventScheduleFormatter.format(scheduledTime),
+            onValueChange = {},
+            readOnly = true,
+            label = { Text("EVENT_DATE_LABEL", fontFamily = FontFamily.Monospace) },
+            modifier = Modifier.fillMaxWidth(),
+            trailingIcon = { Icon(Icons.Default.Event, contentDescription = null, tint = Color.Cyan) },
+            textStyle = LocalTextStyle.current.copy(fontFamily = FontFamily.Monospace, color = Color.White),
+            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color.Cyan),
+            shape = MaterialTheme.shapes.extraSmall
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(
+                onClick = {
+                    DatePickerDialog(
+                        context,
+                        { _, year, month, day ->
+                            val updated = Calendar.getInstance().apply {
+                                timeInMillis = scheduledTime ?: System.currentTimeMillis()
+                                set(Calendar.YEAR, year)
+                                set(Calendar.MONTH, month)
+                                set(Calendar.DAY_OF_MONTH, day)
+                                set(Calendar.SECOND, 0)
+                                set(Calendar.MILLISECOND, 0)
+                            }
+                            onScheduledTimeChange(updated.timeInMillis)
+                        },
+                        calendar.get(Calendar.YEAR),
+                        calendar.get(Calendar.MONTH),
+                        calendar.get(Calendar.DAY_OF_MONTH)
+                    ).show()
+                },
+                modifier = Modifier.weight(1f),
+                shape = MaterialTheme.shapes.extraSmall
+            ) {
+                Icon(Icons.Default.DateRange, contentDescription = null, tint = Color.Cyan)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("DATE", fontFamily = FontFamily.Monospace)
+            }
+            OutlinedButton(
+                onClick = {
+                    TimePickerDialog(
+                        context,
+                        { _, hour, minute ->
+                            val updated = Calendar.getInstance().apply {
+                                timeInMillis = scheduledTime ?: System.currentTimeMillis()
+                                set(Calendar.HOUR_OF_DAY, hour)
+                                set(Calendar.MINUTE, minute)
+                                set(Calendar.SECOND, 0)
+                                set(Calendar.MILLISECOND, 0)
+                            }
+                            onScheduledTimeChange(updated.timeInMillis)
+                        },
+                        calendar.get(Calendar.HOUR_OF_DAY),
+                        calendar.get(Calendar.MINUTE),
+                        true
+                    ).show()
+                },
+                modifier = Modifier.weight(1f),
+                shape = MaterialTheme.shapes.extraSmall
+            ) {
+                Icon(Icons.Default.Schedule, contentDescription = null, tint = Color.Cyan)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("TIME", fontFamily = FontFamily.Monospace)
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = onSyncCalendar,
+                enabled = scheduledTime != null && title.isNotBlank(),
+                modifier = Modifier.weight(1f),
+                shape = MaterialTheme.shapes.extraSmall,
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Cyan, contentColor = Color.Black)
+            ) {
+                Icon(Icons.Default.EventAvailable, contentDescription = null)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("SYNC_CALENDAR", fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+            }
+            OutlinedButton(
+                onClick = { onScheduledTimeChange(null) },
+                enabled = scheduledTime != null,
+                modifier = Modifier.weight(1f),
+                shape = MaterialTheme.shapes.extraSmall
+            ) {
+                Text("CLEAR_DATE", fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+            }
+        }
+        if (title.isBlank()) {
+            Text("EVENT_TITLE_REQUIRED_FOR_CALENDAR", color = Color.Yellow, fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+        }
+    }
+}
+
+private fun openCalendarInsert(
+    context: Context,
+    title: String,
+    description: String,
+    locationName: String?,
+    scheduledTime: Long?
+) {
+    val start = scheduledTime ?: return
+    val intent = Intent(Intent.ACTION_INSERT).apply {
+        data = CalendarContract.Events.CONTENT_URI
+        putExtra(CalendarContract.Events.TITLE, title)
+        putExtra(CalendarContract.Events.DESCRIPTION, description)
+        putExtra(CalendarContract.Events.EVENT_LOCATION, locationName.orEmpty())
+        putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, start)
+        putExtra(CalendarContract.EXTRA_EVENT_END_TIME, start + 60 * 60 * 1000)
+    }
+    runCatching {
+        context.startActivity(intent)
+    }.onFailure {
+        Toast.makeText(context, "CALENDAR_APP_NOT_AVAILABLE", Toast.LENGTH_SHORT).show()
     }
 }
 

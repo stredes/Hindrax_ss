@@ -1,6 +1,10 @@
 package com.hindrax.ss.domain.tasks.model
 
 import kotlinx.serialization.Serializable
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 enum class TaskStatus {
     PENDIENTE,
@@ -63,3 +67,12 @@ data class InventoryItem(
     val unit: String,
     val updatedAt: Long
 )
+
+object EventScheduleFormatter {
+    fun format(timestamp: Long?, timeZone: TimeZone = TimeZone.getDefault()): String {
+        if (timestamp == null) return "EVENT_DATE_PENDING"
+        return SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).apply {
+            this.timeZone = timeZone
+        }.format(Date(timestamp))
+    }
+}

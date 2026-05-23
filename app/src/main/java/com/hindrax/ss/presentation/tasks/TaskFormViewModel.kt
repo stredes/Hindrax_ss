@@ -120,6 +120,10 @@ class TaskFormViewModel @Inject constructor(
         _uiState.update { it.copy(type = newType) }
     }
 
+    fun onScheduledTimeChange(timestamp: Long?) {
+        _uiState.update { it.copy(scheduledTime = timestamp) }
+    }
+
     fun onLocationChange(name: String, lat: Double?, lon: Double?) {
         _uiState.update { it.copy(locationName = name, latitude = lat, longitude = lon) }
     }
