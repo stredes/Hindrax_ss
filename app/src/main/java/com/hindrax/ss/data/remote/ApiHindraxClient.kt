@@ -31,6 +31,14 @@ class ApiHindraxClient @Inject constructor(
         return postSync("/api/v1/inventory/sync", items)
     }
 
+    suspend fun listTasks(): ApiHindraxSyncResponse? {
+        return getItems("/api/v1/tasks")
+    }
+
+    suspend fun listInventory(): ApiHindraxSyncResponse? {
+        return getItems("/api/v1/inventory")
+    }
+
     suspend fun heartbeat(deviceId: String, nickname: String?, appVersion: String?): Boolean {
         val config = configStore.load()
         if (!config.isReady) return false
@@ -55,6 +63,16 @@ class ApiHindraxClient @Inject constructor(
         )
     }
 
+    private suspend fun getItems(path: String): ApiHindraxSyncResponse? {
+        val config = configStore.load()
+        if (!config.isReady) return null
+        val response = executeJsonGet(config, path) ?: return null
+        return ApiHindraxSyncResponse(
+            items = response.optJSONArray("items") ?: JSONArray(),
+            serverTime = response.optLong("serverTime", System.currentTimeMillis())
+        )
+    }
+
     private suspend fun executeJsonPost(
         config: ApiHindraxConfig,
         path: String,
@@ -65,6 +83,23 @@ class ApiHindraxClient @Inject constructor(
             .header("Authorization", "Bearer ${config.token}")
             .header("Content-Type", "application/json")
             .post(body.toString().toRequestBody(jsonMediaType))
+            .build()
+
+        httpClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) return@withContext null
+            val payload = response.body?.string().orEmpty()
+            if (payload.isBlank()) null else JSONObject(payload)
+        }
+    }
+
+    private suspend fun executeJsonGet(
+        config: ApiHindraxConfig,
+        path: String
+    ): JSONObject? = withContext(Dispatchers.IO) {
+        val request = Request.Builder()
+            .url("${config.baseUrl}$path")
+            .header("Authorization", "Bearer ${config.token}")
+            .get()
             .build()
 
         httpClient.newCall(request).execute().use { response ->

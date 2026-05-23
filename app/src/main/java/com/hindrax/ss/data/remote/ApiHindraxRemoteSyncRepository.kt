@@ -20,11 +20,18 @@ import javax.inject.Singleton
 
 data class ApiHindraxRemoteSyncResult(
     val enabled: Boolean,
+    val bootstrapUploaded: Boolean = false,
     val pushedTasks: Int = 0,
     val pulledTasks: Int = 0,
     val pushedInventory: Int = 0,
     val pulledInventory: Int = 0,
     val heartbeatSent: Boolean = false
+)
+
+private data class RemoteCollectionSyncResult(
+    val success: Boolean,
+    val pushed: Int = 0,
+    val pulled: Int = 0
 )
 
 @Singleton
@@ -39,7 +46,9 @@ class ApiHindraxRemoteSyncRepository @Inject constructor(
     private val myDeviceId = deviceIdManager.getDeviceId()
 
     suspend fun syncAll(): ApiHindraxRemoteSyncResult {
-        if (!configStore.load().isReady) return ApiHindraxRemoteSyncResult(enabled = false)
+        val config = configStore.load()
+        if (!config.isReady) return ApiHindraxRemoteSyncResult(enabled = false)
+        val bootstrapPending = configStore.shouldRunBootstrap(config)
 
         return coroutineScope {
             val tasksJob = async { syncTasks() }
@@ -53,12 +62,17 @@ class ApiHindraxRemoteSyncRepository @Inject constructor(
             }
             val tasks = tasksJob.await()
             val inventory = inventoryJob.await()
+            val bootstrapUploaded = bootstrapPending && tasks.success && inventory.success
+            if (bootstrapUploaded) {
+                configStore.markBootstrapComplete(config.baseUrl)
+            }
             ApiHindraxRemoteSyncResult(
                 enabled = true,
-                pushedTasks = tasks.first,
-                pulledTasks = tasks.second,
-                pushedInventory = inventory.first,
-                pulledInventory = inventory.second,
+                bootstrapUploaded = bootstrapUploaded,
+                pushedTasks = tasks.pushed,
+                pulledTasks = tasks.pulled,
+                pushedInventory = inventory.pushed,
+                pulledInventory = inventory.pulled,
                 heartbeatSent = heartbeatJob.await()
             )
         }
@@ -74,22 +88,24 @@ class ApiHindraxRemoteSyncRepository @Inject constructor(
         client.syncInventory(JSONArray().put(item.toApiJson()))
     }
 
-    private suspend fun syncTasks(): Pair<Int, Int> {
+    private suspend fun syncTasks(): RemoteCollectionSyncResult {
         val local = taskDao.getAllTasksSync()
-        val response = client.syncTasks(JSONArray().also { array ->
+        client.syncTasks(JSONArray().also { array ->
             local.forEach { array.put(it.toApiJson()) }
-        }) ?: return local.size to 0
-        val applied = applyRemoteTasks(response.items)
-        return local.size to applied
+        }) ?: return RemoteCollectionSyncResult(success = false, pushed = local.size)
+        val remoteItems = client.listTasks()?.items ?: JSONArray()
+        val applied = applyRemoteTasks(remoteItems)
+        return RemoteCollectionSyncResult(success = true, pushed = local.size, pulled = applied)
     }
 
-    private suspend fun syncInventory(): Pair<Int, Int> {
+    private suspend fun syncInventory(): RemoteCollectionSyncResult {
         val local = inventoryDao.getAllInventorySync()
-        val response = client.syncInventory(JSONArray().also { array ->
+        client.syncInventory(JSONArray().also { array ->
             local.forEach { array.put(it.toApiJson()) }
-        }) ?: return local.size to 0
-        val applied = applyRemoteInventory(response.items)
-        return local.size to applied
+        }) ?: return RemoteCollectionSyncResult(success = false, pushed = local.size)
+        val remoteItems = client.listInventory()?.items ?: JSONArray()
+        val applied = applyRemoteInventory(remoteItems)
+        return RemoteCollectionSyncResult(success = true, pushed = local.size, pulled = applied)
     }
 
     private suspend fun applyRemoteTasks(items: JSONArray): Int {

@@ -5,6 +5,7 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.hindrax.ss.core.model.Severity
 import com.hindrax.ss.core.util.HindraxNotificationCenter
+import com.hindrax.ss.core.work.RemoteSyncWorker
 import com.hindrax.ss.core.work.UpdateWorker
 import com.hindrax.ss.data.db.HindraxDatabase
 import com.hindrax.ss.data.entity.ToolTaskEntity
@@ -62,6 +63,7 @@ class HindraxApplication : Application(), Configuration.Provider {
         prepopulateTasks()
         syncRemoteOnStartup()
         scheduleUpdateChecks()
+        scheduleRemoteSync()
     }
 
     private fun syncRemoteOnStartup() {
@@ -87,6 +89,22 @@ class HindraxApplication : Application(), Configuration.Provider {
             "HindraxUpdateCheck",
             ExistingPeriodicWorkPolicy.KEEP,
             updateRequest
+        )
+    }
+
+    private fun scheduleRemoteSync() {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        val remoteSyncRequest = PeriodicWorkRequestBuilder<RemoteSyncWorker>(15, TimeUnit.MINUTES)
+            .setConstraints(constraints)
+            .build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "ApiHindraxRemoteSync",
+            ExistingPeriodicWorkPolicy.UPDATE,
+            remoteSyncRequest
         )
     }
 
