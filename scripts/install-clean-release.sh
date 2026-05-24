@@ -34,14 +34,29 @@ fi
 serial="${ANDROID_SERIAL:-$devices}"
 
 echo "[1/3] Device: $serial"
-echo "[2/3] Removing previous $PACKAGE_NAME installation if present..."
-if adb -s "$serial" shell pm path "$PACKAGE_NAME" >/dev/null 2>&1; then
-    adb -s "$serial" uninstall "$PACKAGE_NAME" || {
-        echo "ERROR: uninstall failed. Remove Hindrax manually from Android Settings and retry."
-        exit 1
-    }
-else
-    echo "Package is not installed."
+echo "[2/3] Removing previous $PACKAGE_NAME installation from all visible Android users..."
+users="$(adb -s "$serial" shell pm list users | sed -n 's/.*UserInfo{\([0-9][0-9]*\):.*/\1/p' | tr -d '\r')"
+if [ -z "$users" ]; then
+    users="0"
+fi
+
+for user_id in $users; do
+    echo "Checking user $user_id..."
+    if adb -s "$serial" shell pm list packages --user "$user_id" "$PACKAGE_NAME" | tr -d '\r' | grep -q "^package:$PACKAGE_NAME$"; then
+        adb -s "$serial" shell pm uninstall --user "$user_id" "$PACKAGE_NAME" >/dev/null || true
+    fi
+done
+
+if adb -s "$serial" shell pm list packages -u "$PACKAGE_NAME" | tr -d '\r' | grep -q "^package:$PACKAGE_NAME$"; then
+    echo "Package still has an installed or uninstalled residue. Trying full uninstall..."
+    adb -s "$serial" uninstall "$PACKAGE_NAME" >/dev/null || true
+fi
+
+if adb -s "$serial" shell pm list packages -u "$PACKAGE_NAME" | tr -d '\r' | grep -q "^package:$PACKAGE_NAME$"; then
+    echo "ERROR: $PACKAGE_NAME still exists on the device:"
+    adb -s "$serial" shell pm list packages -u "$PACKAGE_NAME" | tr -d '\r'
+    echo "Remove Hindrax from every Android user/profile, work profile, secure folder, or app clone, then retry."
+    exit 1
 fi
 
 echo "[3/3] Installing $APK_PATH..."
