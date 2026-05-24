@@ -18,6 +18,30 @@ data class ApiHindraxConfig(
         get() = enabled && baseUrl.isNotBlank() && token.isNotBlank() && ApiHindraxEndpoint.isValid(baseUrl)
 }
 
+data class ApiHindraxStoredConfig(
+    val hasEnabled: Boolean,
+    val enabled: Boolean,
+    val baseUrl: String?,
+    val token: String?
+)
+
+object ApiHindraxConfigResolver {
+    fun resolve(stored: ApiHindraxStoredConfig, releaseDefaults: ApiHindraxReleaseDefaults): ApiHindraxConfig {
+        val storedToken = stored.token?.takeIf { it.isNotBlank() }
+        val storedBaseUrl = stored.baseUrl?.takeIf { it.isNotBlank() }
+        val shouldUseReleaseDefaults = releaseDefaults.isReady &&
+            (!stored.hasEnabled || (!stored.enabled && storedToken == null))
+
+        return ApiHindraxConfig(
+            enabled = if (shouldUseReleaseDefaults) true else stored.enabled,
+            baseUrl = ApiHindraxEndpoint.normalizeBaseUrl(
+                if (shouldUseReleaseDefaults) releaseDefaults.normalizedBaseUrl else storedBaseUrl ?: releaseDefaults.normalizedBaseUrl
+            ),
+            token = if (shouldUseReleaseDefaults) releaseDefaults.token else storedToken ?: releaseDefaults.token
+        )
+    }
+}
+
 @Singleton
 class ApiHindraxConfigStore @Inject constructor(
     @ApplicationContext private val context: Context
@@ -29,15 +53,23 @@ class ApiHindraxConfigStore @Inject constructor(
             baseUrl = BuildConfig.API_HINDRAX_DEFAULT_BASE_URL,
             token = BuildConfig.API_HINDRAX_DEFAULT_TOKEN
         )
-        return ApiHindraxConfig(
-            enabled = prefs.getBoolean(KEY_ENABLED, releaseDefaults.isReady),
-            baseUrl = ApiHindraxEndpoint.normalizeBaseUrl(
-                prefs.getString(KEY_BASE_URL, releaseDefaults.normalizedBaseUrl)
-                    ?: releaseDefaults.normalizedBaseUrl
+        val config = ApiHindraxConfigResolver.resolve(
+            stored = ApiHindraxStoredConfig(
+                hasEnabled = prefs.contains(KEY_ENABLED),
+                enabled = prefs.getBoolean(KEY_ENABLED, releaseDefaults.isReady),
+                baseUrl = prefs.getString(KEY_BASE_URL, null),
+                token = prefs.getString(KEY_TOKEN, null)
             ),
-            token = prefs.getString(KEY_TOKEN, releaseDefaults.token)
-                ?: releaseDefaults.token
+            releaseDefaults = releaseDefaults
         )
+        if (config.isReady && !prefs.getBoolean(KEY_ENABLED, false)) {
+            prefs.edit()
+                .putBoolean(KEY_ENABLED, true)
+                .putString(KEY_BASE_URL, config.baseUrl)
+                .putString(KEY_TOKEN, config.token)
+                .apply()
+        }
+        return config
     }
 
     fun shouldRunBootstrap(config: ApiHindraxConfig = load()): Boolean {
