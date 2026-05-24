@@ -99,7 +99,8 @@ fun DashboardScreen(
     onNavigateToChat: () -> Unit,
     onNavigateToLiveLocation: () -> Unit,
     onNavigateToOfflineMusic: () -> Unit,
-    onNavigateToNfcLab: () -> Unit
+    onNavigateToNfcLab: () -> Unit,
+    onNavigateToUtils: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val palette = dashboardPalette()
@@ -350,6 +351,7 @@ fun DashboardScreen(
             item { ModuleCard("Mesh Chat", Icons.Default.Chat, onNavigateToChat, accentColor = palette.text) }
             item { ModuleCard("Geo_Live", Icons.Default.MyLocation, onNavigateToLiveLocation, accentColor = palette.secondary) }
             item { ModuleCard("Offline_Music", Icons.Default.LibraryMusic, onNavigateToOfflineMusic, accentColor = palette.warning) }
+            item { ModuleCard("Utils", Icons.Default.Construction, onNavigateToUtils, accentColor = palette.accent) }
             item { ModuleCard("NFC_Lab", Icons.Default.Nfc, onNavigateToNfcLab, accentColor = palette.accent) }
             item { ModuleCard("Net_Disc", Icons.Default.CellTower, onNavigateToNetworkDiscovery, accentColor = palette.secondary) }
             item { ModuleCard("Terminal", Icons.Default.Terminal, onNavigateToTermuxScripts, accentColor = palette.accent) }

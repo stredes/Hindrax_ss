@@ -12,6 +12,7 @@ import com.hindrax.ss.data.entity.MessageStatus
 import com.hindrax.ss.data.entity.PeerEntity
 import com.hindrax.ss.data.entity.TaskEntity
 import com.hindrax.ss.data.entity.TaskHistoryEntity
+import com.hindrax.ss.domain.inventory.InventoryApplicationKey
 import com.hindrax.ss.domain.inventory.ProductNameNormalizer
 import com.hindrax.ss.domain.tasks.model.ChecklistItem
 import com.hindrax.ss.domain.tasks.model.TaskStatus
@@ -59,7 +60,6 @@ class ApiHindraxRemoteSyncRepository @Inject constructor(
         val config = configStore.load()
         if (!config.isReady) return ApiHindraxRemoteSyncResult(enabled = false)
         val bootstrapPending = configStore.shouldRunBootstrap(config)
-        repairInventoryFromCompletedShoppingTasks()
 
         return coroutineScope {
             val tasksJob = async { syncTasks() }
@@ -131,6 +131,7 @@ class ApiHindraxRemoteSyncRepository @Inject constructor(
     }
 
     private suspend fun syncInventory(): RemoteCollectionSyncResult {
+        compactLocalInventoryDuplicates()
         val local = inventoryDao.getAllInventorySync()
         client.syncInventory(JSONArray().also { array ->
             local.forEach { array.put(it.toApiJson()) }
@@ -138,6 +139,23 @@ class ApiHindraxRemoteSyncRepository @Inject constructor(
         val remoteItems = client.listInventory()?.items ?: JSONArray()
         val applied = applyRemoteInventory(remoteItems)
         return RemoteCollectionSyncResult(success = true, pushed = local.size, pulled = applied)
+    }
+
+    private suspend fun compactLocalInventoryDuplicates() {
+        val duplicateIds = inventoryDao.getAllInventorySync()
+            .groupBy { ProductNameNormalizer.key(it.name) }
+            .values
+            .flatMap { group ->
+                if (group.size <= 1) {
+                    emptyList()
+                } else {
+                    val keep = group.maxWith(compareBy<InventoryEntity> { it.updatedAt }.thenBy { it.id })
+                    group.filter { it.id != keep.id }.map { it.id }
+                }
+            }
+        if (duplicateIds.isNotEmpty()) {
+            inventoryDao.deleteByIds(duplicateIds)
+        }
     }
 
     private suspend fun repairInventoryFromCompletedShoppingTasks() {
@@ -156,7 +174,7 @@ class ApiHindraxRemoteSyncRepository @Inject constructor(
                 task.checklist
                     .filter { it.isChecked && it.quantity != null }
                     .forEach { checklistItem ->
-                        val appliedKey = inventoryLineAppliedKey(checklistItem.id)
+                        val appliedKey = inventoryLineAppliedKey(task, checklistItem)
                         if (taskDao.countHistoryByActionAndDetail(task.id, "INVENTORY_LINE_APPLIED", appliedKey) > 0) {
                             return@forEach
                         }
@@ -197,8 +215,8 @@ class ApiHindraxRemoteSyncRepository @Inject constructor(
         return inventoryDao.getById(id)
     }
 
-    private fun inventoryLineAppliedKey(checklistItemId: String): String {
-        return "checklist:$checklistItemId"
+    private fun inventoryLineAppliedKey(task: TaskEntity, checklistItem: ChecklistItem): String {
+        return InventoryApplicationKey.checklistLine(task.title, task.type, checklistItem)
     }
 
     private suspend fun syncChat(): RemoteCollectionSyncResult {

@@ -12,6 +12,7 @@ import com.hindrax.ss.domain.tasks.model.TaskStatus
 import com.hindrax.ss.domain.tasks.model.TaskType
 import com.hindrax.ss.domain.tasks.repository.TaskRepository
 import com.hindrax.ss.data.repository.ChatRepository
+import com.hindrax.ss.domain.inventory.InventoryApplicationKey
 import com.hindrax.ss.domain.inventory.ProductNameNormalizer
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -137,7 +138,7 @@ class TaskRepositoryImpl @Inject constructor(
                 }
 
             task.checklist.filter { it.isChecked && it.quantity != null }.forEach { checkItem ->
-                val appliedKey = inventoryLineAppliedKey(checkItem.id)
+                val appliedKey = inventoryLineAppliedKey(task, checkItem)
                 if (taskDao.countHistoryByActionAndDetail(task.id, "INVENTORY_LINE_APPLIED", appliedKey) > 0) {
                     return@forEach
                 }
@@ -206,8 +207,8 @@ class TaskRepositoryImpl @Inject constructor(
         } catch (e: Exception) { }
     }
 
-    private fun inventoryLineAppliedKey(checklistItemId: String): String {
-        return "checklist:$checklistItemId"
+    private fun inventoryLineAppliedKey(task: Task, checklistItem: ChecklistItem): String {
+        return InventoryApplicationKey.checklistLine(task.title, task.type, checklistItem)
     }
 
     override suspend fun deleteTask(id: Long) {

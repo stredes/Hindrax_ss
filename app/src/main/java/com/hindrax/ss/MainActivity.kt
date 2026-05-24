@@ -45,6 +45,7 @@ import com.hindrax.ss.features.targets.AllowedTargetsScreen
 import com.hindrax.ss.features.termux.TermuxSetupScreen
 import com.hindrax.ss.features.termux.TermuxScriptsScreen
 import com.hindrax.ss.features.settings.SettingsScreen
+import com.hindrax.ss.features.utils.HindraxUtilsScreen
 import com.hindrax.ss.presentation.cyd.CydDashboardScreen
 import com.hindrax.ss.presentation.cyd.CydDiscoveryScreen
 import com.hindrax.ss.presentation.cyd.CydFileTransferScreen
@@ -131,7 +132,8 @@ class MainActivity : ComponentActivity() {
                                 onNavigateToChat = { navController.navigate("chat") },
                                 onNavigateToLiveLocation = { navController.navigate("live_location") },
                                 onNavigateToOfflineMusic = { navController.navigate("offline_music") },
-                                onNavigateToNfcLab = { navController.navigate("nfc_lab") }
+                                onNavigateToNfcLab = { navController.navigate("nfc_lab") },
+                                onNavigateToUtils = { navController.navigate("utils") }
                             )
                         }
                         
@@ -177,6 +179,7 @@ class MainActivity : ComponentActivity() {
                         composable("termux_setup") { TermuxSetupScreen(onBack = { navController.popBackStack() }) }
                         composable("termux_scripts") { TermuxScriptsScreen(onBack = { navController.popBackStack() }) }
                         composable("nfc_lab") { NfcLabScreen(onBack = { navController.popBackStack() }) }
+                        composable("utils") { HindraxUtilsScreen(onBack = { navController.popBackStack() }) }
                         composable("settings") { SettingsScreen(onBack = { navController.popBackStack() }) }
                         composable("profile") { HindraxProfileScreen(onBack = { navController.popBackStack() }) }
                         composable("file_analyzer") { FileAnalyzerScreen(onBack = { navController.popBackStack() }) }

@@ -185,7 +185,7 @@ class ChatRepository @Inject constructor(
                 for (i in 0 until checklistJson.length()) {
                     val item = checklistJson.getJSONObject(i)
                     checklist.add(ChecklistItem(
-                        id = UUID.randomUUID().toString(),
+                        id = item.optString("id", UUID.randomUUID().toString()),
                         text = item.getString("text"),
                         isChecked = item.optBoolean("checked", false),
                         quantity = if (item.has("q")) item.getDouble("q") else null,
@@ -415,7 +415,6 @@ class ChatRepository @Inject constructor(
             val local = async { peers.forEach { p -> shareTask(p.id, task) } }
             val remote = async {
                 remoteSyncRepository.pushTask(task)
-                remoteSyncRepository.syncAll()
             }
             local.await()
             remote.await()
@@ -429,7 +428,6 @@ class ChatRepository @Inject constructor(
             val local = async { peers.forEach { p -> shareInventoryItem(p.id, item) } }
             val remote = async {
                 remoteSyncRepository.pushInventory(item)
-                remoteSyncRepository.syncAll()
             }
             local.await()
             remote.await()
@@ -467,6 +465,7 @@ class ChatRepository @Inject constructor(
             val checklistArray = JSONArray()
             task.checklist.forEach { item ->
                 val itemObj = JSONObject()
+                itemObj.put("id", item.id)
                 itemObj.put("text", item.text)
                 itemObj.put("checked", item.isChecked)
                 if (item.quantity != null) itemObj.put("q", item.quantity)

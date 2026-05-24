@@ -30,6 +30,9 @@ interface InventoryDao {
     @Delete
     suspend fun delete(item: InventoryEntity)
 
+    @Query("DELETE FROM inventory WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<Long>)
+
     @Query("UPDATE inventory SET currentQuantity = :newQuantity, updatedAt = :updatedAt WHERE id = :id")
     suspend fun updateQuantity(id: Long, newQuantity: Double, updatedAt: Long)
 }
