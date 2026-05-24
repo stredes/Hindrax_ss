@@ -19,6 +19,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -103,19 +104,75 @@ import kotlin.random.Random
 
 private data class ChecklistEntry(val text: String, val checked: Boolean)
 private data class BudgetEntry(val label: String, val amount: Double)
+private data class UtilityMenuItem(
+    val id: UtilityId,
+    val title: String,
+    val category: String,
+    val detail: String,
+    val icon: ImageVector
+)
+
+private enum class UtilityId {
+    Timer,
+    Stopwatch,
+    Notes,
+    DailyChecklist,
+    Calculator,
+    UnitConverter,
+    System,
+    Level,
+    Ruler,
+    VoiceRecorder,
+    ShoppingChecklist,
+    Budget,
+    TextConverter,
+    RandomPicker,
+    Catalog
+}
+
+private val utilityMenuItems = listOf(
+    UtilityMenuItem(UtilityId.Timer, "Temporizador", "Tiempo", "Cuenta regresiva con reloj ASCII.", Icons.Default.HourglassTop),
+    UtilityMenuItem(UtilityId.Stopwatch, "Cronometro", "Tiempo", "Medicion por vueltas.", Icons.Default.Tune),
+    UtilityMenuItem(UtilityId.Notes, "Notas", "Personal", "Nota rapida guardada localmente.", Icons.Default.NoteAlt),
+    UtilityMenuItem(UtilityId.DailyChecklist, "Checklist", "Personal", "Pendientes rapidos del dia.", Icons.Default.Checklist),
+    UtilityMenuItem(UtilityId.Calculator, "Calculadora", "Calculo", "Operaciones y porcentajes.", Icons.Default.Calculate),
+    UtilityMenuItem(UtilityId.UnitConverter, "Conversor", "Calculo", "Peso, distancia y temperatura.", Icons.Default.Straighten),
+    UtilityMenuItem(UtilityId.System, "Sistema movil", "Dispositivo", "Flash, calendario, camara y QR.", Icons.Default.FlashlightOn),
+    UtilityMenuItem(UtilityId.Level, "Nivel", "Medicion", "Inclinacion por acelerometro.", Icons.Default.WaterDrop),
+    UtilityMenuItem(UtilityId.Ruler, "Regla", "Medicion", "Regla visual aproximada.", Icons.Default.Straighten),
+    UtilityMenuItem(UtilityId.VoiceRecorder, "Grabadora", "Audio", "Notas de voz locales.", Icons.Default.Mic),
+    UtilityMenuItem(UtilityId.ShoppingChecklist, "Compras", "Personal", "Lista rapida de compras.", Icons.Default.Checklist),
+    UtilityMenuItem(UtilityId.Budget, "Presupuesto", "Calculo", "Suma simple de gastos.", Icons.Default.Event),
+    UtilityMenuItem(UtilityId.TextConverter, "Texto", "Texto", "Mayusculas, minusculas y conteo.", Icons.Default.TextFields),
+    UtilityMenuItem(UtilityId.RandomPicker, "Aleatorio", "Decision", "Elige una opcion al azar.", Icons.Default.Casino),
+    UtilityMenuItem(UtilityId.Catalog, "Catalogo", "Indice", "Listado completo de utilidades.", Icons.Default.QrCode)
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HindraxUtilsScreen(onBack: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val accent = scheme.primary
+    var selectedUtility by remember { mutableStateOf<UtilityMenuItem?>(null) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("UTILS :: DAILY_TOOLS", fontFamily = FontFamily.Monospace, fontSize = 16.sp) },
+                title = {
+                    Text(
+                        selectedUtility?.let { "UTILS :: ${it.title.uppercase(Locale.ROOT)}" } ?: "UTILS :: DASH_MENU",
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 16.sp
+                    )
+                },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = {
+                        if (selectedUtility == null) {
+                            onBack()
+                        } else {
+                            selectedUtility = null
+                        }
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 },
@@ -127,30 +184,192 @@ fun HindraxUtilsScreen(onBack: () -> Unit) {
             )
         }
     ) { padding ->
-        LazyColumn(
+        if (selectedUtility == null) {
+            DashMenuParaUtils(
+                modifier = Modifier.padding(padding),
+                onSelect = { selectedUtility = it }
+            )
+        } else {
+            UtilityDetailScreen(
+                item = selectedUtility!!,
+                modifier = Modifier.padding(padding)
+            )
+        }
+    }
+}
+
+@Composable
+private fun DashMenuParaUtils(
+    modifier: Modifier = Modifier,
+    onSelect: (UtilityMenuItem) -> Unit
+) {
+    val scheme = MaterialTheme.colorScheme
+    LazyColumn(
+        modifier = modifier
+            .fillMaxSize()
+            .background(scheme.background)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+        contentPadding = PaddingValues(bottom = 28.dp)
+    ) {
+        item {
+            Text(
+                "+-[ DASH_MENU_PARA_UTILS ]----------------",
+                color = scheme.primary,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                "Selecciona una utilidad para abrir su panel dedicado.",
+                color = scheme.onSurface.copy(alpha = 0.72f),
+                fontFamily = FontFamily.Monospace,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(top = 6.dp)
+            )
+        }
+
+        utilityMenuItems.groupBy { it.category }.forEach { (category, items) ->
+            item {
+                Text(
+                    ":: $category",
+                    color = scheme.secondary,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            items.chunked(2).forEach { rowItems ->
+                item {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        rowItems.forEach { item ->
+                            UtilityMenuCard(
+                                item = item,
+                                onClick = { onSelect(item) },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        if (rowItems.size == 1) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UtilityMenuCard(
+    item: UtilityMenuItem,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val scheme = MaterialTheme.colorScheme
+    Card(
+        colors = CardDefaults.cardColors(containerColor = scheme.surface),
+        border = BorderStroke(1.dp, scheme.primary.copy(alpha = 0.42f)),
+        shape = MaterialTheme.shapes.extraSmall,
+        modifier = modifier
+            .height(132.dp)
+            .clickable(onClick = onClick)
+    ) {
+        Column(
+            verticalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier
-                .padding(padding)
                 .fillMaxSize()
-                .background(scheme.background)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(bottom = 28.dp)
+                .padding(12.dp)
         ) {
-            item { TimerTool() }
-            item { StopwatchTool() }
-            item { NotesTool() }
-            item { ChecklistTool(title = "CHECKLIST_DIARIA") }
-            item { CalculatorTool() }
-            item { UnitConverterTool() }
-            item { SystemTools() }
-            item { LevelTool() }
-            item { RulerTool() }
-            item { VoiceRecorderTool() }
-            item { ChecklistTool(title = "LISTA_DE_COMPRAS") }
-            item { BudgetTool() }
-            item { TextConverterTool() }
-            item { RandomPickerTool() }
-            item { UtilityCatalog() }
+            Icon(item.icon, contentDescription = null, tint = scheme.primary)
+            Column {
+                Text(
+                    item.title.uppercase(Locale.ROOT),
+                    color = scheme.onSurface,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp
+                )
+                Text(
+                    item.detail,
+                    color = scheme.onSurface.copy(alpha = 0.68f),
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 11.sp,
+                    lineHeight = 13.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun UtilityDetailScreen(
+    item: UtilityMenuItem,
+    modifier: Modifier = Modifier
+) {
+    val scheme = MaterialTheme.colorScheme
+    LazyColumn(
+        modifier = modifier
+            .fillMaxSize()
+            .background(scheme.background)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(bottom = 28.dp)
+    ) {
+        item {
+            UtilityDetailHeader(item)
+        }
+        item {
+            when (item.id) {
+                UtilityId.Timer -> TimerTool()
+                UtilityId.Stopwatch -> StopwatchTool()
+                UtilityId.Notes -> NotesTool()
+                UtilityId.DailyChecklist -> ChecklistTool(title = "CHECKLIST_DIARIA")
+                UtilityId.Calculator -> CalculatorTool()
+                UtilityId.UnitConverter -> UnitConverterTool()
+                UtilityId.System -> SystemTools()
+                UtilityId.Level -> LevelTool()
+                UtilityId.Ruler -> RulerTool()
+                UtilityId.VoiceRecorder -> VoiceRecorderTool()
+                UtilityId.ShoppingChecklist -> ChecklistTool(title = "LISTA_DE_COMPRAS")
+                UtilityId.Budget -> BudgetTool()
+                UtilityId.TextConverter -> TextConverterTool()
+                UtilityId.RandomPicker -> RandomPickerTool()
+                UtilityId.Catalog -> UtilityCatalog()
+            }
+        }
+    }
+}
+
+@Composable
+private fun UtilityDetailHeader(item: UtilityMenuItem) {
+    val scheme = MaterialTheme.colorScheme
+    Surface(
+        color = scheme.surface,
+        border = BorderStroke(1.dp, scheme.primary.copy(alpha = 0.38f)),
+        shape = MaterialTheme.shapes.extraSmall,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(14.dp)
+        ) {
+            Icon(item.icon, contentDescription = null, tint = scheme.primary)
+            Column {
+                Text(
+                    "+-[ ${item.title.uppercase(Locale.ROOT)} ]",
+                    color = scheme.primary,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    item.detail,
+                    color = scheme.onSurface.copy(alpha = 0.7f),
+                    fontFamily = FontFamily.Monospace,
+                    fontSize = 12.sp
+                )
+            }
         }
     }
 }
