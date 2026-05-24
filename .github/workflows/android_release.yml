@@ -1,10 +1,7 @@
-name: Android CI/CD Release
+name: Android Manual Release Check
 
 on:
-  push:
-    tags:
-      - 'v*' # Se activa al subir una etiqueta tipo v1.0.1
-  workflow_dispatch: # Permite ejecución manual
+  workflow_dispatch: # Release publishing is handled by release.sh to preserve the local signing key.
 
 permissions:
   contents: write
@@ -62,32 +59,7 @@ jobs:
           (cd release-artifacts && sha256sum *.apk > SHA256SUMS.txt)
           ls -lh release-artifacts
 
-      - name: Publish release assets
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Report release asset
         run: |
-          NOTES="$(cat <<'EOF'
-          Hindrax SS automated release.
-
-          Protocol:
-          - Gradle unit tests passed.
-          - APK compiled by GitHub Actions.
-          - APK asset name is stable: hindrax-${{ github.ref_name }}.apk.
-          - App updater detects this release through /releases/latest.
-          EOF
-          )"
-
-          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
-            gh release edit "${GITHUB_REF_NAME}" \
-              --title "Release ${GITHUB_REF_NAME}" \
-              --notes "$NOTES" \
-              --latest
-          else
-            gh release create "${GITHUB_REF_NAME}" \
-              --verify-tag \
-              --title "Release ${GITHUB_REF_NAME}" \
-              --notes "$NOTES" \
-              --latest
-          fi
-
-          gh release upload "${GITHUB_REF_NAME}" release-artifacts/* --clobber
+          echo "Manual workflow completed. It does not publish or overwrite GitHub Release assets."
+          echo "Use ./release.sh locally so APKs are signed with the persistent Hindrax release key."
