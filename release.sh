@@ -38,6 +38,15 @@ require_command gh
 require_command keytool
 require_command sha256sum
 
+APKSIGNER="${APKSIGNER:-}"
+if [ -z "$APKSIGNER" ]; then
+    APKSIGNER="$(find "${ANDROID_HOME:-$HOME/Android/Sdk}/build-tools" -name apksigner -type f 2>/dev/null | sort -V | tail -1 || true)"
+fi
+if [ -z "$APKSIGNER" ] || [ ! -x "$APKSIGNER" ]; then
+    echo "ERROR: apksigner not found. Set APKSIGNER=/path/to/apksigner or install Android build-tools."
+    exit 1
+fi
+
 KEYSTORE_DIR="${KEYSTORE_DIR:-keystore}"
 KEYSTORE_FILE="${HINDRAX_KEYSTORE_PATH:-$KEYSTORE_DIR/hindrax-release.jks}"
 KEYSTORE_PROPS="${KEYSTORE_PROPS:-$KEYSTORE_DIR/hindrax-release.properties}"
@@ -61,6 +70,39 @@ read_env_property() {
     if [ -f "$file" ]; then
         grep "^$key=" "$file" | tail -1 | cut -d= -f2-
     fi
+}
+
+apk_signature_digest() {
+    "$APKSIGNER" verify --print-certs "$1" | awk -F': ' '/Signer #1 certificate SHA-256 digest/{print $2; exit}'
+}
+
+verify_release_signature_continuity() {
+    local previous_tag="v$OLD_NAME"
+    local previous_apk="build/release-artifacts/$previous_tag/hindrax-$previous_tag.apk"
+    local current_digest previous_digest
+
+    current_digest="$(apk_signature_digest "$LOCAL_APK")"
+    if [ -z "$current_digest" ]; then
+        echo "ERROR: could not read APK signing certificate from $LOCAL_APK"
+        exit 1
+    fi
+
+    echo "[signing] Release APK cert SHA-256: $current_digest"
+    if [ ! -f "$previous_apk" ]; then
+        echo "[signing] Previous local APK not found for comparison: $previous_apk"
+        echo "[signing] Continuing, but first install on devices signed with another key will require uninstall."
+        return
+    fi
+
+    previous_digest="$(apk_signature_digest "$previous_apk")"
+    if [ "$current_digest" != "$previous_digest" ]; then
+        echo "ERROR: release signature changed."
+        echo "Previous $previous_tag: $previous_digest"
+        echo "Current  $TAG: $current_digest"
+        echo "Android cannot update an installed APK when signatures differ. Restore the previous keystore before releasing."
+        exit 1
+    fi
+    echo "[signing] Signature continuity OK against $previous_tag."
 }
 
 prepare_api_hindrax_release_config() {
@@ -236,6 +278,7 @@ if [ ! -f app/build/outputs/apk/release/app-release.apk ]; then
     exit 1
 fi
 cp app/build/outputs/apk/release/app-release.apk "$LOCAL_APK"
+verify_release_signature_continuity
 (cd "$LOCAL_RELEASE_DIR" && sha256sum "$ASSET_NAME" > "$(basename "$SHA_FILE")")
 ls -lh "$LOCAL_RELEASE_DIR"
 

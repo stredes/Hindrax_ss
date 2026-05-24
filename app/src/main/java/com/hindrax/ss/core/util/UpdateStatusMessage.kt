@@ -4,7 +4,7 @@ object UpdateStatusMessage {
     fun human(status: String): String {
         return when {
             status.contains("SIGNATURE_MISMATCH") ->
-                "Conflicto de firma: desinstala la build instalada desde Android Studio/debug y luego instala el release."
+                "Conflicto de firma: la app instalada no fue firmada con la clave release actual. Desinstala esa build y luego instala el release."
             status.contains("INSTALL_PERMISSION_REQUIRED") ->
                 "Permite instalar apps desconocidas para Hindrax y vuelve a presionar Actualizar."
             status.startsWith("DOWNLOAD_FAILED") ->

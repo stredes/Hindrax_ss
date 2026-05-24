@@ -294,7 +294,7 @@ class UpdateManager @Inject constructor(
         val installedDigests = signatureDigests(installedInfo)
         val archiveDigests = signatureDigests(archiveInfo)
         if (installedDigests.isNotEmpty() && archiveDigests.isNotEmpty() && installedDigests != archiveDigests) {
-            return "APK_PREFLIGHT_ERROR: SIGNATURE_MISMATCH uninstall_debug_build_then_install_release"
+            return "APK_PREFLIGHT_ERROR: SIGNATURE_MISMATCH installed=${installedDigests.shortLabel()} apk=${archiveDigests.shortLabel()} uninstall_incompatible_build_then_install_release"
         }
 
         return "APK_PREFLIGHT_OK"
@@ -345,6 +345,12 @@ class UpdateManager @Inject constructor(
     private fun signatureDigest(signature: Signature): String {
         val digest = MessageDigest.getInstance("SHA-256").digest(signature.toByteArray())
         return digest.joinToString("") { "%02x".format(it) }
+    }
+
+    private fun Set<String>.shortLabel(): String {
+        return sorted().joinToString("+") { digest ->
+            digest.take(8)
+        }
     }
 
     private fun installApk(file: File): String {

@@ -100,6 +100,7 @@ fun ChatScreen(
                     messages = uiState.messages,
                     currentMessage = uiState.currentMessage,
                     nicknameDraft = uiState.nicknameDraft,
+                    sendStatus = uiState.sendStatus,
                     onMessageChange = viewModel::onMessageChange,
                     onNicknameChange = viewModel::onNicknameChange,
                     onSaveNickname = viewModel::saveNickname,
@@ -204,6 +205,7 @@ fun ChatWindow(
     messages: List<ChatMessageEntity>,
     currentMessage: String,
     nicknameDraft: String,
+    sendStatus: String?,
     onMessageChange: (String) -> Unit,
     onNicknameChange: (String) -> Unit,
     onSaveNickname: () -> Unit,
@@ -282,6 +284,15 @@ fun ChatWindow(
                     tint = Color.Green
                 )
             }
+        }
+        if (!sendStatus.isNullOrBlank()) {
+            Text(
+                text = sendStatus,
+                color = if (sendStatus.startsWith("ERROR")) Color.Red else Color.Gray,
+                fontFamily = FontFamily.Monospace,
+                fontSize = 10.sp,
+                modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 8.dp)
+            )
         }
     }
 }

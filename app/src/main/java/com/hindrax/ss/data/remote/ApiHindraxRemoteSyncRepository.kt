@@ -1,6 +1,7 @@
 package com.hindrax.ss.data.remote
 
 import android.content.Context
+import android.util.Log
 import com.hindrax.ss.core.util.DeviceIdManager
 import com.hindrax.ss.data.db.ChatDao
 import com.hindrax.ss.data.db.InventoryDao
@@ -94,17 +95,29 @@ class ApiHindraxRemoteSyncRepository @Inject constructor(
 
     suspend fun pushTask(task: TaskEntity) {
         if (!configStore.load().isReady) return
-        client.syncTasks(JSONArray().put(task.toApiJson()))
+        runCatching {
+            client.syncTasks(JSONArray().put(task.toApiJson()))
+        }.onFailure { error ->
+            Log.w(TAG, "Task push failed; it will be retried by autosync", error)
+        }
     }
 
     suspend fun pushInventory(item: InventoryEntity) {
         if (!configStore.load().isReady) return
-        client.syncInventory(JSONArray().put(item.toApiJson()))
+        runCatching {
+            client.syncInventory(JSONArray().put(item.toApiJson()))
+        }.onFailure { error ->
+            Log.w(TAG, "Inventory push failed; it will be retried by autosync", error)
+        }
     }
 
     suspend fun pushChatMessage(message: ChatMessageEntity) {
         if (!configStore.load().isReady) return
-        client.syncChat(JSONArray().put(message.toApiJson()))
+        runCatching {
+            client.syncChat(JSONArray().put(message.toApiJson()))
+        }.onFailure { error ->
+            Log.w(TAG, "Chat push failed; it will be retried by autosync", error)
+        }
     }
 
     private suspend fun syncTasks(): RemoteCollectionSyncResult {
@@ -366,6 +379,10 @@ class ApiHindraxRemoteSyncRepository @Inject constructor(
             val info = context.packageManager.getPackageInfo(context.packageName, 0)
             info.versionName
         }.getOrNull()
+    }
+
+    private companion object {
+        const val TAG = "ApiHindraxRemoteSync"
     }
 }
 

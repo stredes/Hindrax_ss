@@ -11,7 +11,7 @@ class UpdateStatusMessageTest {
         )
 
         assertEquals(
-            "Conflicto de firma: desinstala la build instalada desde Android Studio/debug y luego instala el release.",
+            "Conflicto de firma: la app instalada no fue firmada con la clave release actual. Desinstala esa build y luego instala el release.",
             message
         )
     }

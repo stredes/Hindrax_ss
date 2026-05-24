@@ -16,7 +16,8 @@ data class ChatUiState(
     val messages: List<ChatMessageEntity> = emptyList(),
     val currentMessage: String = "",
     val nicknameDraft: String = "",
-    val locationStatus: String? = null
+    val locationStatus: String? = null,
+    val sendStatus: String? = null
 )
 
 @HiltViewModel
@@ -93,8 +94,19 @@ class ChatViewModel @Inject constructor(
         if (text.isBlank()) return
 
         viewModelScope.launch {
-            repository.sendMessage(peerId, text)
-            _uiState.update { it.copy(currentMessage = "") }
+            _uiState.update { it.copy(currentMessage = "", sendStatus = "ENVIANDO") }
+            runCatching {
+                repository.sendMessage(peerId, text)
+            }.onSuccess {
+                _uiState.update { it.copy(sendStatus = "ENVIADO") }
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        currentMessage = text,
+                        sendStatus = "ERROR_ENVIO: ${error.message ?: "UNKNOWN"}"
+                    )
+                }
+            }
         }
     }
 
