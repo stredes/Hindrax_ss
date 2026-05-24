@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.hindrax.ss.R
+import com.hindrax.ss.core.util.UpdateStatusMessage
 import com.hindrax.ss.presentation.tasks.AsciiBanners
 
 private data class DashboardPalette(
@@ -278,7 +279,12 @@ fun DashboardScreen(
                                     fontFamily = FontFamily.Monospace,
                                     fontSize = if (isTablet) 12.sp else 10.sp
                                 )
-                                Text("status> ${uiState.updateStatus}", color = palette.muted, fontFamily = FontFamily.Monospace, fontSize = if (isTablet) 11.sp else 9.sp)
+                                Text(
+                                    "status> ${UpdateStatusMessage.human(uiState.updateStatus)}",
+                                    color = palette.muted,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = if (isTablet) 11.sp else 9.sp
+                                )
                             }
                             Button(
                                 onClick = { viewModel.installUpdate() },
