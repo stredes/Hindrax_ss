@@ -108,7 +108,7 @@ class ApiHindraxRemoteSyncRepository @Inject constructor(
     }
 
     private suspend fun syncTasks(): RemoteCollectionSyncResult {
-        val local = taskDao.getAllTasksSync()
+        val local = taskDao.getAllTasksForRemoteSync()
         client.syncTasks(JSONArray().also { array ->
             local.forEach { array.put(it.toApiJson()) }
         }) ?: return RemoteCollectionSyncResult(success = false, pushed = local.size)
@@ -204,7 +204,7 @@ class ApiHindraxRemoteSyncRepository @Inject constructor(
             val json = items.optJSONObject(index) ?: continue
             val title = json.optString("title").takeIf { it.isNotBlank() } ?: continue
             val incomingUpdatedAt = json.optLong("updatedAt", System.currentTimeMillis())
-            val existing = taskDao.getByTitle(title) ?: taskDao.getByTitle("[REMOTE] $title")
+            val existing = taskDao.getByTitleIncludingDeleted(title) ?: taskDao.getByTitleIncludingDeleted("[REMOTE] $title")
             if (existing != null && existing.updatedAt >= incomingUpdatedAt) continue
 
             val incoming = TaskEntity(

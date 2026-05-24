@@ -17,8 +17,17 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE isDeleted = 0")
     suspend fun getAllTasksSync(): List<TaskEntity>
 
+    @Query("SELECT * FROM tasks")
+    suspend fun getAllTasksForRemoteSync(): List<TaskEntity>
+
+    @Query("SELECT * FROM tasks WHERE id = :id")
+    suspend fun getByIdIncludingDeleted(id: Long): TaskEntity?
+
     @Query("SELECT * FROM tasks WHERE title = :title AND isDeleted = 0 LIMIT 1")
     suspend fun getByTitle(title: String): TaskEntity?
+
+    @Query("SELECT * FROM tasks WHERE title = :title LIMIT 1")
+    suspend fun getByTitleIncludingDeleted(title: String): TaskEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(task: TaskEntity): Long

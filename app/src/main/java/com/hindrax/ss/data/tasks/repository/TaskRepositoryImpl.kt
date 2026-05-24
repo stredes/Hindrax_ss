@@ -214,6 +214,11 @@ class TaskRepositoryImpl @Inject constructor(
         val now = System.currentTimeMillis()
         taskDao.softDelete(id, now)
         saveHistory(id, "ELIMINACION", "Misión terminada y archivada.")
+        try {
+            val deleted = taskDao.getByIdIncludingDeleted(id)
+            if (deleted != null) chatRepository.broadcastTask(deleted)
+        } catch (e: Exception) {
+        }
     }
 
     private suspend fun saveHistory(taskId: Long, action: String, detail: String) {

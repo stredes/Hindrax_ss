@@ -177,7 +177,7 @@ class ChatRepository @Inject constructor(
             val title = json.getString("title")
             
             // If task exists with same title, update its status/checklist; otherwise insert as new
-            val existing = taskDao.getByTitle(title) ?: taskDao.getByTitle("[SHARED] $title")
+            val existing = taskDao.getByTitleIncludingDeleted(title) ?: taskDao.getByTitleIncludingDeleted("[SHARED] $title")
 
             val checklistJson = json.optJSONArray("checklist")
             val checklist = mutableListOf<ChecklistItem>()
@@ -195,6 +195,7 @@ class ChatRepository @Inject constructor(
             }
             val incomingStatus = TaskStatus.valueOf(json.optString("status", TaskStatus.PENDIENTE.name))
             val assignedPeerId = json.optString("assignedPeerId", "").takeIf { it.isNotBlank() }
+            val incomingDeleted = json.optBoolean("deleted", false)
 
             val receivedTitle: String
             if (existing != null) {
@@ -203,6 +204,7 @@ class ChatRepository @Inject constructor(
                     status = incomingStatus,
                     assignedPeerId = assignedPeerId,
                     checklist = checklist.ifEmpty { existing.checklist },
+                    isDeleted = incomingDeleted,
                     updatedAt = System.currentTimeMillis()
                 )
                 taskDao.update(updated)
@@ -223,7 +225,8 @@ class ChatRepository @Inject constructor(
                     assignedPeerId = assignedPeerId,
                     checklist = checklist,
                     createdAt = System.currentTimeMillis(),
-                    updatedAt = System.currentTimeMillis()
+                    updatedAt = System.currentTimeMillis(),
+                    isDeleted = incomingDeleted
                 )
                 taskDao.insert(task)
                 receivedTitle = task.title
@@ -434,7 +437,7 @@ class ChatRepository @Inject constructor(
     }
 
     private suspend fun syncTasksWithPeer(peerId: String, recordMessages: Boolean) {
-        val tasks = taskDao.getAllTasksSync()
+        val tasks = taskDao.getAllTasksForRemoteSync()
         tasks.forEach { shareTask(peerId, it, recordMessage = recordMessages) }
     }
 
@@ -459,6 +462,7 @@ class ChatRepository @Inject constructor(
             if (task.assignedPeerId != null) put("assignedPeerId", task.assignedPeerId)
             if (task.latitude != null) put("lat", task.latitude)
             if (task.longitude != null) put("lng", task.longitude)
+            put("deleted", task.isDeleted)
 
             val checklistArray = JSONArray()
             task.checklist.forEach { item ->
