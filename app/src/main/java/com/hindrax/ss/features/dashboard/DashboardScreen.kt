@@ -33,6 +33,10 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.hindrax.ss.R
 import com.hindrax.ss.core.util.UpdateStatusMessage
+import com.hindrax.ss.domain.ascii.AsciiAnimationCatalog
+import com.hindrax.ss.domain.ascii.AsciiAnimationContext
+import com.hindrax.ss.features.ascii.AsciiAnimationPlayer
+import com.hindrax.ss.features.ascii.AsciiAnimationStrip
 import com.hindrax.ss.presentation.tasks.AsciiBanners
 
 private data class DashboardPalette(
@@ -238,6 +242,21 @@ fun DashboardScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    NeonAsciiPanel(
+                        title = "ASCII_ANIM",
+                        accent = palette.accent,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        AsciiAnimationPlayer(
+                            spec = AsciiAnimationCatalog.forContext(AsciiAnimationContext.Dashboard),
+                            color = palette.accent,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(12.dp)
+                        )
+                    }
+
                     Spacer(modifier = Modifier.height(10.dp))
 
                     NeonAsciiPanel(
@@ -341,23 +360,23 @@ fun DashboardScreen(
                 }
             }
 
-            item { ModuleCard("Automation", Icons.Default.Bolt, onNavigateToAutomation, accentColor = palette.accent) }
-            item { ModuleCard("AI_Assist", Icons.Default.Psychology, onNavigateToAiAssist, accentColor = palette.accent) }
-            item { ModuleCard("Profile", Icons.Default.Person, onNavigateToProfile, accentColor = palette.accent) }
-            item { ModuleCard("File_Analyzer", Icons.Default.FolderOpen, onNavigateToFileAnalyzer, accentColor = palette.secondary) }
-            item { ModuleCard("Missions", Icons.Default.Assignment, onNavigateToTasks, accentColor = palette.warning) }
-            item { ModuleCard("Logistics", Icons.Default.Inventory, onNavigateToInventory, accentColor = palette.secondary) }
-            item { ModuleCard("CYD_Link", Icons.Default.DeveloperBoard, onNavigateToCydConnect, accentColor = palette.danger) }
-            item { ModuleCard("Mesh Chat", Icons.Default.Chat, onNavigateToChat, accentColor = palette.text) }
-            item { ModuleCard("Geo_Live", Icons.Default.MyLocation, onNavigateToLiveLocation, accentColor = palette.secondary) }
-            item { ModuleCard("Offline_Music", Icons.Default.LibraryMusic, onNavigateToOfflineMusic, accentColor = palette.warning) }
-            item { ModuleCard("Utils", Icons.Default.Construction, onNavigateToUtils, accentColor = palette.accent) }
-            item { ModuleCard("NFC_Lab", Icons.Default.Nfc, onNavigateToNfcLab, accentColor = palette.accent) }
-            item { ModuleCard("Net_Disc", Icons.Default.CellTower, onNavigateToNetworkDiscovery, accentColor = palette.secondary) }
-            item { ModuleCard("Terminal", Icons.Default.Terminal, onNavigateToTermuxScripts, accentColor = palette.accent) }
-            item { ModuleCard("Scanner", Icons.Default.Lan, onNavigateToPortScanner, accentColor = palette.warning) }
-            item { ModuleCard("Web_Scan", Icons.Default.ManageSearch, onNavigateToWebScanner, accentColor = palette.danger) }
-            item { ModuleCard("Logs", Icons.Default.History, onNavigateToReports) }
+            item { ModuleCard("Automation", Icons.Default.Bolt, onNavigateToAutomation, accentColor = palette.accent, animationContext = AsciiAnimationContext.System) }
+            item { ModuleCard("AI_Assist", Icons.Default.Psychology, onNavigateToAiAssist, accentColor = palette.accent, animationContext = AsciiAnimationContext.Text) }
+            item { ModuleCard("Profile", Icons.Default.Person, onNavigateToProfile, accentColor = palette.accent, animationContext = AsciiAnimationContext.TemplarSeal) }
+            item { ModuleCard("File_Analyzer", Icons.Default.FolderOpen, onNavigateToFileAnalyzer, accentColor = palette.secondary, animationContext = AsciiAnimationContext.Catalog) }
+            item { ModuleCard("Missions", Icons.Default.Assignment, onNavigateToTasks, accentColor = palette.warning, animationContext = AsciiAnimationContext.Checklist) }
+            item { ModuleCard("Logistics", Icons.Default.Inventory, onNavigateToInventory, accentColor = palette.secondary, animationContext = AsciiAnimationContext.Converter) }
+            item { ModuleCard("CYD_Link", Icons.Default.DeveloperBoard, onNavigateToCydConnect, accentColor = palette.danger, animationContext = AsciiAnimationContext.System) }
+            item { ModuleCard("Mesh Chat", Icons.Default.Chat, onNavigateToChat, accentColor = palette.text, animationContext = AsciiAnimationContext.Text) }
+            item { ModuleCard("Geo_Live", Icons.Default.MyLocation, onNavigateToLiveLocation, accentColor = palette.secondary, animationContext = AsciiAnimationContext.Measure) }
+            item { ModuleCard("Offline_Music", Icons.Default.LibraryMusic, onNavigateToOfflineMusic, accentColor = palette.warning, animationContext = AsciiAnimationContext.Audio) }
+            item { ModuleCard("Utils", Icons.Default.Construction, onNavigateToUtils, accentColor = palette.accent, animationContext = AsciiAnimationContext.UtilsHub) }
+            item { ModuleCard("NFC_Lab", Icons.Default.Nfc, onNavigateToNfcLab, accentColor = palette.accent, animationContext = AsciiAnimationContext.System) }
+            item { ModuleCard("Net_Disc", Icons.Default.CellTower, onNavigateToNetworkDiscovery, accentColor = palette.secondary, animationContext = AsciiAnimationContext.System) }
+            item { ModuleCard("Terminal", Icons.Default.Terminal, onNavigateToTermuxScripts, accentColor = palette.accent, animationContext = AsciiAnimationContext.Text) }
+            item { ModuleCard("Scanner", Icons.Default.Lan, onNavigateToPortScanner, accentColor = palette.warning, animationContext = AsciiAnimationContext.System) }
+            item { ModuleCard("Web_Scan", Icons.Default.ManageSearch, onNavigateToWebScanner, accentColor = palette.danger, animationContext = AsciiAnimationContext.Catalog) }
+            item { ModuleCard("Logs", Icons.Default.History, onNavigateToReports, animationContext = AsciiAnimationContext.Catalog) }
 
             item(span = { GridItemSpan(columns) }) {
                 Spacer(modifier = Modifier.height(16.dp))
@@ -557,12 +576,13 @@ fun ModuleCard(
     name: String, 
     icon: ImageVector, 
     onClick: () -> Unit,
-    accentColor: Color = MaterialTheme.colorScheme.onSurface
+    accentColor: Color = MaterialTheme.colorScheme.onSurface,
+    animationContext: AsciiAnimationContext = AsciiAnimationContext.TemplarSeal
 ) {
     val palette = dashboardPalette()
     Card(
         onClick = onClick,
-        modifier = Modifier.height(88.dp),
+        modifier = Modifier.height(116.dp),
         colors = CardDefaults.cardColors(containerColor = palette.panel),
         border = androidx.compose.foundation.BorderStroke(1.dp, accentColor.copy(alpha = 0.68f)),
         shape = MaterialTheme.shapes.extraSmall
@@ -573,6 +593,10 @@ fun ModuleCard(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text("+---------+", color = accentColor.copy(alpha = 0.55f), fontFamily = FontFamily.Monospace, fontSize = 8.sp, maxLines = 1)
+            AsciiAnimationStrip(
+                spec = AsciiAnimationCatalog.forContext(animationContext),
+                color = accentColor.copy(alpha = 0.46f)
+            )
             Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp), tint = accentColor)
             Spacer(modifier = Modifier.height(4.dp))
             Text(

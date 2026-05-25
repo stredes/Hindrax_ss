@@ -94,7 +94,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.hindrax.ss.domain.ascii.AsciiAnimationCatalog
+import com.hindrax.ss.domain.ascii.AsciiAnimationContext
 import com.hindrax.ss.domain.utils.AsciiAnalogClock
+import com.hindrax.ss.features.ascii.AsciiAnimationPlayer
+import com.hindrax.ss.features.ascii.AsciiAnimationStrip
 import kotlinx.coroutines.delay
 import java.io.File
 import java.util.Locale
@@ -109,7 +113,8 @@ private data class UtilityMenuItem(
     val title: String,
     val category: String,
     val detail: String,
-    val icon: ImageVector
+    val icon: ImageVector,
+    val animationContext: AsciiAnimationContext
 )
 
 private enum class UtilityId {
@@ -131,21 +136,21 @@ private enum class UtilityId {
 }
 
 private val utilityMenuItems = listOf(
-    UtilityMenuItem(UtilityId.Timer, "Temporizador", "Tiempo", "Cuenta regresiva con reloj ASCII.", Icons.Default.HourglassTop),
-    UtilityMenuItem(UtilityId.Stopwatch, "Cronometro", "Tiempo", "Medicion por vueltas.", Icons.Default.Tune),
-    UtilityMenuItem(UtilityId.Notes, "Notas", "Personal", "Nota rapida guardada localmente.", Icons.Default.NoteAlt),
-    UtilityMenuItem(UtilityId.DailyChecklist, "Checklist", "Personal", "Pendientes rapidos del dia.", Icons.Default.Checklist),
-    UtilityMenuItem(UtilityId.Calculator, "Calculadora", "Calculo", "Operaciones y porcentajes.", Icons.Default.Calculate),
-    UtilityMenuItem(UtilityId.UnitConverter, "Conversor", "Calculo", "Peso, distancia y temperatura.", Icons.Default.Straighten),
-    UtilityMenuItem(UtilityId.System, "Sistema movil", "Dispositivo", "Flash, calendario, camara y QR.", Icons.Default.FlashlightOn),
-    UtilityMenuItem(UtilityId.Level, "Nivel", "Medicion", "Inclinacion por acelerometro.", Icons.Default.WaterDrop),
-    UtilityMenuItem(UtilityId.Ruler, "Regla", "Medicion", "Regla visual aproximada.", Icons.Default.Straighten),
-    UtilityMenuItem(UtilityId.VoiceRecorder, "Grabadora", "Audio", "Notas de voz locales.", Icons.Default.Mic),
-    UtilityMenuItem(UtilityId.ShoppingChecklist, "Compras", "Personal", "Lista rapida de compras.", Icons.Default.Checklist),
-    UtilityMenuItem(UtilityId.Budget, "Presupuesto", "Calculo", "Suma simple de gastos.", Icons.Default.Event),
-    UtilityMenuItem(UtilityId.TextConverter, "Texto", "Texto", "Mayusculas, minusculas y conteo.", Icons.Default.TextFields),
-    UtilityMenuItem(UtilityId.RandomPicker, "Aleatorio", "Decision", "Elige una opcion al azar.", Icons.Default.Casino),
-    UtilityMenuItem(UtilityId.Catalog, "Catalogo", "Indice", "Listado completo de utilidades.", Icons.Default.QrCode)
+    UtilityMenuItem(UtilityId.Timer, "Temporizador", "Tiempo", "Cuenta regresiva con reloj ASCII.", Icons.Default.HourglassTop, AsciiAnimationContext.Time),
+    UtilityMenuItem(UtilityId.Stopwatch, "Cronometro", "Tiempo", "Medicion por vueltas.", Icons.Default.Tune, AsciiAnimationContext.Time),
+    UtilityMenuItem(UtilityId.Notes, "Notas", "Personal", "Nota rapida guardada localmente.", Icons.Default.NoteAlt, AsciiAnimationContext.Notes),
+    UtilityMenuItem(UtilityId.DailyChecklist, "Checklist", "Personal", "Pendientes rapidos del dia.", Icons.Default.Checklist, AsciiAnimationContext.Checklist),
+    UtilityMenuItem(UtilityId.Calculator, "Calculadora", "Calculo", "Operaciones y porcentajes.", Icons.Default.Calculate, AsciiAnimationContext.Calculator),
+    UtilityMenuItem(UtilityId.UnitConverter, "Conversor", "Calculo", "Peso, distancia y temperatura.", Icons.Default.Straighten, AsciiAnimationContext.Converter),
+    UtilityMenuItem(UtilityId.System, "Sistema movil", "Dispositivo", "Flash, calendario, camara y QR.", Icons.Default.FlashlightOn, AsciiAnimationContext.System),
+    UtilityMenuItem(UtilityId.Level, "Nivel", "Medicion", "Inclinacion por acelerometro.", Icons.Default.WaterDrop, AsciiAnimationContext.Measure),
+    UtilityMenuItem(UtilityId.Ruler, "Regla", "Medicion", "Regla visual aproximada.", Icons.Default.Straighten, AsciiAnimationContext.Measure),
+    UtilityMenuItem(UtilityId.VoiceRecorder, "Grabadora", "Audio", "Notas de voz locales.", Icons.Default.Mic, AsciiAnimationContext.Audio),
+    UtilityMenuItem(UtilityId.ShoppingChecklist, "Compras", "Personal", "Lista rapida de compras.", Icons.Default.Checklist, AsciiAnimationContext.Checklist),
+    UtilityMenuItem(UtilityId.Budget, "Presupuesto", "Calculo", "Suma simple de gastos.", Icons.Default.Event, AsciiAnimationContext.Calculator),
+    UtilityMenuItem(UtilityId.TextConverter, "Texto", "Texto", "Mayusculas, minusculas y conteo.", Icons.Default.TextFields, AsciiAnimationContext.Text),
+    UtilityMenuItem(UtilityId.RandomPicker, "Aleatorio", "Decision", "Elige una opcion al azar.", Icons.Default.Casino, AsciiAnimationContext.Random),
+    UtilityMenuItem(UtilityId.Catalog, "Catalogo", "Indice", "Listado completo de utilidades.", Icons.Default.QrCode, AsciiAnimationContext.Catalog)
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -228,6 +233,15 @@ private fun DashMenuParaUtils(
             )
         }
 
+        item {
+            ToolCard("ASCII_ROUTER_ANIM", Icons.Default.QrCode) {
+                AsciiAnimationPlayer(
+                    spec = AsciiAnimationCatalog.forContext(AsciiAnimationContext.UtilsHub),
+                    color = scheme.primary
+                )
+            }
+        }
+
         utilityMenuItems.groupBy { it.category }.forEach { (category, items) ->
             item {
                 Text(
@@ -272,7 +286,7 @@ private fun UtilityMenuCard(
         border = BorderStroke(1.dp, scheme.primary.copy(alpha = 0.42f)),
         shape = MaterialTheme.shapes.extraSmall,
         modifier = modifier
-            .height(132.dp)
+            .height(176.dp)
             .clickable(onClick = onClick)
     ) {
         Column(
@@ -298,6 +312,10 @@ private fun UtilityMenuCard(
                     lineHeight = 13.sp
                 )
             }
+            AsciiAnimationPlayer(
+                spec = AsciiAnimationCatalog.forContext(item.animationContext),
+                color = scheme.primary.copy(alpha = 0.72f)
+            )
         }
     }
 }
@@ -350,26 +368,32 @@ private fun UtilityDetailHeader(item: UtilityMenuItem) {
         shape = MaterialTheme.shapes.extraSmall,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.padding(14.dp)
-        ) {
-            Icon(item.icon, contentDescription = null, tint = scheme.primary)
-            Column {
-                Text(
-                    "+-[ ${item.title.uppercase(Locale.ROOT)} ]",
-                    color = scheme.primary,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    item.detail,
-                    color = scheme.onSurface.copy(alpha = 0.7f),
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 12.sp
-                )
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(item.icon, contentDescription = null, tint = scheme.primary)
+                Column {
+                    Text(
+                        "+-[ ${item.title.uppercase(Locale.ROOT)} ]",
+                        color = scheme.primary,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        item.detail,
+                        color = scheme.onSurface.copy(alpha = 0.7f),
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 12.sp
+                    )
+                }
             }
+            Spacer(modifier = Modifier.height(10.dp))
+            AsciiAnimationPlayer(
+                spec = AsciiAnimationCatalog.forContext(item.animationContext),
+                color = scheme.primary.copy(alpha = 0.86f)
+            )
         }
     }
 }
@@ -377,6 +401,7 @@ private fun UtilityDetailHeader(item: UtilityMenuItem) {
 @Composable
 private fun ToolCard(title: String, icon: ImageVector, content: @Composable ColumnScope.() -> Unit) {
     val scheme = MaterialTheme.colorScheme
+    val animationContext = animationContextForToolTitle(title)
     Card(
         colors = CardDefaults.cardColors(containerColor = scheme.surface),
         border = BorderStroke(1.dp, scheme.primary.copy(alpha = 0.45f)),
@@ -388,9 +413,31 @@ private fun ToolCard(title: String, icon: ImageVector, content: @Composable Colu
                 Icon(icon, contentDescription = null, tint = scheme.primary)
                 Text("  +-[ $title ]", color = scheme.primary, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
             }
+            AsciiAnimationStrip(
+                spec = AsciiAnimationCatalog.forContext(animationContext),
+                color = scheme.primary.copy(alpha = 0.52f),
+                modifier = Modifier.padding(top = 6.dp)
+            )
             Spacer(modifier = Modifier.height(10.dp))
             content()
         }
+    }
+}
+
+private fun animationContextForToolTitle(title: String): AsciiAnimationContext {
+    return when {
+        title.contains("TIMER", ignoreCase = true) || title.contains("CRONOMETRO", ignoreCase = true) -> AsciiAnimationContext.Time
+        title.contains("NOTA", ignoreCase = true) -> AsciiAnimationContext.Notes
+        title.contains("CHECKLIST", ignoreCase = true) || title.contains("COMPRAS", ignoreCase = true) -> AsciiAnimationContext.Checklist
+        title.contains("CALCULADORA", ignoreCase = true) || title.contains("PRESUPUESTO", ignoreCase = true) -> AsciiAnimationContext.Calculator
+        title.contains("CONVERSOR_UNIDADES", ignoreCase = true) -> AsciiAnimationContext.Converter
+        title.contains("SISTEMA", ignoreCase = true) -> AsciiAnimationContext.System
+        title.contains("NIVEL", ignoreCase = true) || title.contains("REGLA", ignoreCase = true) -> AsciiAnimationContext.Measure
+        title.contains("GRABADORA", ignoreCase = true) -> AsciiAnimationContext.Audio
+        title.contains("TEXTO", ignoreCase = true) -> AsciiAnimationContext.Text
+        title.contains("ALEATORIO", ignoreCase = true) -> AsciiAnimationContext.Random
+        title.contains("LISTADO", ignoreCase = true) -> AsciiAnimationContext.Catalog
+        else -> AsciiAnimationContext.TemplarSeal
     }
 }
 
