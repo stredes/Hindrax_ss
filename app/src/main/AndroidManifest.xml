@@ -90,6 +90,30 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".widgets.HindraxStatusWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.hindrax.ss.widgets.REFRESH_STATUS" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/hindrax_status_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widgets.HindraxLogisticsWidgetProvider"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.hindrax.ss.widgets.REFRESH_LOGISTICS" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/hindrax_logistics_widget_info" />
+        </receiver>
+
         <service
             android:name=".features.nfc.NfcLabHostApduService"
             android:exported="true"
