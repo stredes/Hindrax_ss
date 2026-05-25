@@ -99,7 +99,7 @@ import com.hindrax.ss.domain.ascii.AsciiAnimationCatalog
 import com.hindrax.ss.domain.ascii.AsciiAnimationContext
 import com.hindrax.ss.domain.utils.AsciiAnalogClock
 import com.hindrax.ss.features.ascii.AsciiAmbientLayer
-import com.hindrax.ss.features.ascii.AsciiAnimationPlayer
+import com.hindrax.ss.features.ascii.AsciiChromeLine
 import kotlinx.coroutines.delay
 import java.io.File
 import java.util.Locale
@@ -366,6 +366,8 @@ private fun UtilityDetailHeader(item: UtilityMenuItem) {
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
+            AsciiChromeLine(color = scheme.primary.copy(alpha = 0.7f))
+            Spacer(modifier = Modifier.height(8.dp))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -386,6 +388,8 @@ private fun UtilityDetailHeader(item: UtilityMenuItem) {
                     )
                 }
             }
+            Spacer(modifier = Modifier.height(8.dp))
+            AsciiChromeLine(color = scheme.primary.copy(alpha = 0.55f))
         }
     }
 }
@@ -400,10 +404,14 @@ private fun ToolCard(title: String, icon: ImageVector, content: @Composable Colu
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
+            AsciiChromeLine(color = scheme.primary.copy(alpha = 0.6f))
+            Spacer(modifier = Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(icon, contentDescription = null, tint = scheme.primary)
                 Text("  +-[ $title ]", color = scheme.primary, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
             }
+            Spacer(modifier = Modifier.height(8.dp))
+            AsciiChromeLine(color = scheme.primary.copy(alpha = 0.38f))
             Spacer(modifier = Modifier.height(10.dp))
             content()
         }

@@ -36,6 +36,7 @@ import com.hindrax.ss.core.util.UpdateStatusMessage
 import com.hindrax.ss.domain.ascii.AsciiAnimationCatalog
 import com.hindrax.ss.domain.ascii.AsciiAnimationContext
 import com.hindrax.ss.features.ascii.AsciiAmbientLayer
+import com.hindrax.ss.features.ascii.AsciiChromeLine
 import com.hindrax.ss.presentation.tasks.AsciiBanners
 
 private data class DashboardPalette(
@@ -515,13 +516,15 @@ private fun NeonAsciiPanel(
                     .background(palette.background)
                     .padding(horizontal = 10.dp, vertical = 6.dp)
             )
+            AsciiChromeLine(
+                color = accent,
+                modifier = Modifier
+                    .background(palette.background)
+                    .padding(horizontal = 10.dp)
+            )
             content()
-            Text(
-                text = "+--------------------------------------------+",
+            AsciiChromeLine(
                 color = palette.grid,
-                fontFamily = FontFamily.Monospace,
-                fontSize = 9.sp,
-                maxLines = 1,
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
             )
         }
@@ -540,13 +543,7 @@ private fun NeonSectionLabel(title: String, meta: String) {
             color = palette.secondary
         )
         Spacer(modifier = Modifier.height(2.dp))
-        Text(
-            text = ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>",
-            fontFamily = FontFamily.Monospace,
-            color = palette.grid,
-            fontSize = 9.sp,
-            maxLines = 1
-        )
+        AsciiChromeLine(color = palette.grid)
     }
 }
 
@@ -585,7 +582,7 @@ fun ModuleCard(
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("+---------+", color = accentColor.copy(alpha = 0.55f), fontFamily = FontFamily.Monospace, fontSize = 8.sp, maxLines = 1)
+            AsciiChromeLine(color = accentColor.copy(alpha = 0.72f))
             Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp), tint = accentColor)
             Spacer(modifier = Modifier.height(4.dp))
             Text(
