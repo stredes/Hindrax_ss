@@ -41,6 +41,9 @@ interface TaskDao {
     @Query("UPDATE tasks SET isDeleted = 1, updatedAt = :updatedAt WHERE id = :id")
     suspend fun softDelete(id: Long, updatedAt: Long)
 
+    @Query("DELETE FROM tasks WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<Long>)
+
     @Insert
     suspend fun insertHistory(history: TaskHistoryEntity)
 

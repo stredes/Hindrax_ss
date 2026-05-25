@@ -121,24 +121,42 @@ class ApiHindraxRemoteSyncRepository @Inject constructor(
     }
 
     private suspend fun syncTasks(): RemoteCollectionSyncResult {
+        val remoteItems = client.listTasks()?.items ?: JSONArray()
+        val applied = applyRemoteTasks(remoteItems)
+        compactLocalTaskDuplicates()
         val local = taskDao.getAllTasksForRemoteSync()
         client.syncTasks(JSONArray().also { array ->
             local.forEach { array.put(it.toApiJson()) }
-        }) ?: return RemoteCollectionSyncResult(success = false, pushed = local.size)
-        val remoteItems = client.listTasks()?.items ?: JSONArray()
-        val applied = applyRemoteTasks(remoteItems)
+        }) ?: return RemoteCollectionSyncResult(success = false, pushed = local.size, pulled = applied)
         return RemoteCollectionSyncResult(success = true, pushed = local.size, pulled = applied)
     }
 
     private suspend fun syncInventory(): RemoteCollectionSyncResult {
+        val remoteItems = client.listInventory()?.items ?: JSONArray()
+        val applied = applyRemoteInventory(remoteItems)
         compactLocalInventoryDuplicates()
         val local = inventoryDao.getAllInventorySync()
         client.syncInventory(JSONArray().also { array ->
             local.forEach { array.put(it.toApiJson()) }
-        }) ?: return RemoteCollectionSyncResult(success = false, pushed = local.size)
-        val remoteItems = client.listInventory()?.items ?: JSONArray()
-        val applied = applyRemoteInventory(remoteItems)
+        }) ?: return RemoteCollectionSyncResult(success = false, pushed = local.size, pulled = applied)
         return RemoteCollectionSyncResult(success = true, pushed = local.size, pulled = applied)
+    }
+
+    private suspend fun compactLocalTaskDuplicates() {
+        val duplicateIds = taskDao.getAllTasksForRemoteSync()
+            .groupBy { it.remoteDuplicateKey() }
+            .values
+            .flatMap { group ->
+                if (group.size <= 1) {
+                    emptyList()
+                } else {
+                    val keep = group.maxWith(compareBy<TaskEntity> { it.updatedAt }.thenBy { it.id })
+                    group.filter { it.id != keep.id }.map { it.id }
+                }
+            }
+        if (duplicateIds.isNotEmpty()) {
+            taskDao.deleteByIds(duplicateIds)
+        }
     }
 
     private suspend fun compactLocalInventoryDuplicates() {
@@ -377,6 +395,31 @@ class ApiHindraxRemoteSyncRepository @Inject constructor(
             put("unit", unit)
             put("updatedAt", updatedAt)
         }
+    }
+
+    private fun TaskEntity.remoteDuplicateKey(): String {
+        return listOf(
+            title.trim().lowercase(),
+            description.trim().lowercase(),
+            status.name,
+            type.name,
+            scheduledTime?.toString().orEmpty(),
+            locationName?.trim()?.lowercase().orEmpty(),
+            latitude?.toString().orEmpty(),
+            longitude?.toString().orEmpty(),
+            quantity?.toString().orEmpty(),
+            unit?.trim()?.lowercase().orEmpty(),
+            assignedPeerId?.trim().orEmpty(),
+            isDeleted.toString(),
+            checklist.joinToString("|") {
+                listOf(
+                    it.text.trim().lowercase(),
+                    it.isChecked.toString(),
+                    it.quantity?.toString().orEmpty(),
+                    it.unit?.trim()?.lowercase().orEmpty()
+                ).joinToString(":")
+            }
+        ).joinToString("||")
     }
 
     private fun ChatMessageEntity.toApiJson(): JSONObject {
