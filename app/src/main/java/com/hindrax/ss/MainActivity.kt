@@ -67,6 +67,7 @@ import com.hindrax.ss.presentation.tasks.TaskListScreen
 import com.hindrax.ss.presentation.inventory.InventoryScreen
 import com.hindrax.ss.presentation.chat.ChatScreen
 import com.hindrax.ss.ui.theme.HindraxTheme
+import com.hindrax.ss.widgets.HindraxWidgetActions
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -98,10 +99,14 @@ class MainActivity : ComponentActivity() {
                         .orEmpty()
                         .isNotBlank()
                 }
+                val widgetStartRoute = remember {
+                    intent.getStringExtra(HindraxWidgetActions.EXTRA_START_ROUTE)
+                        ?.takeIf { it in widgetStartRoutes }
+                }
                 Scaffold { innerPadding ->
                     NavHost(
                         navController = navController,
-                        startDestination = if (hasOpenAiKey) "dashboard" else "openai_startup_key",
+                        startDestination = if (hasOpenAiKey) widgetStartRoute ?: "dashboard" else "openai_startup_key",
                         modifier = Modifier.padding(innerPadding)
                     ) {
                         hindraxComposable("openai_startup_key") {
@@ -314,3 +319,15 @@ private fun routeAsciiContext(route: String): AsciiAnimationContext {
         else -> AsciiAnimationContext.Dashboard
     }
 }
+
+private val widgetStartRoutes = setOf(
+    "dashboard",
+    "tasks_list",
+    "chat",
+    "live_location",
+    "cyd_terminal",
+    "utils",
+    "offline_music",
+    "settings",
+    "inventory"
+)

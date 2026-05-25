@@ -2,6 +2,22 @@
     <string name="app_name">Hindrax_ss</string>
     <string name="widget_status_description">Hindrax node status widget</string>
     <string name="widget_logistics_description">Hindrax logistics inventory widget</string>
+    <string name="widget_tasks_description">Hindrax tasks widget</string>
+    <string name="widget_chat_description">Hindrax chat widget</string>
+    <string name="widget_location_description">Hindrax live location widget</string>
+    <string name="widget_terminal_description">Hindrax terminal widget</string>
+    <string name="widget_utils_description">Hindrax utilities widget</string>
+    <string name="widget_music_description">Hindrax music widget</string>
+    <string name="widget_updates_description">Hindrax updates widget</string>
+    <string name="widget_status_label">Hindrax Status</string>
+    <string name="widget_logistics_label">Hindrax Logistics</string>
+    <string name="widget_tasks_label">Hindrax Tasks</string>
+    <string name="widget_chat_label">Hindrax Chat</string>
+    <string name="widget_location_label">Hindrax Geo</string>
+    <string name="widget_terminal_label">Hindrax Terminal</string>
+    <string name="widget_utils_label">Hindrax Utils</string>
+    <string name="widget_music_label">Hindrax Music</string>
+    <string name="widget_updates_label">Hindrax Updates</string>
     <string name="nfc_lab_hce_service">Hindrax NFC lab NDEF emulator</string>
     <string name="nfc_lab_hce_aid_group">NFC Forum Type 4 NDEF lab profile</string>
 </resources>

@@ -61,6 +61,7 @@ class HindraxLogisticsWidgetProvider : AppWidgetProvider() {
     private fun openAppIntent(context: Context): PendingIntent {
         val intent = Intent(context, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            .putExtra(HindraxWidgetActions.EXTRA_START_ROUTE, "inventory")
         return PendingIntent.getActivity(
             context,
             4200,

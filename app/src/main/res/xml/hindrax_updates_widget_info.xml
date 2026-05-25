@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
-    android:description="@string/widget_status_description"
-    android:initialLayout="@layout/widget_hindrax_status"
+    android:description="@string/widget_updates_description"
+    android:initialLayout="@layout/widget_hindrax_compact"
     android:minWidth="180dp"
     android:minHeight="110dp"
-    android:previewImage="@drawable/ic_widget_status"
+    android:previewImage="@drawable/ic_widget_updates"
     android:resizeMode="horizontal|vertical"
     android:targetCellWidth="3"
     android:targetCellHeight="2"

@@ -92,7 +92,8 @@
 
         <receiver
             android:name=".widgets.HindraxStatusWidgetProvider"
-            android:exported="false">
+            android:exported="false"
+            android:label="@string/widget_status_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="com.hindrax.ss.widgets.REFRESH_STATUS" />
@@ -104,7 +105,8 @@
 
         <receiver
             android:name=".widgets.HindraxLogisticsWidgetProvider"
-            android:exported="false">
+            android:exported="false"
+            android:label="@string/widget_logistics_label">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
                 <action android:name="com.hindrax.ss.widgets.REFRESH_LOGISTICS" />
@@ -112,6 +114,97 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/hindrax_logistics_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widgets.HindraxTasksWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_tasks_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.hindrax.ss.widgets.REFRESH_TASKS" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/hindrax_tasks_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widgets.HindraxChatWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_chat_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.hindrax.ss.widgets.REFRESH_CHAT" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/hindrax_chat_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widgets.HindraxLocationWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_location_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.hindrax.ss.widgets.REFRESH_LOCATION" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/hindrax_location_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widgets.HindraxTerminalWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_terminal_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.hindrax.ss.widgets.REFRESH_TERMINAL" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/hindrax_terminal_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widgets.HindraxUtilsWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_utils_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.hindrax.ss.widgets.REFRESH_UTILS" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/hindrax_utils_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widgets.HindraxMusicWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_music_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.hindrax.ss.widgets.REFRESH_MUSIC" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/hindrax_music_widget_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widgets.HindraxUpdatesWidgetProvider"
+            android:exported="false"
+            android:label="@string/widget_updates_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.hindrax.ss.widgets.REFRESH_UPDATES" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/hindrax_updates_widget_info" />
         </receiver>
 
         <service
