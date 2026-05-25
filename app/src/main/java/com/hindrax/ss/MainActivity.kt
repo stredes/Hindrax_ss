@@ -283,11 +283,13 @@ private fun SectionAmbient(
     val context = routeAsciiContext(route)
     Box(modifier = Modifier.fillMaxSize()) {
         content()
-        AsciiAmbientLayer(
-            spec = AsciiAnimationCatalog.forContext(context),
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.matchParentSize()
-        )
+        if (route != "dashboard" && route != "utils") {
+            AsciiAmbientLayer(
+                spec = AsciiAnimationCatalog.forContext(context),
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.matchParentSize()
+            )
+        }
     }
 }
 
@@ -295,17 +297,18 @@ private fun routeAsciiContext(route: String): AsciiAnimationContext {
     return when {
         route == "dashboard" -> AsciiAnimationContext.Dashboard
         route == "utils" -> AsciiAnimationContext.UtilsHub
-        route.startsWith("tasks_") -> AsciiAnimationContext.Checklist
-        route == "inventory" -> AsciiAnimationContext.Converter
-        route == "chat" || route == "ai_assist" || route == "openai_startup_key" -> AsciiAnimationContext.Text
-        route == "offline_music" -> AsciiAnimationContext.Audio
-        route == "live_location" -> AsciiAnimationContext.Measure
+        route.startsWith("tasks_") -> AsciiAnimationContext.Tasks
+        route == "inventory" -> AsciiAnimationContext.Inventory
+        route == "chat" -> AsciiAnimationContext.Chat
+        route == "ai_assist" || route == "openai_startup_key" -> AsciiAnimationContext.Text
+        route == "offline_music" -> AsciiAnimationContext.Music
+        route == "live_location" -> AsciiAnimationContext.Location
         route == "settings" || route == "profile" || route == "targets" -> AsciiAnimationContext.TemplarSeal
         route == "file_analyzer" || route == "reports" || route.startsWith("session_detail") -> AsciiAnimationContext.Catalog
-        route.startsWith("cyd_") || route.startsWith("termux_") -> AsciiAnimationContext.System
+        route.startsWith("cyd_") || route.startsWith("termux_") -> AsciiAnimationContext.Terminal
         route == "network" || route == "network_discovery" || route == "port_scanner" ||
             route == "banner_grabbing" || route == "dns" || route == "web" || route == "web_scanner" ||
-            route == "nfc_lab" -> AsciiAnimationContext.System
+            route == "nfc_lab" -> AsciiAnimationContext.Network
         route == "apk" || route == "osint" || route == "whois" || route == "metadata" -> AsciiAnimationContext.Catalog
         route == "automation" -> AsciiAnimationContext.System
         else -> AsciiAnimationContext.Dashboard

@@ -26,7 +26,14 @@ enum class AsciiAnimationContext {
     Text,
     Random,
     Catalog,
-    TemplarSeal
+    TemplarSeal,
+    Network,
+    Chat,
+    Inventory,
+    Location,
+    Music,
+    Terminal,
+    Tasks
 }
 
 object AsciiAnimationCatalog {
@@ -46,6 +53,13 @@ object AsciiAnimationCatalog {
             AsciiAnimationContext.Random -> randomSelector
             AsciiAnimationContext.Catalog -> catalogIndex
             AsciiAnimationContext.TemplarSeal -> templarSeal
+            AsciiAnimationContext.Network -> networkSweep
+            AsciiAnimationContext.Chat -> chatStream
+            AsciiAnimationContext.Inventory -> inventoryFlow
+            AsciiAnimationContext.Location -> locationRadar
+            AsciiAnimationContext.Music -> musicDeck
+            AsciiAnimationContext.Terminal -> terminalMatrix
+            AsciiAnimationContext.Tasks -> tasksBoard
         }
     }
 
@@ -285,6 +299,90 @@ object AsciiAnimationCatalog {
              /##\   shield:pulse
              |<>|   blade:scan
             """.trimIndent()
+        )
+    )
+
+    private val networkSweep = AsciiAnimationSpec(
+        key = "network-sweep",
+        label = "NET_SWEEP",
+        frameMillis = 120L,
+        frames = listOf(
+            "node . . .\nlan  [>---]\nport  .. ..",
+            "node .:. .\nlan  [- >-]\nport  :.. .",
+            "node .:.:.\nlan  [--->]\nport  .:.:",
+            "node .:. .\nlan  [- >-]\nport  :.. ."
+        )
+    )
+
+    private val chatStream = AsciiAnimationSpec(
+        key = "chat-stream",
+        label = "CHAT_STREAM",
+        frameMillis = 150L,
+        frames = listOf(
+            "msg[01] --> peer\nsync    .\nthread  open",
+            "msg[01] ---> peer\nsync    :\nthread  open",
+            "msg[02] ----> peer\nsync    ::\nthread  live",
+            "msg[02] ---> peer\nsync    :\nthread  live"
+        )
+    )
+
+    private val inventoryFlow = AsciiAnimationSpec(
+        key = "inventory-flow",
+        label = "ITEM_FLOW",
+        frameMillis = 150L,
+        frames = listOf(
+            "stock [||||]\nitem  +1\nsync  .",
+            "stock [||| ]\nitem  -1\nsync  :",
+            "stock [||||]\nitem  +\nsync  ::",
+            "stock [|||:]\nitem  ok\nsync  :"
+        )
+    )
+
+    private val locationRadar = AsciiAnimationSpec(
+        key = "location-radar",
+        label = "GEO_RADAR",
+        frameMillis = 130L,
+        frames = listOf(
+            "   .   \n --+-- \n   o   ",
+            "  ...  \n --o-- \n   |   ",
+            " .:::.\n --o-- \n  / \\  ",
+            "  ...  \n --o-- \n   |   "
+        )
+    )
+
+    private val musicDeck = AsciiAnimationSpec(
+        key = "music-deck",
+        label = "AUDIO_DECK",
+        frameMillis = 110L,
+        frames = listOf(
+            "[|..] beat\nL == R\nwave .",
+            "[||.] beat\nL => R\nwave :",
+            "[|||] beat\nL == R\nwave ::",
+            "[.||] beat\nL <= R\nwave :"
+        )
+    )
+
+    private val terminalMatrix = AsciiAnimationSpec(
+        key = "terminal-matrix",
+        label = "TERM_MATRIX",
+        frameMillis = 120L,
+        frames = listOf(
+            "$ run\n> .\n[ok]",
+            "$ run\n> :\n[ok]",
+            "$ exec\n> ::\n[ready]",
+            "$ exec\n> :\n[ready]"
+        )
+    )
+
+    private val tasksBoard = AsciiAnimationSpec(
+        key = "tasks-board",
+        label = "TASK_BOARD",
+        frameMillis = 160L,
+        frames = listOf(
+            "[todo] [run ] [done]\n  ^",
+            "[todo] [run ] [done]\n         ^",
+            "[todo] [run ] [done]\n                ^",
+            "[todo] [run ] [done]\n         ^"
         )
     )
 }
