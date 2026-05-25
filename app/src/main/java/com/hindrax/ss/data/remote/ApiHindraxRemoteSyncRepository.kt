@@ -121,25 +121,58 @@ class ApiHindraxRemoteSyncRepository @Inject constructor(
     }
 
     private suspend fun syncTasks(): RemoteCollectionSyncResult {
-        val remoteItems = client.listTasks()?.items ?: JSONArray()
+        val remoteItems = client.listTasks()?.items ?: return RemoteCollectionSyncResult(success = false)
         val applied = applyRemoteTasks(remoteItems)
+        val pruned = pruneLocalTasksNotInRemote(remoteItems)
         compactLocalTaskDuplicates()
-        val local = taskDao.getAllTasksForRemoteSync()
-        client.syncTasks(JSONArray().also { array ->
-            local.forEach { array.put(it.toApiJson()) }
-        }) ?: return RemoteCollectionSyncResult(success = false, pushed = local.size, pulled = applied)
-        return RemoteCollectionSyncResult(success = true, pushed = local.size, pulled = applied)
+        return RemoteCollectionSyncResult(success = true, pushed = 0, pulled = applied + pruned)
     }
 
     private suspend fun syncInventory(): RemoteCollectionSyncResult {
-        val remoteItems = client.listInventory()?.items ?: JSONArray()
+        val remoteItems = client.listInventory()?.items ?: return RemoteCollectionSyncResult(success = false)
         val applied = applyRemoteInventory(remoteItems)
+        val pruned = pruneLocalInventoryNotInRemote(remoteItems)
         compactLocalInventoryDuplicates()
-        val local = inventoryDao.getAllInventorySync()
-        client.syncInventory(JSONArray().also { array ->
-            local.forEach { array.put(it.toApiJson()) }
-        }) ?: return RemoteCollectionSyncResult(success = false, pushed = local.size, pulled = applied)
-        return RemoteCollectionSyncResult(success = true, pushed = local.size, pulled = applied)
+        return RemoteCollectionSyncResult(success = true, pushed = 0, pulled = applied + pruned)
+    }
+
+    private suspend fun pruneLocalTasksNotInRemote(items: JSONArray): Int {
+        val remoteKeys = buildSet {
+            for (index in 0 until items.length()) {
+                val json = items.optJSONObject(index) ?: continue
+                if (json.optBoolean("deleted", false)) continue
+                add(json.remoteTaskDuplicateKey())
+            }
+        }
+        val deleteIds = taskDao.getAllTasksForRemoteSync()
+            .filter { !it.isDeleted }
+            .filter { it.remoteDuplicateKey() !in remoteKeys }
+            .map { it.id }
+        if (deleteIds.isNotEmpty()) {
+            taskDao.deleteByIds(deleteIds)
+        }
+        return deleteIds.size
+    }
+
+    private suspend fun pruneLocalInventoryNotInRemote(items: JSONArray): Int {
+        val remoteKeys = buildSet {
+            for (index in 0 until items.length()) {
+                val json = items.optJSONObject(index) ?: continue
+                if (json.optBoolean("deleted", false)) continue
+                val name = json.optString("name")
+                    .takeIf { it.isNotBlank() }
+                    ?.let(ProductNameNormalizer::displayName)
+                    ?: continue
+                add(ProductNameNormalizer.key(name))
+            }
+        }
+        val deleteIds = inventoryDao.getAllInventorySync()
+            .filter { ProductNameNormalizer.key(it.name) !in remoteKeys }
+            .map { it.id }
+        if (deleteIds.isNotEmpty()) {
+            inventoryDao.deleteByIds(deleteIds)
+        }
+        return deleteIds.size
     }
 
     private suspend fun compactLocalTaskDuplicates() {
@@ -412,6 +445,31 @@ class ApiHindraxRemoteSyncRepository @Inject constructor(
             assignedPeerId?.trim().orEmpty(),
             isDeleted.toString(),
             checklist.joinToString("|") {
+                listOf(
+                    it.text.trim().lowercase(),
+                    it.isChecked.toString(),
+                    it.quantity?.toString().orEmpty(),
+                    it.unit?.trim()?.lowercase().orEmpty()
+                ).joinToString(":")
+            }
+        ).joinToString("||")
+    }
+
+    private fun JSONObject.remoteTaskDuplicateKey(): String {
+        return listOf(
+            optString("title").trim().lowercase(),
+            optString("description", "").trim().lowercase(),
+            optString("status", TaskStatus.PENDIENTE.name),
+            optString("type", TaskType.GENERAL.name),
+            optNullableLong("scheduledTime")?.toString().orEmpty(),
+            optString("locationName", "").trim().lowercase(),
+            optNullableDouble("latitude")?.toString().orEmpty(),
+            optNullableDouble("longitude")?.toString().orEmpty(),
+            optNullableDouble("quantity")?.toString().orEmpty(),
+            optString("unit", "").trim().lowercase(),
+            optString("assignedPeerId", "").trim(),
+            optBoolean("deleted", false).toString(),
+            optChecklist().joinToString("|") {
                 listOf(
                     it.text.trim().lowercase(),
                     it.isChecked.toString(),
