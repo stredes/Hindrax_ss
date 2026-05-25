@@ -28,7 +28,11 @@ fun InventoryScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var showAddItemDialog by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val visibleItems = remember(uiState.items, searchQuery) {
+        uiState.items.filterByLogisticsSearch(searchQuery)
+    }
 
     Scaffold(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -83,6 +87,16 @@ fun InventoryScreen(
                 )
             }
 
+            item {
+                LogisticsSearchBox(
+                    query = searchQuery,
+                    totalItems = uiState.items.size,
+                    visibleItems = visibleItems.size,
+                    onQueryChange = { searchQuery = it },
+                    onClear = { searchQuery = "" }
+                )
+            }
+
             when {
                 uiState.isLoading -> {
                     item {
@@ -107,8 +121,32 @@ fun InventoryScreen(
                     }
                     }
                 }
+                visibleItems.isEmpty() -> {
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 28.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(
+                                Icons.Default.SearchOff,
+                                contentDescription = null,
+                                tint = Color.DarkGray,
+                                modifier = Modifier.size(54.dp)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "SIN_PRODUCTOS_PARA: ${searchQuery.trim()}",
+                                color = Color.Gray,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                }
                 else -> {
-                    items(uiState.items) { item ->
+                    items(visibleItems) { item ->
                         InventoryItemCard(
                             item = item,
                             onUpdateQty = { delta -> viewModel.updateQuantity(item.id, delta) },
@@ -138,6 +176,66 @@ fun InventoryScreen(
                 viewModel.addItem(name, category, minQty, unit)
                 showAddItemDialog = false
             }
+        )
+    }
+}
+
+@Composable
+private fun LogisticsSearchBox(
+    query: String,
+    totalItems: Int,
+    visibleItems: Int,
+    onQueryChange: (String) -> Unit,
+    onClear: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFF101010), MaterialTheme.shapes.extraSmall)
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        OutlinedTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            leadingIcon = {
+                Icon(Icons.Default.Search, contentDescription = null, tint = Color.Cyan)
+            },
+            trailingIcon = {
+                if (query.isNotBlank()) {
+                    IconButton(onClick = onClear) {
+                        Icon(Icons.Default.Close, contentDescription = "Limpiar busqueda", tint = Color.Gray)
+                    }
+                }
+            },
+            label = { Text("BUSCAR_PRODUCTO", fontFamily = FontFamily.Monospace) },
+            placeholder = {
+                Text("nombre / categoria / unidad / cantidad", fontFamily = FontFamily.Monospace)
+            },
+            textStyle = LocalTextStyle.current.copy(
+                fontFamily = FontFamily.Monospace,
+                color = Color.White
+            ),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color.Cyan,
+                unfocusedBorderColor = Color.DarkGray,
+                cursorColor = Color.Cyan,
+                focusedLabelColor = Color.Cyan,
+                unfocusedLabelColor = Color.Gray
+            ),
+            shape = MaterialTheme.shapes.extraSmall
+        )
+        Text(
+            text = if (query.isBlank()) {
+                "PRODUCTOS_INDEXADOS: $totalItems"
+            } else {
+                "RESULTADOS: $visibleItems / $totalItems"
+            },
+            color = if (query.isBlank()) Color.Gray else Color.Cyan,
+            fontFamily = FontFamily.Monospace,
+            fontSize = 10.sp
         )
     }
 }
@@ -295,4 +393,23 @@ fun AddItemDialog(
             }
         }
     )
+}
+
+private fun List<InventoryItem>.filterByLogisticsSearch(query: String): List<InventoryItem> {
+    val terms = query.trim()
+        .lowercase()
+        .split(Regex("\\s+"))
+        .filter { it.isNotBlank() }
+    if (terms.isEmpty()) return this
+
+    return filter { item ->
+        val searchable = buildString {
+            append(item.name).append(' ')
+            append(item.category).append(' ')
+            append(item.unit).append(' ')
+            append(item.currentQuantity).append(' ')
+            append(item.minQuantity)
+        }.lowercase()
+        terms.all { term -> searchable.contains(term) }
+    }
 }
