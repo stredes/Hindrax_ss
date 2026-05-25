@@ -22,10 +22,19 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.GpsFixed
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -57,6 +66,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -188,6 +199,21 @@ fun HindraxProfileScreen(onBack: () -> Unit) {
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))
 
+            RootProfilePanel(
+                uiState = uiState,
+                onRootKeyChange = viewModel::onRootKeyChange,
+                onRootConfirmChange = viewModel::onRootConfirmChange,
+                onUnlock = { viewModel.unlockRoot(context) },
+                onLock = viewModel::lockRoot,
+                onRefreshPeers = { viewModel.refreshRootPeers(context) },
+                onResetLocal = { viewModel.resetLocalDatabase(context) },
+                onResetFirebase = { viewModel.resetFirebaseDatabase(context) },
+                onDeleteLocalPeer = { viewModel.deleteRootPeer(context, it) },
+                onDeleteApiPeer = { viewModel.deleteRootPeerFromApi(context, it) }
+            )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))
+
             ThemeProfilePanel(
                 activeTheme = uiState.activeTheme,
                 savedThemes = uiState.savedThemes,
@@ -199,6 +225,293 @@ fun HindraxProfileScreen(onBack: () -> Unit) {
                 onImportDraftChange = viewModel::onThemeImportDraftChange,
                 onImport = { viewModel.importTheme(context) }
             )
+        }
+    }
+}
+
+@Composable
+private fun RootProfilePanel(
+    uiState: HindraxProfileUiState,
+    onRootKeyChange: (String) -> Unit,
+    onRootConfirmChange: (String) -> Unit,
+    onUnlock: () -> Unit,
+    onLock: () -> Unit,
+    onRefreshPeers: () -> Unit,
+    onResetLocal: () -> Unit,
+    onResetFirebase: () -> Unit,
+    onDeleteLocalPeer: (String) -> Unit,
+    onDeleteApiPeer: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.7f))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Security, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "--- ROOT_ADMIN_MODE ---",
+                color = MaterialTheme.colorScheme.error,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp
+            )
+        }
+
+        if (!uiState.rootUnlocked) {
+            OutlinedTextField(
+                value = uiState.rootKeyDraft,
+                onValueChange = onRootKeyChange,
+                label = { Text("ROOT_KEY", fontFamily = FontFamily.Monospace) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                textStyle = LocalTextStyle.current.copy(
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.onSurface
+                ),
+                shape = MaterialTheme.shapes.extraSmall
+            )
+            Button(
+                onClick = onUnlock,
+                modifier = Modifier.fillMaxWidth().height(48.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = Color.Black
+                ),
+                shape = MaterialTheme.shapes.extraSmall
+            ) {
+                Icon(Icons.Default.LockOpen, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("UNLOCK_ROOT", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+            }
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    onClick = onRefreshPeers,
+                    enabled = !uiState.rootBusy,
+                    modifier = Modifier.weight(1f).height(42.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp),
+                    shape = MaterialTheme.shapes.extraSmall
+                ) {
+                    Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("REFRESH", fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+                }
+                OutlinedButton(
+                    onClick = onLock,
+                    modifier = Modifier.weight(1f).height(42.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp),
+                    shape = MaterialTheme.shapes.extraSmall
+                ) {
+                    Icon(Icons.Default.Lock, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("LOCK", fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+                }
+            }
+
+            RootDangerPanel(
+                confirmDraft = uiState.rootConfirmDraft,
+                busy = uiState.rootBusy,
+                onConfirmChange = onRootConfirmChange,
+                onResetLocal = onResetLocal,
+                onResetFirebase = onResetFirebase
+            )
+
+            RootDevicesPanel(
+                peers = uiState.rootPeers,
+                busy = uiState.rootBusy,
+                onDeleteLocalPeer = onDeleteLocalPeer,
+                onDeleteApiPeer = onDeleteApiPeer
+            )
+        }
+
+        Text(
+            text = "GPS_ROOT_SCOPE: solo muestra ubicacion compartida por dispositivos vinculados/sincronizados.",
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.68f),
+            fontFamily = FontFamily.Monospace,
+            fontSize = 10.sp,
+            lineHeight = 14.sp
+        )
+
+        uiState.rootStatus?.let {
+            Text(
+                text = "ROOT_STATUS: $it",
+                color = if (it.contains("ERROR") || it.contains("DENIED") || it.contains("REQUIRED")) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.primary
+                },
+                fontFamily = FontFamily.Monospace,
+                fontSize = 10.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun RootDangerPanel(
+    confirmDraft: String,
+    busy: Boolean,
+    onConfirmChange: (String) -> Unit,
+    onResetLocal: () -> Unit,
+    onResetFirebase: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.08f))
+            .border(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.45f))
+            .padding(10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                "DANGER_ZONE",
+                color = MaterialTheme.colorScheme.error,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp
+            )
+        }
+        OutlinedTextField(
+            value = confirmDraft,
+            onValueChange = onConfirmChange,
+            label = { Text("TYPE RESET_LOCAL OR RESET_FIREBASE", fontFamily = FontFamily.Monospace) },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            textStyle = LocalTextStyle.current.copy(
+                fontFamily = FontFamily.Monospace,
+                color = MaterialTheme.colorScheme.onSurface
+            ),
+            shape = MaterialTheme.shapes.extraSmall
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(
+                onClick = onResetLocal,
+                enabled = !busy && confirmDraft.trim() == "RESET_LOCAL",
+                modifier = Modifier.weight(1f).height(42.dp),
+                contentPadding = PaddingValues(horizontal = 6.dp),
+                shape = MaterialTheme.shapes.extraSmall
+            ) {
+                Icon(Icons.Default.DeleteForever, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("LOCAL", fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+            }
+            Button(
+                onClick = onResetFirebase,
+                enabled = !busy && confirmDraft.trim() == "RESET_FIREBASE",
+                modifier = Modifier.weight(1f).height(42.dp),
+                contentPadding = PaddingValues(horizontal = 6.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = Color.Black
+                ),
+                shape = MaterialTheme.shapes.extraSmall
+            ) {
+                Icon(Icons.Default.Cloud, contentDescription = null, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("FIREBASE", fontFamily = FontFamily.Monospace, fontSize = 10.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun RootDevicesPanel(
+    peers: List<RootPeerUi>,
+    busy: Boolean,
+    onDeleteLocalPeer: (String) -> Unit,
+    onDeleteApiPeer: (String) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.People, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                "LINKED_DEVICES: ${peers.size}",
+                color = MaterialTheme.colorScheme.primary,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp
+            )
+        }
+        if (peers.isEmpty()) {
+            Text(
+                "NO_LINKED_DEVICES_IN_LOCAL_DB",
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.68f),
+                fontFamily = FontFamily.Monospace,
+                fontSize = 10.sp
+            )
+        }
+        peers.forEach { peer ->
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                modifier = Modifier.fillMaxWidth(),
+                shape = MaterialTheme.shapes.extraSmall
+            ) {
+                Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        peer.displayName,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        "ID=${peer.id} | IP=${peer.ip} | ${if (peer.isOnline) "ONLINE" else "OFFLINE"}",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 9.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.GpsFixed,
+                            contentDescription = null,
+                            tint = if (peer.hasLocation) MaterialTheme.colorScheme.primary else Color.Gray,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            "${peer.locationLabel} | seen=${peer.lastSeenLabel}",
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 9.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        OutlinedButton(
+                            onClick = { onDeleteLocalPeer(peer.id) },
+                            enabled = !busy,
+                            modifier = Modifier.weight(1f).height(36.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp),
+                            shape = MaterialTheme.shapes.extraSmall
+                        ) {
+                            Text("DEL_LOCAL", fontFamily = FontFamily.Monospace, fontSize = 9.sp)
+                        }
+                        OutlinedButton(
+                            onClick = { onDeleteApiPeer(peer.id) },
+                            enabled = !busy,
+                            modifier = Modifier.weight(1f).height(36.dp),
+                            contentPadding = PaddingValues(horizontal = 4.dp),
+                            shape = MaterialTheme.shapes.extraSmall
+                        ) {
+                            Text("DEL_API", fontFamily = FontFamily.Monospace, fontSize = 9.sp)
+                        }
+                    }
+                }
+            }
         }
     }
 }

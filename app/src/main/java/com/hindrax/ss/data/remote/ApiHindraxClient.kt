@@ -60,6 +60,30 @@ class ApiHindraxClient @Inject constructor(
         return response != null
     }
 
+    suspend fun adminResetFirebase(rootKey: String, confirm: String): Boolean? {
+        val config = configStore.load()
+        if (!config.isReady) return null
+        val body = JSONObject().apply {
+            put("rootKey", rootKey)
+            put("confirm", confirm)
+            put("requestedAt", System.currentTimeMillis())
+        }
+        val response = executeJsonPost(config, "/api/v1/admin/reset", body) ?: return false
+        return response.optBoolean("ok", false)
+    }
+
+    suspend fun adminDeleteDevice(rootKey: String, deviceId: String): Boolean? {
+        val config = configStore.load()
+        if (!config.isReady) return null
+        val body = JSONObject().apply {
+            put("rootKey", rootKey)
+            put("deviceId", deviceId)
+            put("requestedAt", System.currentTimeMillis())
+        }
+        val response = executeJsonPost(config, "/api/v1/admin/devices/delete", body) ?: return false
+        return response.optBoolean("ok", false)
+    }
+
     private suspend fun postSync(path: String, items: JSONArray): ApiHindraxSyncResponse? {
         val config = configStore.load()
         if (!config.isReady) return null
