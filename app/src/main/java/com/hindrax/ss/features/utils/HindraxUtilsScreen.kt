@@ -21,6 +21,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -97,8 +98,8 @@ import androidx.core.content.ContextCompat
 import com.hindrax.ss.domain.ascii.AsciiAnimationCatalog
 import com.hindrax.ss.domain.ascii.AsciiAnimationContext
 import com.hindrax.ss.domain.utils.AsciiAnalogClock
+import com.hindrax.ss.features.ascii.AsciiAmbientLayer
 import com.hindrax.ss.features.ascii.AsciiAnimationPlayer
-import com.hindrax.ss.features.ascii.AsciiAnimationStrip
 import kotlinx.coroutines.delay
 import java.io.File
 import java.util.Locale
@@ -159,6 +160,7 @@ fun HindraxUtilsScreen(onBack: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val accent = scheme.primary
     var selectedUtility by remember { mutableStateOf<UtilityMenuItem?>(null) }
+    val ambientContext = selectedUtility?.animationContext ?: AsciiAnimationContext.UtilsHub
 
     Scaffold(
         topBar = {
@@ -189,16 +191,26 @@ fun HindraxUtilsScreen(onBack: () -> Unit) {
             )
         }
     ) { padding ->
-        if (selectedUtility == null) {
-            DashMenuParaUtils(
-                modifier = Modifier.padding(padding),
-                onSelect = { selectedUtility = it }
+        Box(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                .background(scheme.background)
+        ) {
+            AsciiAmbientLayer(
+                spec = AsciiAnimationCatalog.forContext(ambientContext),
+                color = scheme.primary,
+                modifier = Modifier.matchParentSize()
             )
-        } else {
-            UtilityDetailScreen(
-                item = selectedUtility!!,
-                modifier = Modifier.padding(padding)
-            )
+            if (selectedUtility == null) {
+                DashMenuParaUtils(
+                    onSelect = { selectedUtility = it }
+                )
+            } else {
+                UtilityDetailScreen(
+                    item = selectedUtility!!
+                )
+            }
         }
     }
 }
@@ -212,7 +224,6 @@ private fun DashMenuParaUtils(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(scheme.background)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
         contentPadding = PaddingValues(bottom = 28.dp)
@@ -231,15 +242,6 @@ private fun DashMenuParaUtils(
                 fontSize = 12.sp,
                 modifier = Modifier.padding(top = 6.dp)
             )
-        }
-
-        item {
-            ToolCard("ASCII_ROUTER_ANIM", Icons.Default.QrCode) {
-                AsciiAnimationPlayer(
-                    spec = AsciiAnimationCatalog.forContext(AsciiAnimationContext.UtilsHub),
-                    color = scheme.primary
-                )
-            }
         }
 
         utilityMenuItems.groupBy { it.category }.forEach { (category, items) ->
@@ -286,7 +288,7 @@ private fun UtilityMenuCard(
         border = BorderStroke(1.dp, scheme.primary.copy(alpha = 0.42f)),
         shape = MaterialTheme.shapes.extraSmall,
         modifier = modifier
-            .height(176.dp)
+            .height(132.dp)
             .clickable(onClick = onClick)
     ) {
         Column(
@@ -312,10 +314,6 @@ private fun UtilityMenuCard(
                     lineHeight = 13.sp
                 )
             }
-            AsciiAnimationPlayer(
-                spec = AsciiAnimationCatalog.forContext(item.animationContext),
-                color = scheme.primary.copy(alpha = 0.72f)
-            )
         }
     }
 }
@@ -329,7 +327,6 @@ private fun UtilityDetailScreen(
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(scheme.background)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
         contentPadding = PaddingValues(bottom = 28.dp)
@@ -389,11 +386,6 @@ private fun UtilityDetailHeader(item: UtilityMenuItem) {
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(10.dp))
-            AsciiAnimationPlayer(
-                spec = AsciiAnimationCatalog.forContext(item.animationContext),
-                color = scheme.primary.copy(alpha = 0.86f)
-            )
         }
     }
 }
@@ -401,7 +393,6 @@ private fun UtilityDetailHeader(item: UtilityMenuItem) {
 @Composable
 private fun ToolCard(title: String, icon: ImageVector, content: @Composable ColumnScope.() -> Unit) {
     val scheme = MaterialTheme.colorScheme
-    val animationContext = animationContextForToolTitle(title)
     Card(
         colors = CardDefaults.cardColors(containerColor = scheme.surface),
         border = BorderStroke(1.dp, scheme.primary.copy(alpha = 0.45f)),
@@ -413,31 +404,9 @@ private fun ToolCard(title: String, icon: ImageVector, content: @Composable Colu
                 Icon(icon, contentDescription = null, tint = scheme.primary)
                 Text("  +-[ $title ]", color = scheme.primary, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
             }
-            AsciiAnimationStrip(
-                spec = AsciiAnimationCatalog.forContext(animationContext),
-                color = scheme.primary.copy(alpha = 0.52f),
-                modifier = Modifier.padding(top = 6.dp)
-            )
             Spacer(modifier = Modifier.height(10.dp))
             content()
         }
-    }
-}
-
-private fun animationContextForToolTitle(title: String): AsciiAnimationContext {
-    return when {
-        title.contains("TIMER", ignoreCase = true) || title.contains("CRONOMETRO", ignoreCase = true) -> AsciiAnimationContext.Time
-        title.contains("NOTA", ignoreCase = true) -> AsciiAnimationContext.Notes
-        title.contains("CHECKLIST", ignoreCase = true) || title.contains("COMPRAS", ignoreCase = true) -> AsciiAnimationContext.Checklist
-        title.contains("CALCULADORA", ignoreCase = true) || title.contains("PRESUPUESTO", ignoreCase = true) -> AsciiAnimationContext.Calculator
-        title.contains("CONVERSOR_UNIDADES", ignoreCase = true) -> AsciiAnimationContext.Converter
-        title.contains("SISTEMA", ignoreCase = true) -> AsciiAnimationContext.System
-        title.contains("NIVEL", ignoreCase = true) || title.contains("REGLA", ignoreCase = true) -> AsciiAnimationContext.Measure
-        title.contains("GRABADORA", ignoreCase = true) -> AsciiAnimationContext.Audio
-        title.contains("TEXTO", ignoreCase = true) -> AsciiAnimationContext.Text
-        title.contains("ALEATORIO", ignoreCase = true) -> AsciiAnimationContext.Random
-        title.contains("LISTADO", ignoreCase = true) -> AsciiAnimationContext.Catalog
-        else -> AsciiAnimationContext.TemplarSeal
     }
 }
 

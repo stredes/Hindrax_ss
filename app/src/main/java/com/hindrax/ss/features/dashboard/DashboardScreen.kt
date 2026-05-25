@@ -35,8 +35,7 @@ import com.hindrax.ss.R
 import com.hindrax.ss.core.util.UpdateStatusMessage
 import com.hindrax.ss.domain.ascii.AsciiAnimationCatalog
 import com.hindrax.ss.domain.ascii.AsciiAnimationContext
-import com.hindrax.ss.features.ascii.AsciiAnimationPlayer
-import com.hindrax.ss.features.ascii.AsciiAnimationStrip
+import com.hindrax.ss.features.ascii.AsciiAmbientLayer
 import com.hindrax.ss.presentation.tasks.AsciiBanners
 
 private data class DashboardPalette(
@@ -220,166 +219,161 @@ fun DashboardScreen(
             }
         }
     ) { innerPadding ->
-        // Put the ASCII header, update card and status card INSIDE the grid as a single header item
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(columns),
-            horizontalArrangement = Arrangement.spacedBy(if (isTablet) 16.dp else 12.dp),
-            verticalArrangement = Arrangement.spacedBy(if (isTablet) 16.dp else 12.dp),
+        Box(
             modifier = Modifier
                 .padding(innerPadding)
-                .padding(16.dp)
                 .fillMaxSize()
                 .background(palette.background.copy(alpha = 0.35f))
-                .nestedScroll(scrollBehavior.nestedScrollConnection)
         ) {
-            // Header spans all columns so it scrolls with the content
-            item(span = { GridItemSpan(columns) }) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    ResponsiveAsciiBanner(
-                        text = AsciiBanners.HINDRAX_MAIN,
-                        smallestScreenWidthDp = configuration.smallestScreenWidthDp,
-                        color = palette.accent,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    NeonAsciiPanel(
-                        title = "ASCII_ANIM",
-                        accent = palette.accent,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        AsciiAnimationPlayer(
-                            spec = AsciiAnimationCatalog.forContext(AsciiAnimationContext.Dashboard),
+            AsciiAmbientLayer(
+                spec = AsciiAnimationCatalog.forContext(AsciiAnimationContext.Dashboard),
+                color = palette.accent,
+                modifier = Modifier.matchParentSize()
+            )
+            // Put the ASCII header, update card and status card INSIDE the grid as a single header item
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(columns),
+                horizontalArrangement = Arrangement.spacedBy(if (isTablet) 16.dp else 12.dp),
+                verticalArrangement = Arrangement.spacedBy(if (isTablet) 16.dp else 12.dp),
+                modifier = Modifier
+                    .padding(16.dp)
+                    .fillMaxSize()
+                    .nestedScroll(scrollBehavior.nestedScrollConnection)
+            ) {
+                // Header spans all columns so it scrolls with the content
+                item(span = { GridItemSpan(columns) }) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        ResponsiveAsciiBanner(
+                            text = AsciiBanners.HINDRAX_MAIN,
+                            smallestScreenWidthDp = configuration.smallestScreenWidthDp,
                             color = palette.accent,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(12.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    NeonAsciiPanel(
-                        title = "SYSTEM_SIGNAL",
-                        accent = palette.secondary,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        ResponsiveSystemSignal(
-                            currentVersion = currentVersion,
-                            isTablet = isTablet,
                             modifier = Modifier.fillMaxWidth()
                         )
-                    }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = if (uiState.updateAvailable) palette.panelHot else palette.panel),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, if (uiState.updateAvailable) palette.warning else palette.grid),
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                        shape = MaterialTheme.shapes.extraSmall
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                        NeonAsciiPanel(
+                            title = "SYSTEM_SIGNAL",
+                            accent = palette.secondary,
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(Icons.Default.Update, contentDescription = null, tint = if (uiState.updateAvailable) palette.warning else palette.muted)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    if (uiState.updateAvailable) "!! UPDATE_AVAILABLE :: v${uiState.newVersion} !!" else "[ UPDATE_CHANNEL ]",
-                                    color = palette.text,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = if (isTablet) 14.sp else 12.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    uiState.updateInfo?.assetName ?: uiState.updateStatus,
-                                    color = if (uiState.updateAvailable) palette.warning.copy(0.9f) else palette.muted,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = if (isTablet) 12.sp else 10.sp
-                                )
-                                Text(
-                                    "status> ${UpdateStatusMessage.human(uiState.updateStatus)}",
-                                    color = palette.muted,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = if (isTablet) 11.sp else 9.sp
-                                )
-                            }
-                            Button(
-                                onClick = { viewModel.installUpdate() },
-                                enabled = uiState.updateAvailable,
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = palette.warning,
-                                    contentColor = palette.onAccent,
-                                    disabledContainerColor = palette.panel,
-                                    disabledContentColor = palette.muted
-                                ),
-                                shape = MaterialTheme.shapes.extraSmall,
-                                contentPadding = PaddingValues(horizontal = 12.dp)
+                            ResponsiveSystemSignal(
+                                currentVersion = currentVersion,
+                                isTablet = isTablet,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Card(
+                            colors = CardDefaults.cardColors(containerColor = if (uiState.updateAvailable) palette.panelHot else palette.panel),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (uiState.updateAvailable) palette.warning else palette.grid),
+                            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                            shape = MaterialTheme.shapes.extraSmall
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("ACTUALIZAR", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = if (isTablet) 12.sp else 10.sp)
+                                Icon(Icons.Default.Update, contentDescription = null, tint = if (uiState.updateAvailable) palette.warning else palette.muted)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        if (uiState.updateAvailable) "!! UPDATE_AVAILABLE :: v${uiState.newVersion} !!" else "[ UPDATE_CHANNEL ]",
+                                        color = palette.text,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = if (isTablet) 14.sp else 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        uiState.updateInfo?.assetName ?: uiState.updateStatus,
+                                        color = if (uiState.updateAvailable) palette.warning.copy(0.9f) else palette.muted,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = if (isTablet) 12.sp else 10.sp
+                                    )
+                                    Text(
+                                        "status> ${UpdateStatusMessage.human(uiState.updateStatus)}",
+                                        color = palette.muted,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = if (isTablet) 11.sp else 9.sp
+                                    )
+                                }
+                                Button(
+                                    onClick = { viewModel.installUpdate() },
+                                    enabled = uiState.updateAvailable,
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = palette.warning,
+                                        contentColor = palette.onAccent,
+                                        disabledContainerColor = palette.panel,
+                                        disabledContentColor = palette.muted
+                                    ),
+                                    shape = MaterialTheme.shapes.extraSmall,
+                                    contentPadding = PaddingValues(horizontal = 12.dp)
+                                ) {
+                                    Text("ACTUALIZAR", fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = if (isTablet) 12.sp else 10.sp)
+                                }
                             }
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                    NeonAsciiPanel(
-                        title = "NODE_STATUS",
-                        accent = palette.accent,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            StatusItem(label = "NET_ADDR", value = uiState.localIp, icon = Icons.Default.Info)
-                            StatusItem(
-                                label = "API_HINDRAX",
-                                value = uiState.apiHindraxStatus,
-                                icon = Icons.Default.CloudSync,
-                                color = when (uiState.apiHindraxStatus) {
-                                    "ONLINE" -> palette.accent
-                                    "CONFIG_PENDING" -> palette.warning
-                                    else -> palette.muted
-                                }
-                            )
-                            StatusItem(
-                                label = "TERMUX",
-                                value = if (uiState.isTermuxInstalled) "READY" else "OFFLINE",
-                                icon = Icons.Default.Terminal,
-                                color = if (uiState.isTermuxInstalled) palette.accent else palette.danger
-                            )
-                            StatusItem(label = "VERSION", value = "v$currentVersion", icon = Icons.Default.Fingerprint, color = palette.secondary)
+                        NeonAsciiPanel(
+                            title = "NODE_STATUS",
+                            accent = palette.accent,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                StatusItem(label = "NET_ADDR", value = uiState.localIp, icon = Icons.Default.Info)
+                                StatusItem(
+                                    label = "API_HINDRAX",
+                                    value = uiState.apiHindraxStatus,
+                                    icon = Icons.Default.CloudSync,
+                                    color = when (uiState.apiHindraxStatus) {
+                                        "ONLINE" -> palette.accent
+                                        "CONFIG_PENDING" -> palette.warning
+                                        else -> palette.muted
+                                    }
+                                )
+                                StatusItem(
+                                    label = "TERMUX",
+                                    value = if (uiState.isTermuxInstalled) "READY" else "OFFLINE",
+                                    icon = Icons.Default.Terminal,
+                                    color = if (uiState.isTermuxInstalled) palette.accent else palette.danger
+                                )
+                                StatusItem(label = "VERSION", value = "v$currentVersion", icon = Icons.Default.Fingerprint, color = palette.secondary)
+                            }
                         }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        NeonSectionLabel("CORE_MODULES", "FAST_ACCESS")
+
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    NeonSectionLabel("CORE_MODULES", "FAST_ACCESS")
-
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
-            }
 
-            item { ModuleCard("Automation", Icons.Default.Bolt, onNavigateToAutomation, accentColor = palette.accent, animationContext = AsciiAnimationContext.System) }
-            item { ModuleCard("AI_Assist", Icons.Default.Psychology, onNavigateToAiAssist, accentColor = palette.accent, animationContext = AsciiAnimationContext.Text) }
-            item { ModuleCard("Profile", Icons.Default.Person, onNavigateToProfile, accentColor = palette.accent, animationContext = AsciiAnimationContext.TemplarSeal) }
-            item { ModuleCard("File_Analyzer", Icons.Default.FolderOpen, onNavigateToFileAnalyzer, accentColor = palette.secondary, animationContext = AsciiAnimationContext.Catalog) }
-            item { ModuleCard("Missions", Icons.Default.Assignment, onNavigateToTasks, accentColor = palette.warning, animationContext = AsciiAnimationContext.Checklist) }
-            item { ModuleCard("Logistics", Icons.Default.Inventory, onNavigateToInventory, accentColor = palette.secondary, animationContext = AsciiAnimationContext.Converter) }
-            item { ModuleCard("CYD_Link", Icons.Default.DeveloperBoard, onNavigateToCydConnect, accentColor = palette.danger, animationContext = AsciiAnimationContext.System) }
-            item { ModuleCard("Mesh Chat", Icons.Default.Chat, onNavigateToChat, accentColor = palette.text, animationContext = AsciiAnimationContext.Text) }
-            item { ModuleCard("Geo_Live", Icons.Default.MyLocation, onNavigateToLiveLocation, accentColor = palette.secondary, animationContext = AsciiAnimationContext.Measure) }
-            item { ModuleCard("Offline_Music", Icons.Default.LibraryMusic, onNavigateToOfflineMusic, accentColor = palette.warning, animationContext = AsciiAnimationContext.Audio) }
-            item { ModuleCard("Utils", Icons.Default.Construction, onNavigateToUtils, accentColor = palette.accent, animationContext = AsciiAnimationContext.UtilsHub) }
-            item { ModuleCard("NFC_Lab", Icons.Default.Nfc, onNavigateToNfcLab, accentColor = palette.accent, animationContext = AsciiAnimationContext.System) }
-            item { ModuleCard("Net_Disc", Icons.Default.CellTower, onNavigateToNetworkDiscovery, accentColor = palette.secondary, animationContext = AsciiAnimationContext.System) }
-            item { ModuleCard("Terminal", Icons.Default.Terminal, onNavigateToTermuxScripts, accentColor = palette.accent, animationContext = AsciiAnimationContext.Text) }
-            item { ModuleCard("Scanner", Icons.Default.Lan, onNavigateToPortScanner, accentColor = palette.warning, animationContext = AsciiAnimationContext.System) }
-            item { ModuleCard("Web_Scan", Icons.Default.ManageSearch, onNavigateToWebScanner, accentColor = palette.danger, animationContext = AsciiAnimationContext.Catalog) }
-            item { ModuleCard("Logs", Icons.Default.History, onNavigateToReports, animationContext = AsciiAnimationContext.Catalog) }
+                item { ModuleCard("Automation", Icons.Default.Bolt, onNavigateToAutomation, accentColor = palette.accent) }
+                item { ModuleCard("AI_Assist", Icons.Default.Psychology, onNavigateToAiAssist, accentColor = palette.accent) }
+                item { ModuleCard("Profile", Icons.Default.Person, onNavigateToProfile, accentColor = palette.accent) }
+                item { ModuleCard("File_Analyzer", Icons.Default.FolderOpen, onNavigateToFileAnalyzer, accentColor = palette.secondary) }
+                item { ModuleCard("Missions", Icons.Default.Assignment, onNavigateToTasks, accentColor = palette.warning) }
+                item { ModuleCard("Logistics", Icons.Default.Inventory, onNavigateToInventory, accentColor = palette.secondary) }
+                item { ModuleCard("CYD_Link", Icons.Default.DeveloperBoard, onNavigateToCydConnect, accentColor = palette.danger) }
+                item { ModuleCard("Mesh Chat", Icons.Default.Chat, onNavigateToChat, accentColor = palette.text) }
+                item { ModuleCard("Geo_Live", Icons.Default.MyLocation, onNavigateToLiveLocation, accentColor = palette.secondary) }
+                item { ModuleCard("Offline_Music", Icons.Default.LibraryMusic, onNavigateToOfflineMusic, accentColor = palette.warning) }
+                item { ModuleCard("Utils", Icons.Default.Construction, onNavigateToUtils, accentColor = palette.accent) }
+                item { ModuleCard("NFC_Lab", Icons.Default.Nfc, onNavigateToNfcLab, accentColor = palette.accent) }
+                item { ModuleCard("Net_Disc", Icons.Default.CellTower, onNavigateToNetworkDiscovery, accentColor = palette.secondary) }
+                item { ModuleCard("Terminal", Icons.Default.Terminal, onNavigateToTermuxScripts, accentColor = palette.accent) }
+                item { ModuleCard("Scanner", Icons.Default.Lan, onNavigateToPortScanner, accentColor = palette.warning) }
+                item { ModuleCard("Web_Scan", Icons.Default.ManageSearch, onNavigateToWebScanner, accentColor = palette.danger) }
+                item { ModuleCard("Logs", Icons.Default.History, onNavigateToReports) }
 
-            item(span = { GridItemSpan(columns) }) {
-                Spacer(modifier = Modifier.height(16.dp))
+                item(span = { GridItemSpan(columns) }) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
             }
         }
     }
@@ -576,13 +570,12 @@ fun ModuleCard(
     name: String, 
     icon: ImageVector, 
     onClick: () -> Unit,
-    accentColor: Color = MaterialTheme.colorScheme.onSurface,
-    animationContext: AsciiAnimationContext = AsciiAnimationContext.TemplarSeal
+    accentColor: Color = MaterialTheme.colorScheme.onSurface
 ) {
     val palette = dashboardPalette()
     Card(
         onClick = onClick,
-        modifier = Modifier.height(116.dp),
+        modifier = Modifier.height(88.dp),
         colors = CardDefaults.cardColors(containerColor = palette.panel),
         border = androidx.compose.foundation.BorderStroke(1.dp, accentColor.copy(alpha = 0.68f)),
         shape = MaterialTheme.shapes.extraSmall
@@ -593,10 +586,6 @@ fun ModuleCard(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text("+---------+", color = accentColor.copy(alpha = 0.55f), fontFamily = FontFamily.Monospace, fontSize = 8.sp, maxLines = 1)
-            AsciiAnimationStrip(
-                spec = AsciiAnimationCatalog.forContext(animationContext),
-                color = accentColor.copy(alpha = 0.46f)
-            )
             Icon(icon, contentDescription = null, modifier = Modifier.size(24.dp), tint = accentColor)
             Spacer(modifier = Modifier.height(4.dp))
             Text(
